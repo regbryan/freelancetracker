@@ -1,0 +1,190 @@
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select'
+
+export interface TimeEntryFormData {
+  projectId: string
+  description: string
+  hours: number
+  date: string
+  billable: boolean
+}
+
+interface TimeEntryFormProps {
+  projectId?: string
+  projects?: { id: string; name: string }[]
+  onSave: (data: TimeEntryFormData) => Promise<void>
+}
+
+function todayISO(): string {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+export default function TimeEntryForm({ projectId, projects, onSave }: TimeEntryFormProps) {
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? '')
+  const [description, setDescription] = useState('')
+  const [hours, setHours] = useState('')
+  const [date, setDate] = useState(todayISO)
+  const [billable, setBillable] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const resolvedProjectId = projectId ?? selectedProjectId
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!resolvedProjectId || !description || !hours) return
+    setSaving(true)
+    try {
+      // Round up to nearest 0.25 hour (15 min) increment
+      const rawHours = Number(hours)
+      const roundedHours = Math.ceil(rawHours * 4) / 4
+      await onSave({
+        projectId: resolvedProjectId,
+        description,
+        hours: roundedHours,
+        date,
+        billable,
+      })
+      // Reset form after successful save
+      setDescription('')
+      setHours('')
+      setDate(todayISO())
+      setBillable(true)
+      if (!projectId) setSelectedProjectId('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-surface rounded-[14px] shadow-card p-4"
+    >
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Project Select — only when no fixed projectId */}
+        {!projectId && projects && (
+          <div className="flex flex-col gap-1 min-w-[160px]">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Project
+            </label>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="h-9 text-[12px]">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Description */}
+        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Description
+          </label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What did you work on?"
+            required
+            className="h-9 text-[12px]"
+          />
+        </div>
+
+        {/* Hours */}
+        <div className="flex flex-col gap-1 w-[80px]">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Hours
+          </label>
+          <Input
+            type="number"
+            min="0.25"
+            step="0.25"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            placeholder="0.0"
+            required
+            className="h-9 text-[12px]"
+          />
+        </div>
+
+        {/* Date */}
+        <div className="flex flex-col gap-1 w-[140px]">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Date
+          </label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 text-[12px]"
+          />
+        </div>
+
+        {/* Billable Toggle */}
+        <div className="flex flex-col gap-1 items-center w-[60px]">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Billable
+          </label>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={billable}
+            onClick={() => setBillable(!billable)}
+            className={`h-9 w-9 rounded-[10px] border transition-colors flex items-center justify-center ${
+              billable
+                ? 'bg-accent border-accent text-white'
+                : 'bg-input-bg border-border text-text-muted'
+            }`}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              className={billable ? 'opacity-100' : 'opacity-30'}
+            >
+              <path
+                d="M11.5 3.5L5.5 10L2.5 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Submit */}
+        <Button
+          type="submit"
+          variant="gradient"
+          size="sm"
+          disabled={saving || !resolvedProjectId || !description || !hours}
+          className="h-9"
+        >
+          <Plus size={14} />
+          {saving ? 'Adding...' : 'Add'}
+        </Button>
+      </div>
+    </form>
+  )
+}

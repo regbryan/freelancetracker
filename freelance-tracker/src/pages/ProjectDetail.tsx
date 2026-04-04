@@ -1,0 +1,428 @@
+import { useState, useMemo } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { ArrowLeft, Plus, Loader2, Download } from 'lucide-react'
+import { useProject } from '../hooks/useProjects'
+import { useTimeEntries } from '../hooks/useTimeEntries'
+import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
+import { supabase } from '../lib/supabase'
+import { useCommunications } from '../hooks/useCommunications'
+import Timer from '../components/Timer'
+import TimeEntryForm from '../components/TimeEntryForm'
+import TimeEntryList from '../components/TimeEntryList'
+import InvoiceBuilder from '../components/InvoiceBuilder'
+import EmailComposer from '../components/EmailComposer'
+import CommunicationFeed from '../components/CommunicationFeed'
+import EmailSyncButton from '../components/EmailSyncButton'
+import { generateInvoicePDF } from '../components/InvoicePDF'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  active: { label: 'Active', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  completed: { label: 'Completed', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  on_hold: { label: 'On Hold', bg: 'bg-status-hold-bg', text: 'text-status-hold-text' },
+  cancelled: { label: 'Cancelled', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+}
+
+const INVOICE_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  draft: { label: 'Draft', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  sent: { label: 'Sent', bg: 'bg-status-scheduled-bg', text: 'text-status-scheduled-text' },
+  paid: { label: 'Paid', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  overdue: { label: 'Overdue', bg: 'bg-negative-bg', text: 'text-negative' },
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '--'
+  const d = new Date(iso + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export default function ProjectDetail() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+
+  const { project, loading: projectLoading, error: projectError } = useProject(id)
+  const {
+    entries,
+    loading: entriesLoading,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+    refetch: refetchEntries,
+  } = useTimeEntries(id)
+  const invoiceFilters = useMemo(() => ({ projectId: id }), [id])
+  const { invoices, loading: invoicesLoading, refetch: invoicesRefetch } = useInvoices(invoiceFilters)
+  const { communications, loading: commsLoading, refetch: refetchComms } = useCommunications(id)
+
+  const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
+
+  async function handleDownloadPDF(invoice: Invoice) {
+    if (!project) return
+    try {
+      // Fetch invoice items
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id)
+
+      const clientInfo = {
+        id: project.clients?.id ?? '',
+        name: project.clients?.name ?? 'Client',
+        email: project.clients?.email,
+        company: project.clients?.company,
+      }
+
+      const doc = generateInvoicePDF(
+        invoice,
+        (items as InvoiceItem[]) ?? [],
+        project,
+        clientInfo,
+      )
+      doc.save(`${invoice.invoice_number}.pdf`)
+    } catch (err) {
+      console.error('Failed to generate PDF:', err)
+    }
+  }
+
+  // Compute summary stats from entries
+  const totalHours = entries.reduce((sum, e) => sum + e.hours, 0)
+  const billableHours = entries.filter((e) => e.billable).reduce((sum, e) => sum + e.hours, 0)
+  const rate = project?.hourly_rate ?? 0
+  const unbilledEntries = entries.filter((e) => e.billable && !e.invoice_id)
+  const unbilledHours = unbilledEntries.reduce((sum, e) => sum + e.hours, 0)
+  const unbilledAmount = unbilledHours * rate
+
+  async function handleTimerSave(data: {
+    projectId: string
+    description: string
+    hours: number
+    date: string
+  }) {
+    await createEntry({
+      project_id: data.projectId,
+      description: data.description,
+      hours: data.hours,
+      date: data.date,
+      billable: true,
+      invoice_id: null,
+    })
+  }
+
+  async function handleTimeEntrySave(data: {
+    projectId: string
+    description: string
+    hours: number
+    date: string
+    billable: boolean
+  }) {
+    await createEntry({
+      project_id: data.projectId,
+      description: data.description,
+      hours: data.hours,
+      date: data.date,
+      billable: data.billable,
+      invoice_id: null,
+    })
+  }
+
+  function handleEditEntry(entry: {
+    id: string
+    projectId: string
+    description: string
+    hours: number
+    date: string
+    billable: boolean
+  }) {
+    // For now, simple prompt-based edit for description
+    const newDesc = window.prompt('Edit description:', entry.description)
+    if (newDesc !== null && newDesc !== entry.description) {
+      updateEntry(entry.id, { description: newDesc }).then(() => refetchEntries())
+    }
+  }
+
+  async function handleDeleteEntry(entryId: string) {
+    const confirmed = window.confirm('Delete this time entry?')
+    if (!confirmed) return
+    await deleteEntry(entryId)
+  }
+
+  if (projectLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
+        <Loader2 size={28} className="animate-spin text-accent" />
+        <p className="text-[13px] font-medium">Loading project...</p>
+      </div>
+    )
+  }
+
+  if (projectError || !project) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
+        <p className="text-[13px] font-medium text-negative">
+          {projectError ?? 'Project not found'}
+        </p>
+        <button
+          onClick={() => navigate('/projects')}
+          className="text-accent text-[13px] hover:underline"
+        >
+          Back to Projects
+        </button>
+      </div>
+    )
+  }
+
+  const status = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.active
+
+  // Map entries to the shape TimeEntryList expects
+  const listEntries = entries.map((e) => ({
+    id: e.id,
+    projectId: e.project_id,
+    description: e.description ?? '',
+    hours: e.hours,
+    date: e.date,
+    billable: e.billable,
+  }))
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Back button */}
+      <button
+        onClick={() => navigate('/projects')}
+        className="flex items-center gap-1 text-accent text-[13px] font-medium hover:underline w-fit"
+      >
+        <ArrowLeft size={14} />
+        Back to Projects
+      </button>
+
+      {/* Project header */}
+      <div className="bg-surface rounded-[14px] shadow-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px]">
+              {project.name}
+            </h2>
+            <div className="flex items-center gap-3 mt-1">
+              {project.clients && (
+                <Link
+                  to={`/clients/${project.clients.id}`}
+                  className="text-accent text-[13px] hover:underline"
+                >
+                  {project.clients.name}
+                </Link>
+              )}
+              <span className={`${status.bg} ${status.text} text-[10px] font-semibold px-2 py-0.5 rounded-full`}>
+                {status.label}
+              </span>
+            </div>
+          </div>
+
+          {project.hourly_rate != null && (
+            <div className="text-right shrink-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                Hourly Rate
+              </p>
+              <p className="text-text-primary text-[16px] font-bold">
+                ${project.hourly_rate.toFixed(2)}/hr
+              </p>
+            </div>
+          )}
+        </div>
+
+        {project.description && (
+          <p className="text-text-secondary text-[13px] mt-3 pt-3 border-t border-border leading-relaxed">
+            {project.description}
+          </p>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="time">
+        <TabsList>
+          <TabsTrigger value="time" className="text-[12px]">
+            Time Tracking
+          </TabsTrigger>
+          <TabsTrigger value="communications" className="text-[12px]">
+            Communications
+          </TabsTrigger>
+          <TabsTrigger value="invoices" className="text-[12px]">
+            Invoices
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Time Tracking Tab */}
+        <TabsContent value="time">
+          <div className="flex flex-col gap-4">
+            {/* Timer */}
+            <Timer projectId={id} onSave={handleTimerSave} />
+
+            {/* Manual entry form */}
+            <TimeEntryForm projectId={id} onSave={handleTimeEntrySave} />
+
+            {/* Summary stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Total Hours
+                </p>
+                <p className="text-text-primary text-[20px] font-bold mt-1">
+                  {totalHours.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Billable Hours
+                </p>
+                <p className="text-text-primary text-[20px] font-bold mt-1">
+                  {billableHours.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Unbilled Amount
+                </p>
+                <p className="text-accent text-[20px] font-bold mt-1">
+                  ${unbilledAmount.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Time entries list */}
+            <TimeEntryList
+              entries={listEntries}
+              onEdit={handleEditEntry}
+              onDelete={handleDeleteEntry}
+              loading={entriesLoading}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Communications Tab */}
+        <TabsContent value="communications">
+          <div className="flex flex-col gap-4">
+            {/* Sync button */}
+            {project.clients?.email && (
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  Email Communications
+                </p>
+                <EmailSyncButton
+                  projectId={id!}
+                  clientEmail={project.clients.email}
+                  onSynced={refetchComms}
+                />
+              </div>
+            )}
+
+            {/* Email composer */}
+            {project.clients?.email && (
+              <EmailComposer
+                projectId={id!}
+                clientEmail={project.clients.email}
+                onSent={refetchComms}
+              />
+            )}
+
+            {/* Communication feed */}
+            <CommunicationFeed
+              communications={communications}
+              loading={commsLoading}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Invoices Tab */}
+        <TabsContent value="invoices">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                Project Invoices
+              </p>
+              <button
+                onClick={() => setInvoiceBuilderOpen(true)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                <Plus size={12} />
+                Generate Invoice
+              </button>
+            </div>
+
+            <InvoiceBuilder
+              open={invoiceBuilderOpen}
+              onOpenChange={setInvoiceBuilderOpen}
+              projectId={id!}
+              onCreated={() => invoicesRefetch()}
+            />
+
+            {invoicesLoading ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-accent" />
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <p className="text-text-muted text-[13px]">No invoices yet for this project.</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead>
+                      <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
+                        <th className="text-left px-5 py-3">Invoice #</th>
+                        <th className="text-center px-3 py-3">Status</th>
+                        <th className="text-right px-3 py-3">Amount</th>
+                        <th className="text-left px-3 py-3">Issued</th>
+                        <th className="text-left px-3 py-3">Due</th>
+                        <th className="text-right px-5 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map((invoice) => {
+                        const invStatus = INVOICE_STATUS_CONFIG[invoice.status] ?? INVOICE_STATUS_CONFIG.draft
+                        return (
+                          <tr
+                            key={invoice.id}
+                            className="border-b border-border/50 last:border-0 hover:bg-input-bg/50 transition-colors"
+                          >
+                            <td className="px-5 py-3 text-text-primary text-[12px] font-semibold">
+                              {invoice.invoice_number}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <span
+                                className={`${invStatus.bg} ${invStatus.text} inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold`}
+                              >
+                                {invStatus.label}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-text-primary text-[12px] font-bold text-right">
+                              ${invoice.total.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-3 text-text-muted text-[12px]">
+                              {formatDate(invoice.issued_date)}
+                            </td>
+                            <td className="px-3 py-3 text-text-muted text-[12px]">
+                              {formatDate(invoice.due_date)}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <button
+                                onClick={() => handleDownloadPDF(invoice)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
+                                title="Download PDF"
+                              >
+                                <Download size={12} />
+                                PDF
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

@@ -1,0 +1,708 @@
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Loader2,
+  MapPin,
+  Clock,
+  Eye,
+  EyeOff,
+  Pencil,
+  Check,
+} from 'lucide-react'
+
+/* ── Types ──────────────────────────────────────────────── */
+interface CalendarEvent {
+  id: string
+  title: string
+  start: string
+  end: string
+  allDay: boolean
+  location: string
+  description: string
+  source: 'google' | 'microsoft'
+  calendarName: string
+  color: string
+}
+
+interface CalendarInfo {
+  key: string
+  name: string
+  source: 'google' | 'microsoft'
+  color: string
+  count: number
+}
+
+type View = 'month' | 'week' | 'day'
+
+/* ── Helpers ────────────────────────────────────────────── */
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+function startOfWeek(d: Date) {
+  const r = new Date(d)
+  r.setDate(r.getDate() - r.getDay())
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
+function addDays(d: Date, n: number) {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+
+function fmtTime(s: string) {
+  return new Date(s).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function hourLabel(h: number) {
+  if (h === 0) return '12 AM'
+  if (h < 12) return `${h} AM`
+  if (h === 12) return '12 PM'
+  return `${h - 12} PM`
+}
+
+/* ── Component ──────────────────────────────────────────── */
+export default function Calendar() {
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [view, setView] = useState<View>('month')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [visibility, setVisibility] = useState<Record<string, boolean>>({})
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+
+  // Calendar customizations (persisted in localStorage)
+  type CalOverrides = Record<string, { name?: string; color?: string }>
+  const [calOverrides, setCalOverrides] = useState<CalOverrides>(() => {
+    try {
+      const raw = localStorage.getItem('calendar_overrides')
+      if (raw) return JSON.parse(raw)
+    } catch { /* ignore */ }
+    return {}
+  })
+  const [editingCalKey, setEditingCalKey] = useState<string | null>(null)
+
+  function saveCalOverride(key: string, overrides: { name?: string; color?: string }) {
+    setCalOverrides((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], ...overrides } }
+      localStorage.setItem('calendar_overrides', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
+
+  /* ── Fetch events ─────────────────────────────────────── */
+  const loadEvents = useCallback(async () => {
+    if (!apiUrl) {
+      setLoading(false)
+      setError('Calendar API not configured. Set VITE_CALENDAR_API_URL in your .env file.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const rangeStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+      const rangeEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0)
+      const res = await fetch(
+        `${apiUrl}/api/events?start=${rangeStart.toISOString()}&end=${rangeEnd.toISOString()}`
+      )
+      if (!res.ok) throw new Error(`API returned ${res.status}`)
+      const data = await res.json()
+      const fetched: CalendarEvent[] = data.events || []
+
+      setEvents(fetched)
+      setVisibility((prev) => {
+        const next = { ...prev }
+        fetched.forEach((e) => {
+          const key = `${e.source}::${e.calendarName}`
+          if (!(key in next)) next[key] = true
+        })
+        return next
+      })
+      setError(null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load events')
+    } finally {
+      setLoading(false)
+    }
+  }, [apiUrl, currentDate])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
+
+  /* ── Derived data ─────────────────────────────────────── */
+  const filtered = useMemo(
+    () => events
+      .filter((e) => visibility[`${e.source}::${e.calendarName}`] !== false)
+      .map((e) => {
+        const key = `${e.source}::${e.calendarName}`
+        const overrides = calOverrides[key]
+        if (overrides?.color) return { ...e, color: overrides.color }
+        return e
+      }),
+    [events, visibility, calOverrides]
+  )
+
+  const calendars = useMemo<CalendarInfo[]>(() => {
+    const map = new Map<string, CalendarInfo>()
+    events.forEach((e) => {
+      const key = `${e.source}::${e.calendarName}`
+      const overrides = calOverrides[key]
+      if (!map.has(key)) map.set(key, {
+        key,
+        name: overrides?.name || e.calendarName,
+        source: e.source,
+        color: overrides?.color || e.color,
+        count: 0,
+      })
+      map.get(key)!.count++
+    })
+    return Array.from(map.values()).sort((a, b) =>
+      a.source !== b.source ? (a.source === 'google' ? -1 : 1) : a.name.localeCompare(b.name)
+    )
+  }, [events, calOverrides])
+
+  const eventsOn = useCallback(
+    (day: Date) => filtered.filter((e) => isSameDay(new Date(e.start), day)),
+    [filtered]
+  )
+
+  const eventsAtHour = useCallback(
+    (day: Date, h: number) =>
+      filtered.filter((e) => {
+        const s = new Date(e.start)
+        return isSameDay(s, day) && s.getHours() === h && !e.allDay
+      }),
+    [filtered]
+  )
+
+  const allDayOn = useCallback(
+    (day: Date) => filtered.filter((e) => isSameDay(new Date(e.start), day) && e.allDay),
+    [filtered]
+  )
+
+  /* ── Navigation ───────────────────────────────────────── */
+  function navigate(dir: number) {
+    setCurrentDate((prev) => {
+      const d = new Date(prev)
+      if (view === 'month') d.setMonth(d.getMonth() + dir)
+      else if (view === 'week') d.setDate(d.getDate() + dir * 7)
+      else d.setDate(d.getDate() + dir)
+      return d
+    })
+  }
+
+  const headerLabel = useMemo(() => {
+    if (view === 'month') return currentDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    if (view === 'week') {
+      const ws = startOfWeek(currentDate)
+      const we = addDays(ws, 6)
+      return `${ws.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${we.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+    }
+    return currentDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  }, [currentDate, view])
+
+  /* ── Toggle helpers ───────────────────────────────────── */
+  function toggleCal(key: string) {
+    setVisibility((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  function toggleAll(on: boolean) {
+    setVisibility((prev) => {
+      const next = { ...prev }
+      calendars.forEach((c) => (next[c.key] = on))
+      return next
+    })
+  }
+
+  /* ── Render helpers ───────────────────────────────────── */
+  const today = new Date()
+
+  function EventChip({ event, compact }: { event: CalendarEvent; compact?: boolean }) {
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
+        className={`w-full text-left rounded px-1.5 py-0.5 text-[11px] leading-tight truncate cursor-pointer hover:opacity-80 transition-opacity ${compact ? '' : 'mb-0.5'}`}
+        style={{ borderLeft: `3px solid ${event.color}`, background: `${event.color}15` }}
+      >
+        {event.title}
+      </button>
+    )
+  }
+
+  function TimeEvent({ event }: { event: CalendarEvent }) {
+    return (
+      <button
+        onClick={() => setSelectedEvent(event)}
+        className="w-full text-left rounded px-2 py-1 text-[12px] mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+        style={{ borderLeft: `3px solid ${event.color}`, background: `${event.color}18` }}
+      >
+        <span className="font-semibold text-text-primary">{event.title}</span>
+        <span className="text-text-muted ml-1.5 text-[10px]">{fmtTime(event.start)}</span>
+      </button>
+    )
+  }
+
+  /* ── Month View ───────────────────────────────────────── */
+  function MonthView() {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const sw = startOfWeek(firstDay)
+    const cells = Array.from({ length: 42 }, (_, i) => addDays(sw, i))
+
+    return (
+      <div className="flex-1 overflow-auto">
+        <div className="grid grid-cols-7 border-b border-border">
+          {DAY_NAMES.map((d) => (
+            <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 flex-1">
+          {cells.map((day, i) => {
+            const isToday = isSameDay(day, today)
+            const isCurMonth = day.getMonth() === month
+            const dayEvents = eventsOn(day)
+            return (
+              <div
+                key={i}
+                className={`min-h-[100px] border-b border-r border-border/50 p-1 cursor-pointer hover:bg-input-bg/50 transition-colors ${
+                  !isCurMonth ? 'opacity-30' : ''
+                } ${isToday ? 'bg-accent/5' : ''}`}
+                onClick={() => { setCurrentDate(new Date(day)); setView('day') }}
+              >
+                <span
+                  className={`inline-flex items-center justify-center text-[12px] mb-0.5 ${
+                    isToday
+                      ? 'w-6 h-6 rounded-full bg-accent text-white font-bold'
+                      : 'text-text-primary font-medium'
+                  }`}
+                >
+                  {day.getDate()}
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  {dayEvents.slice(0, 3).map((ev) => (
+                    <EventChip key={ev.id} event={ev} compact />
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <span className="text-[10px] text-text-muted px-1">+{dayEvents.length - 3} more</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Week View ────────────────────────────────────────── */
+  function WeekView() {
+    const ws = startOfWeek(currentDate)
+    const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i))
+    const hours = Array.from({ length: 24 }, (_, i) => i)
+
+    return (
+      <div className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border sticky top-0 bg-surface z-10">
+          <div className="border-r border-border" />
+          {days.map((d, i) => {
+            const isToday = isSameDay(d, today)
+            return (
+              <div key={i} className={`px-2 py-2 text-center border-r border-border/50 ${isToday ? 'bg-accent/5' : ''}`}>
+                <p className={`text-[11px] font-semibold ${isToday ? 'text-accent' : 'text-text-muted'}`}>
+                  {DAY_NAMES[d.getDay()]}
+                </p>
+                <p className={`text-[14px] font-bold ${isToday ? 'text-accent' : 'text-text-primary'}`}>
+                  {d.getDate()}
+                </p>
+                {allDayOn(d).map((ev) => (
+                  <EventChip key={ev.id} event={ev} />
+                ))}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Time rows */}
+        {hours.map((h) => (
+          <div key={h} className="grid grid-cols-[60px_repeat(7,1fr)] min-h-[48px]">
+            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border">
+              {hourLabel(h)}
+            </div>
+            {days.map((d, i) => (
+              <div key={i} className="border-b border-r border-border/30 p-0.5 min-h-[48px]">
+                {eventsAtHour(d, h).map((ev) => (
+                  <TimeEvent key={ev.id} event={ev} />
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  /* ── Day View ─────────────────────────────────────────── */
+  function DayView() {
+    const hours = Array.from({ length: 24 }, (_, i) => i)
+    const allDay = allDayOn(currentDate)
+
+    return (
+      <div className="flex-1 overflow-auto">
+        {allDay.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-input-bg/30">
+            <span className="text-[11px] text-text-muted font-medium w-[52px] text-right">All day</span>
+            <div className="flex flex-wrap gap-1">
+              {allDay.map((ev) => (
+                <EventChip key={ev.id} event={ev} />
+              ))}
+            </div>
+          </div>
+        )}
+        {hours.map((h) => (
+          <div key={h} className="grid grid-cols-[60px_1fr] min-h-[48px]">
+            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border">
+              {hourLabel(h)}
+            </div>
+            <div className="border-b border-border/30 p-1 min-h-[48px]">
+              {eventsAtHour(currentDate, h).map((ev) => (
+                <TimeEvent key={ev.id} event={ev} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  /* ── Event Detail Modal ───────────────────────────────── */
+  function EventModal() {
+    if (!selectedEvent) return null
+    const ev = selectedEvent
+    const isGoogle = ev.source === 'google'
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+        onClick={() => setSelectedEvent(null)}
+      >
+        <div
+          className="bg-surface rounded-2xl shadow-lg p-6 w-[420px] max-w-[90vw]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <h2 className="text-text-primary text-[18px] font-bold leading-tight pr-4">{ev.title}</h2>
+            <button
+              onClick={() => setSelectedEvent(null)}
+              className="text-text-muted hover:text-text-primary text-[18px] shrink-0"
+            >
+              &times;
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 text-[13px]">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-text-muted shrink-0" />
+              <span className="text-text-secondary">
+                {ev.allDay
+                  ? new Date(ev.start).toLocaleDateString()
+                  : `${new Date(ev.start).toLocaleString()} – ${new Date(ev.end).toLocaleTimeString()}`}
+              </span>
+            </div>
+
+            {ev.location && (
+              <div className="flex items-center gap-2">
+                <MapPin size={14} className="text-text-muted shrink-0" />
+                <span className="text-text-secondary">{ev.location}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <CalendarIcon size={14} className="text-text-muted shrink-0" />
+              <span
+                className="inline-block px-2 py-0.5 rounded text-[12px] font-medium"
+                style={{
+                  background: isGoogle ? '#E8F5E9' : '#E3F2FD',
+                  color: isGoogle ? '#2E7D32' : '#1565C0',
+                }}
+              >
+                {isGoogle ? 'Google' : 'Outlook'} &mdash; {ev.calendarName}
+              </span>
+            </div>
+
+            {ev.description && (
+              <p className="text-text-secondary text-[13px] leading-relaxed whitespace-pre-wrap border-t border-border pt-3 mt-1">
+                {ev.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Sidebar (calendar list) ──────────────────────────── */
+  function CalendarSidebar() {
+    const googleCals = calendars.filter((c) => c.source === 'google')
+    const msCals = calendars.filter((c) => c.source === 'microsoft')
+    const visCount = calendars.filter((c) => visibility[c.key] !== false).length
+
+    return (
+      <div className="w-[220px] bg-surface border-l border-border p-4 overflow-y-auto shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-text-primary text-[13px] font-bold">My Calendars</span>
+          <span className="text-text-muted text-[11px]">{visCount}/{calendars.length}</span>
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => toggleAll(true)} className="text-accent text-[11px] font-medium hover:underline">
+            Show all
+          </button>
+          <span className="text-border text-[11px]">&middot;</span>
+          <button onClick={() => toggleAll(false)} className="text-accent text-[11px] font-medium hover:underline">
+            Hide all
+          </button>
+        </div>
+
+        {googleCals.length > 0 && (
+          <CalSection label="Google Calendar" icon="G" iconBg="#34A853" calendars={googleCals} />
+        )}
+        {msCals.length > 0 && (
+          <CalSection label="Outlook" icon="M" iconBg="#0078D4" calendars={msCals} />
+        )}
+        {calendars.length === 0 && (
+          <div className="text-center py-6">
+            <CalendarIcon size={20} className="text-text-muted mx-auto mb-2" />
+            <p className="text-text-muted text-[12px]">No calendars connected.</p>
+            <a
+              href="/settings"
+              className="text-accent text-[11px] font-semibold hover:underline mt-1 inline-block"
+            >
+              Connect in Settings →
+            </a>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const COLOR_PRESETS = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#0078D4', '#8B5CF6', '#EC4899', '#F97316', '#14B8A6', '#6366F1']
+
+  function CalSection({
+    label,
+    icon,
+    iconBg,
+    calendars: cals,
+  }: {
+    label: string
+    icon: string
+    iconBg: string
+    calendars: CalendarInfo[]
+  }) {
+    const visCount = cals.filter((c) => visibility[c.key] !== false).length
+    return (
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <div
+            className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+            style={{ background: iconBg }}
+          >
+            {icon}
+          </div>
+          <span className="text-text-primary text-[12px] font-semibold flex-1">{label}</span>
+          <span className="text-text-muted text-[10px]">{visCount}/{cals.length}</span>
+        </div>
+        {cals.map((c) => {
+          const on = visibility[c.key] !== false
+          const isEditing = editingCalKey === c.key
+          return (
+            <div key={c.key}>
+              <div className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-input-bg transition-colors group">
+                <button
+                  onClick={() => toggleCal(c.key)}
+                  className="w-4 h-4 rounded-sm flex items-center justify-center shrink-0 text-[10px] font-bold"
+                  style={{
+                    background: on ? c.color : 'transparent',
+                    border: `2px solid ${c.color}`,
+                    color: on ? '#fff' : 'transparent',
+                  }}
+                >
+                  {on ? '✓' : ''}
+                </button>
+                <button
+                  onClick={() => toggleCal(c.key)}
+                  className="text-text-primary text-[12px] flex-1 truncate text-left"
+                >
+                  {c.name}
+                </button>
+                <button
+                  onClick={() => setEditingCalKey(isEditing ? null : c.key)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-border transition-all shrink-0"
+                  title="Edit calendar"
+                >
+                  {isEditing ? <Check size={10} className="text-accent" /> : <Pencil size={10} className="text-text-muted" />}
+                </button>
+                <span className="text-text-muted text-[10px] bg-input-bg px-1.5 py-0.5 rounded-full">{c.count}</span>
+              </div>
+
+              {/* Inline edit panel */}
+              {isEditing && (
+                <div className="mx-2 mb-2 p-2.5 bg-input-bg/60 rounded-lg flex flex-col gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Display Name</label>
+                    <input
+                      type="text"
+                      defaultValue={c.name}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim()
+                        if (val && val !== c.name) saveCalOverride(c.key, { name: val })
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value.trim()
+                          if (val) saveCalOverride(c.key, { name: val })
+                          setEditingCalKey(null)
+                        }
+                      }}
+                      className="w-full mt-1 h-7 px-2 bg-surface rounded text-[11px] text-text-primary border border-border outline-none focus:ring-1 focus:ring-accent/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Color</label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => saveCalOverride(c.key, { color })}
+                          className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                          style={{
+                            background: color,
+                            borderColor: c.color === color ? '#fff' : color,
+                            boxShadow: c.color === color ? `0 0 0 2px ${color}` : 'none',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  /* ── Main Render ──────────────────────────────────────── */
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <p className="font-semibold text-[11px] text-accent tracking-[1.5px] uppercase">Schedule</p>
+          <h2 className="font-bold text-[20px] text-text-primary tracking-[-0.3px] mt-1">Calendar</h2>
+        </div>
+      </div>
+
+      {/* Calendar Card */}
+      <div className="bg-surface rounded-[16px] shadow-card overflow-hidden flex" style={{ height: 'calc(100vh - 200px)' }}>
+        {/* Main Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setCurrentDate(new Date()) }}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-input-bg text-text-primary hover:bg-border transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+              >
+                <ChevronLeft size={16} className="text-text-secondary" />
+              </button>
+              <button
+                onClick={() => navigate(1)}
+                className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+              >
+                <ChevronRight size={16} className="text-text-secondary" />
+              </button>
+              <span className="text-text-primary text-[15px] font-semibold ml-2">{headerLabel}</span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {(['month', 'week', 'day'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                    view === v
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
+                  }`}
+                >
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+              <div className="w-px h-5 bg-border mx-1" />
+              <button
+                onClick={() => setSidebarOpen((p) => !p)}
+                className={`p-1.5 rounded-lg transition-colors ${sidebarOpen ? 'bg-accent/10 text-accent' : 'hover:bg-input-bg text-text-muted'}`}
+              >
+                {sidebarOpen ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 flex-1">
+              <Loader2 size={28} className="animate-spin text-accent" />
+              <p className="text-text-muted text-[13px]">Loading calendar...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-3 flex-1 px-8">
+              <CalendarIcon size={32} className="text-text-muted" />
+              <p className="text-text-secondary text-[13px] text-center max-w-md">{error}</p>
+              {apiUrl && (
+                <button
+                  onClick={loadEvents}
+                  className="mt-2 px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent text-white hover:bg-accent/90 transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {view === 'month' && <MonthView />}
+              {view === 'week' && <WeekView />}
+              {view === 'day' && <DayView />}
+            </>
+          )}
+        </div>
+
+        {/* Calendar Sidebar */}
+        {sidebarOpen && <CalendarSidebar />}
+      </div>
+
+      {/* Event Modal */}
+      <EventModal />
+    </div>
+  )
+}
