@@ -19,6 +19,14 @@ interface InvoiceDefaults {
   notesTemplate: string
 }
 
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 0) return ''
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`
+}
+
 const PROFILE_KEY = 'freelancer_profile'
 const DEFAULTS_KEY = 'invoice_defaults'
 
@@ -282,9 +290,10 @@ export default function Settings() {
             <Input
               id="prof-phone"
               type="tel"
-              placeholder="+1 (555) 000-0000"
+              placeholder="(555) 000-0000"
               value={profile.phone}
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+              maxLength={14}
+              onChange={(e) => setProfile({ ...profile, phone: formatPhone(e.target.value) })}
             />
           </div>
 
