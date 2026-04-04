@@ -262,35 +262,45 @@ export default function Calendar() {
 
     return (
       <div className="flex-1 overflow-auto">
+        {/* Day name headers */}
         <div className="grid grid-cols-7 border-b border-border">
-          {DAY_NAMES.map((d) => (
-            <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+          {DAY_NAMES.map((d, i) => (
+            <div
+              key={d}
+              className={`px-2 py-2 text-center text-[11px] font-semibold text-text-muted uppercase tracking-wider ${
+                i > 0 ? 'border-l border-border' : ''
+              }`}
+            >
               {d}
             </div>
           ))}
         </div>
+        {/* Date cells – 6 rows of 7 */}
         <div className="grid grid-cols-7 flex-1">
           {cells.map((day, i) => {
             const isToday = isSameDay(day, today)
             const isCurMonth = day.getMonth() === month
             const dayEvents = eventsOn(day)
+            const col = i % 7
             return (
               <div
                 key={i}
-                className={`min-h-[100px] border-b border-r border-border/50 p-1 cursor-pointer hover:bg-input-bg/50 transition-colors ${
-                  !isCurMonth ? 'opacity-30' : ''
-                } ${isToday ? 'bg-accent/5' : ''}`}
+                className={`min-h-[100px] border-b border-border p-1.5 cursor-pointer hover:bg-input-bg/50 transition-colors ${
+                  col > 0 ? 'border-l border-border' : ''
+                } ${!isCurMonth ? 'opacity-30' : ''} ${isToday ? 'bg-accent/5' : ''}`}
                 onClick={() => { setCurrentDate(new Date(day)); setView('day') }}
               >
-                <span
-                  className={`inline-flex items-center justify-center text-[12px] mb-0.5 ${
-                    isToday
-                      ? 'w-6 h-6 rounded-full bg-accent text-white font-bold'
-                      : 'text-text-primary font-medium'
-                  }`}
-                >
-                  {day.getDate()}
-                </span>
+                <div className="flex items-center justify-center mb-1">
+                  <span
+                    className={`inline-flex items-center justify-center w-7 h-7 text-[13px] rounded-full ${
+                      isToday
+                        ? 'bg-accent text-white font-bold'
+                        : 'text-text-primary font-medium'
+                    }`}
+                  >
+                    {day.getDate()}
+                  </span>
+                </div>
                 <div className="flex flex-col gap-0.5">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <EventChip key={ev.id} event={ev} compact />
@@ -321,7 +331,7 @@ export default function Calendar() {
           {days.map((d, i) => {
             const isToday = isSameDay(d, today)
             return (
-              <div key={i} className={`px-2 py-2 text-center border-r border-border/50 ${isToday ? 'bg-accent/5' : ''}`}>
+              <div key={i} className={`px-2 py-2 text-center ${i < 6 ? 'border-r border-border' : ''} ${isToday ? 'bg-accent/5' : ''}`}>
                 <p className={`text-[11px] font-semibold ${isToday ? 'text-accent' : 'text-text-muted'}`}>
                   {DAY_NAMES[d.getDay()]}
                 </p>
@@ -338,12 +348,12 @@ export default function Calendar() {
 
         {/* Time rows */}
         {hours.map((h) => (
-          <div key={h} className="grid grid-cols-[60px_repeat(7,1fr)] min-h-[48px]">
-            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border">
+          <div key={h} className="grid grid-cols-[60px_repeat(7,1fr)] min-h-[48px] border-b border-border">
+            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border leading-[48px]">
               {hourLabel(h)}
             </div>
             {days.map((d, i) => (
-              <div key={i} className="border-b border-r border-border/30 p-0.5 min-h-[48px]">
+              <div key={i} className={`p-0.5 min-h-[48px] ${i < 6 ? 'border-r border-border' : ''}`}>
                 {eventsAtHour(d, h).map((ev) => (
                   <TimeEvent key={ev.id} event={ev} />
                 ))}
@@ -373,11 +383,11 @@ export default function Calendar() {
           </div>
         )}
         {hours.map((h) => (
-          <div key={h} className="grid grid-cols-[60px_1fr] min-h-[48px]">
-            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border">
+          <div key={h} className="grid grid-cols-[60px_1fr] min-h-[48px] border-b border-border">
+            <div className="text-right pr-2 pt-0.5 text-[10px] text-text-muted border-r border-border leading-[48px]">
               {hourLabel(h)}
             </div>
-            <div className="border-b border-border/30 p-1 min-h-[48px]">
+            <div className="p-1 min-h-[48px]">
               {eventsAtHour(currentDate, h).map((ev) => (
                 <TimeEvent key={ev.id} event={ev} />
               ))}
