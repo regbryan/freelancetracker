@@ -102,20 +102,40 @@ export default function Settings() {
 
   // Toast feedback
   const [toast, setToast] = useState<ToastState>({ section: '', visible: false })
+  const [profileSaved, setProfileSaved] = useState(false)
+  const [defaultsSaved, setDefaultsSaved] = useState(false)
 
   function showToast(section: string) {
     setToast({ section, visible: true })
-    setTimeout(() => setToast({ section: '', visible: false }), 2000)
+    if (section === 'profile') {
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 3000)
+    }
+    if (section === 'defaults') {
+      setDefaultsSaved(true)
+      setTimeout(() => setDefaultsSaved(false), 3000)
+    }
+    setTimeout(() => setToast({ section: '', visible: false }), 3000)
   }
 
   function handleSaveProfile() {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
-    showToast('profile')
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+      showToast('profile')
+    } catch (err) {
+      console.error('Failed to save profile:', err)
+      alert('Failed to save profile. Please try again.')
+    }
   }
 
   function handleSaveDefaults() {
-    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaults))
-    showToast('defaults')
+    try {
+      localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaults))
+      showToast('defaults')
+    } catch (err) {
+      console.error('Failed to save defaults:', err)
+      alert('Failed to save defaults. Please try again.')
+    }
   }
 
   return (
@@ -283,8 +303,13 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="flex justify-end mt-4">
-          <Button size="sm" variant="gradient" onClick={handleSaveProfile}>
+        <div className="flex items-center justify-end gap-3 mt-4">
+          {profileSaved && (
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-status-active-bg text-status-active-text animate-pulse">
+              <Check size={14} /> Profile Saved!
+            </span>
+          )}
+          <Button type="button" size="sm" variant="gradient" onClick={handleSaveProfile}>
             <Save size={12} />
             Save Profile
           </Button>
@@ -550,8 +575,13 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="flex justify-end mt-4">
-          <Button size="sm" variant="gradient" onClick={handleSaveDefaults}>
+        <div className="flex items-center justify-end gap-3 mt-4">
+          {defaultsSaved && (
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-status-active-bg text-status-active-text animate-pulse">
+              <Check size={14} /> Defaults Saved!
+            </span>
+          )}
+          <Button type="button" size="sm" variant="gradient" onClick={handleSaveDefaults}>
             <Save size={12} />
             Save Defaults
           </Button>
