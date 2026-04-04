@@ -6,8 +6,8 @@ import type { Project } from '@/hooks/useProjects'
 interface ClientInfo {
   id: string
   name: string
-  email?: string
-  company?: string
+  email?: string | null
+  company?: string | null
 }
 
 /**
