@@ -5,7 +5,7 @@ export interface ExpenseRow {
   amount: number
   date: string
   category: string
-  receiptUrl?: string | null
+  receiptUrl?: string
 }
 
 interface ExpenseListProps {

@@ -37,7 +37,7 @@ export default function Expenses() {
     amount: e.amount,
     date: e.date,
     category: e.category,
-    receiptUrl: e.receipt_url,
+    receiptUrl: e.receipt_url ?? undefined,
   }))
 
   // Apply filters
