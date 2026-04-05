@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Plus, Download, ChevronDown, X, Eye } from 'lucide-react'
+import { Plus, Download, ChevronDown, X, Eye, CreditCard, Link2, Check } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import type { Invoice, InvoiceItem } from '../hooks/useInvoices'
 import { supabase } from '../lib/supabase'
@@ -172,6 +172,50 @@ export default function Invoices() {
     },
     [updateInvoiceStatus],
   )
+
+  const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleGetPayLink = useCallback(async (invoice: Invoice) => {
+    const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
+    if (!apiUrl) {
+      alert('Payment API not configured')
+      return
+    }
+
+    setPaymentLoading(invoice.id)
+    try {
+      const clientEmail = invoice.projects?.clients?.name // We don't have email in the join, just name
+      const res = await fetch(`${apiUrl}/api/create-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
+          amount: invoice.total,
+          clientEmail: undefined,
+          returnUrl: window.location.origin + '/invoices',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create payment link')
+
+      // Copy payment URL to clipboard
+      await navigator.clipboard.writeText(data.url)
+      setCopiedId(invoice.id)
+      setTimeout(() => setCopiedId(null), 3000)
+
+      // Also update the invoice with the payment URL
+      await supabase
+        .from('invoices')
+        .update({ payment_url: data.url })
+        .eq('id', invoice.id)
+    } catch (err) {
+      alert(`Failed to create payment link: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setPaymentLoading(null)
+    }
+  }, [])
 
   return (
     <div className="flex flex-col gap-5">
@@ -360,6 +404,26 @@ export default function Invoices() {
                           >
                             <Download size={12} className="text-text-muted" />
                           </button>
+                          {(inv.status === 'sent' || inv.status === 'overdue') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleGetPayLink(inv)
+                              }}
+                              disabled={paymentLoading === inv.id}
+                              className="p-1.5 rounded hover:bg-border transition-colors"
+                              aria-label="Get payment link"
+                              title={copiedId === inv.id ? 'Link copied!' : 'Get pay link'}
+                            >
+                              {paymentLoading === inv.id ? (
+                                <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
+                              ) : copiedId === inv.id ? (
+                                <Check size={12} className="text-status-active-text" />
+                              ) : (
+                                <CreditCard size={12} className="text-accent" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

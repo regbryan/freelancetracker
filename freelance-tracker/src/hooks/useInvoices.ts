@@ -25,6 +25,7 @@ export interface Invoice {
   notes: string | null;
   due_date: string | null;
   issued_date: string | null;
+  payment_url: string | null;
   created_at: string;
   projects?: {
     id: string;

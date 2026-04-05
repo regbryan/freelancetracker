@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check } from 'lucide-react'
 import { useProject } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
@@ -68,6 +68,8 @@ export default function ProjectDetail() {
   const { categories: expenseCategories } = useExpenseCategories()
 
   const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
+  const [copiedPayId, setCopiedPayId] = useState<string | null>(null)
   const [expenseFormOpen, setExpenseFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -184,6 +186,40 @@ export default function ProjectDetail() {
       })
     }
   }, [editingExpense, createExpense, updateExpense, id])
+
+  const handleGetPayLink = useCallback(async (invoice: Invoice) => {
+    const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
+    if (!apiUrl) return
+
+    setPaymentLoading(invoice.id)
+    try {
+      const res = await fetch(`${apiUrl}/api/create-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
+          amount: invoice.total,
+          returnUrl: window.location.origin + '/invoices',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create payment link')
+
+      await navigator.clipboard.writeText(data.url)
+      setCopiedPayId(invoice.id)
+      setTimeout(() => setCopiedPayId(null), 3000)
+
+      await supabase
+        .from('invoices')
+        .update({ payment_url: data.url })
+        .eq('id', invoice.id)
+    } catch (err) {
+      alert(`Failed to create payment link: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setPaymentLoading(null)
+    }
+  }, [])
 
   async function handleTimerSave(data: {
     projectId: string
@@ -574,14 +610,33 @@ export default function ProjectDetail() {
                               {formatDate(invoice.due_date)}
                             </td>
                             <td className="px-5 py-3 text-right">
-                              <button
-                                onClick={() => handleDownloadPDF(invoice)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
-                                title="Download PDF"
-                              >
-                                <Download size={12} />
-                                PDF
-                              </button>
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={() => handleDownloadPDF(invoice)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
+                                  title="Download PDF"
+                                >
+                                  <Download size={12} />
+                                  PDF
+                                </button>
+                                {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                                  <button
+                                    onClick={() => handleGetPayLink(invoice)}
+                                    disabled={paymentLoading === invoice.id}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-colors"
+                                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                                    title={copiedPayId === invoice.id ? 'Link copied!' : 'Get pay link'}
+                                  >
+                                    {paymentLoading === invoice.id ? (
+                                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : copiedPayId === invoice.id ? (
+                                      <><Check size={12} /> Copied</>
+                                    ) : (
+                                      <><CreditCard size={12} /> Pay</>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )
