@@ -94,6 +94,8 @@ function storeToken(accessToken: string, expiresIn: number): void {
 
 export function initGmailAuth(): Promise<string> {
   return new Promise((resolve, reject) => {
+    alert('DEBUG: CLIENT_ID = ' + (CLIENT_ID || 'EMPTY/UNDEFINED') + '\nScopes: ' + SCOPES + '\nGIS loaded: ' + !!window.google?.accounts?.oauth2);
+
     if (!window.google?.accounts?.oauth2) {
       reject(new Error('Google Identity Services library not loaded. Make sure the GIS script tag is in index.html.'));
       return;
