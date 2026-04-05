@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Loader2,
   FolderOpen,
+  Copy,
 } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
@@ -79,6 +80,21 @@ export default function Projects() {
   const openNewForm = () => {
     setEditingProject(null)
     setFormOpen(true)
+  }
+
+  const handleCloneProject = async (project: typeof projects[0]) => {
+    try {
+      await createProject({
+        client_id: project.client_id,
+        name: `${project.name} (Copy)`,
+        description: project.description,
+        status: 'active',
+        type: project.type,
+        hourly_rate: project.hourly_rate,
+      })
+    } catch (err) {
+      console.error('Failed to clone project:', err)
+    }
   }
 
   const filteredProjects = useMemo(() => {
@@ -379,7 +395,19 @@ export default function Projects() {
                     {status.label}
                   </span>
                 </div>
-                <ChevronRight size={11} className="text-text-muted" />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCloneProject(project)
+                    }}
+                    className="p-1 rounded hover:bg-border transition-colors"
+                    title="Clone project"
+                  >
+                    <Copy size={11} className="text-text-muted" />
+                  </button>
+                  <ChevronRight size={11} className="text-text-muted" />
+                </div>
               </div>
             </div>
           )
