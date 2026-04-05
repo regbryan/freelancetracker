@@ -1,15 +1,21 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt } from 'lucide-react'
 import { useProject } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
+import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
+import type { Expense } from '../hooks/useExpenses'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
 import Timer from '../components/Timer'
 import TimeEntryForm from '../components/TimeEntryForm'
 import TimeEntryList from '../components/TimeEntryList'
 import InvoiceBuilder from '../components/InvoiceBuilder'
+import ExpenseForm from '../components/ExpenseForm'
+import type { ExpenseFormData } from '../components/ExpenseForm'
+import ExpenseList from '../components/ExpenseList'
+import type { ExpenseRow } from '../components/ExpenseList'
 import EmailComposer from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
@@ -52,8 +58,18 @@ export default function ProjectDetail() {
   const invoiceFilters = useMemo(() => ({ projectId: id }), [id])
   const { invoices, loading: invoicesLoading, refetch: invoicesRefetch } = useInvoices(invoiceFilters)
   const { communications, loading: commsLoading, refetch: refetchComms } = useCommunications(id)
+  const {
+    expenses,
+    loading: expensesLoading,
+    createExpense,
+    updateExpense,
+    deleteExpense,
+  } = useExpenses(id)
+  const { categories: expenseCategories } = useExpenseCategories()
 
   const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
+  const [expenseFormOpen, setExpenseFormOpen] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
   const previewBlobRef = useRef<string | null>(null)
@@ -129,6 +145,45 @@ export default function ProjectDetail() {
   const unbilledEntries = entries.filter((e) => e.billable && !e.invoice_id)
   const unbilledHours = unbilledEntries.reduce((sum, e) => sum + e.hours, 0)
   const unbilledAmount = unbilledHours * rate
+
+  // Expense stats
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const unbilledExpenses = expenses.filter((e) => !e.invoice_id)
+  const unbilledExpenseAmount = unbilledExpenses.reduce((sum, e) => sum + e.amount, 0)
+
+  // Map expenses to ExpenseRow format
+  const mappedExpenses: ExpenseRow[] = expenses.map((e) => ({
+    id: e.id,
+    projectId: e.project_id,
+    description: e.description,
+    amount: e.amount,
+    date: e.date,
+    category: e.category,
+    receiptUrl: e.receipt_url,
+  }))
+
+  const handleExpenseSave = useCallback(async (data: ExpenseFormData) => {
+    if (editingExpense) {
+      await updateExpense(editingExpense.id, {
+        description: data.description,
+        amount: data.amount,
+        date: data.date,
+        category: data.category,
+        receipt_url: data.receiptUrl ?? null,
+      })
+      setEditingExpense(null)
+    } else {
+      await createExpense({
+        project_id: data.projectId || id!,
+        description: data.description,
+        amount: data.amount,
+        date: data.date,
+        category: data.category,
+        receipt_url: data.receiptUrl ?? null,
+        invoice_id: null,
+      })
+    }
+  }, [editingExpense, createExpense, updateExpense, id])
 
   async function handleTimerSave(data: {
     projectId: string
@@ -282,6 +337,9 @@ export default function ProjectDetail() {
           <TabsTrigger value="communications" className="text-[12px]">
             Communications
           </TabsTrigger>
+          <TabsTrigger value="expenses" className="text-[12px]">
+            Expenses
+          </TabsTrigger>
           <TabsTrigger value="invoices" className="text-[12px]">
             Invoices
           </TabsTrigger>
@@ -364,6 +422,75 @@ export default function ProjectDetail() {
             <CommunicationFeed
               communications={communications}
               loading={commsLoading}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Expenses Tab */}
+        <TabsContent value="expenses">
+          <div className="flex flex-col gap-4">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Total Expenses</p>
+                <p className="text-text-primary text-[20px] font-bold mt-1">
+                  ${totalExpenses.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Unbilled</p>
+                <p className="text-text-primary text-[20px] font-bold mt-1">
+                  ${unbilledExpenseAmount.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-surface rounded-[14px] shadow-card p-4">
+                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Count</p>
+                <p className="text-text-primary text-[20px] font-bold mt-1">
+                  {expenses.length}
+                </p>
+              </div>
+            </div>
+
+            {/* Add Expense Button */}
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                Project Expenses
+              </p>
+              <button
+                onClick={() => {
+                  setEditingExpense(null)
+                  setExpenseFormOpen(true)
+                }}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                <Plus size={12} />
+                Add Expense
+              </button>
+            </div>
+
+            {/* Expense List */}
+            <ExpenseList
+              expenses={mappedExpenses}
+              loading={expensesLoading}
+              onEdit={(exp) => {
+                setEditingExpense(exp)
+                setExpenseFormOpen(true)
+              }}
+              onDelete={(expId) => deleteExpense(expId)}
+            />
+
+            {/* Expense Form Dialog */}
+            <ExpenseForm
+              open={expenseFormOpen}
+              onOpenChange={(open) => {
+                setExpenseFormOpen(open)
+                if (!open) setEditingExpense(null)
+              }}
+              expense={editingExpense}
+              projectId={id}
+              categories={expenseCategories}
+              onSave={handleExpenseSave}
             />
           </div>
         </TabsContent>

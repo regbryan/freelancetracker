@@ -87,7 +87,8 @@ export function useInvoices(filters?: InvoiceFilters) {
 
   const createInvoice = useCallback(async (
     invoice: InvoiceInsert,
-    items: InvoiceItemInsert[]
+    items: InvoiceItemInsert[],
+    options?: { expenseIds?: string[] }
   ): Promise<Invoice> => {
     // Insert the invoice first
     const { data: invoiceData, error: invoiceError } = await supabase
@@ -124,6 +125,16 @@ export function useInvoices(filters?: InvoiceFilters) {
 
         if (linkError) throw linkError;
       }
+    }
+
+    // Link expenses to this invoice
+    if (options?.expenseIds?.length) {
+      const { error: expLinkError } = await supabase
+        .from('expenses')
+        .update({ invoice_id: invoiceData.id })
+        .in('id', options.expenseIds);
+
+      if (expLinkError) throw expLinkError;
     }
 
     await fetchInvoices();
