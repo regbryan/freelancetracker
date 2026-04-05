@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Clock,
   DollarSign,
   FolderKanban,
   TrendingUp,
-  Plus,
   Timer,
   Sparkles,
   Lightbulb,
@@ -37,6 +36,17 @@ export default function Dashboard() {
   const { projects, loading: pLoading } = useProjects()
   const { entries, loading: tLoading } = useTimeEntries()
   const { invoices, loading: iLoading } = useInvoices()
+
+  const [profileName] = useState(() => {
+    try {
+      const raw = localStorage.getItem('freelancer_profile')
+      if (raw) {
+        const p = JSON.parse(raw)
+        return p.name?.split(' ')[0] || 'there'
+      }
+    } catch { /* ignore */ }
+    return 'there'
+  })
   const { loading: cLoading } = useClients()
 
   const loading = pLoading || tLoading || iLoading || cLoading
@@ -209,17 +219,13 @@ export default function Dashboard() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px]">
-            Welcome back, John!
+            Welcome back, {profileName}!
           </h2>
           <p className="text-text-muted text-[12px] mt-0.5">
-            Welcome back! Here's what's happening today.
+            Here's what's happening today.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => navigate('/projects')} className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-primary text-[12px] font-semibold hover:bg-input-bg transition-colors">
-            <Plus size={12} />
-            New Project
-          </button>
           <button
             onClick={() => navigate('/time')}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"

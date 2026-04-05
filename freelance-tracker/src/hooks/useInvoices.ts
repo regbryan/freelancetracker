@@ -56,7 +56,7 @@ export function useInvoices(filters?: InvoiceFilters) {
     try {
       let query = supabase
         .from('invoices')
-        .select('*, projects(id, name, clients(id, name))')
+        .select('*, projects(id, name, clients(id, name)), invoice_items(*)')
         .order('created_at', { ascending: false });
 
       if (filters?.projectId) {

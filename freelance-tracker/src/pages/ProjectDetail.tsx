@@ -70,12 +70,17 @@ export default function ProjectDetail() {
   async function buildPDF(invoice: Invoice) {
     if (!project) throw new Error('Project not loaded')
 
-    const { data: items, error: itemsError } = await supabase
-      .from('invoice_items')
-      .select('*')
-      .eq('invoice_id', invoice.id)
+    // Use pre-loaded items if available, otherwise fetch
+    let items: InvoiceItem[] = invoice.invoice_items ?? []
+    if (items.length === 0) {
+      const { data, error: itemsError } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id)
 
-    if (itemsError) throw new Error(`Failed to load invoice items: ${itemsError.message}`)
+      if (itemsError) throw new Error(`Failed to load invoice items: ${itemsError.message}`)
+      items = (data as InvoiceItem[]) ?? []
+    }
 
     const clientInfo = {
       id: project.clients?.id ?? '',
@@ -86,7 +91,7 @@ export default function ProjectDetail() {
 
     return generateInvoicePDF(
       invoice,
-      (items as InvoiceItem[]) ?? [],
+      items,
       project,
       clientInfo,
     )
