@@ -38,7 +38,7 @@ export interface Invoice {
   invoice_items?: InvoiceItem[];
 }
 
-export type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'projects' | 'invoice_items'>;
+export type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'payment_url' | 'projects' | 'invoice_items'>;
 
 export interface InvoiceFilters {
   projectId?: string;
