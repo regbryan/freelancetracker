@@ -76,14 +76,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* New Project Button */}
-      <div className="px-2.5 pb-4 mt-auto">
+      {/* New Project */}
+      <div className="px-2.5 pb-3 mt-auto">
         <button
           onClick={() => { navigate('/projects?new=1'); onClose(); }}
-          className="w-full flex items-center justify-center gap-2 h-9 rounded-lg text-white text-[12px] font-semibold bg-accent hover:bg-accent-dark transition-colors active:scale-[0.98]"
+          className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+          title="New Project"
         >
-          <Plus size={14} />
-          New Project
+          <Plus size={16} />
         </button>
       </div>
     </aside>
