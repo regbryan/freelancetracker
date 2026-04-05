@@ -10,6 +10,8 @@ import {
   EyeOff,
   Pencil,
   Check,
+  Plus,
+  X,
 } from 'lucide-react'
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -78,6 +80,10 @@ export default function Calendar() {
   const [visibility, setVisibility] = useState<Record<string, boolean>>({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState({ title: '', date: '', startTime: '', endTime: '', description: '', location: '' })
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   // Calendar customizations (persisted in localStorage)
   type CalOverrides = Record<string, { name?: string; color?: string }>
@@ -243,6 +249,165 @@ export default function Calendar() {
       calendars.forEach((c) => (next[c.key] = on))
       return next
     })
+  }
+
+  /* ── Create Event ─────────────────────────────────────── */
+  function openCreateModal() {
+    const d = currentDate
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    setCreateForm({ title: '', date: dateStr, startTime: '09:00', endTime: '10:00', description: '', location: '' })
+    setCreateError(null)
+    setShowCreateModal(true)
+  }
+
+  async function handleCreateEvent(e: React.FormEvent) {
+    e.preventDefault()
+    if (!createForm.title || !createForm.date || !createForm.startTime || !createForm.endTime) return
+
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const start = `${createForm.date}T${createForm.startTime}:00`
+      const end = `${createForm.date}T${createForm.endTime}:00`
+
+      const res = await fetch(`${apiUrl}/api/create-event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: createForm.title,
+          start,
+          end,
+          description: createForm.description || undefined,
+          location: createForm.location || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`)
+
+      setShowCreateModal(false)
+      loadEvents()
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create event')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  function CreateEventModal() {
+    if (!showCreateModal) return null
+    return (
+      <div
+        className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+        onClick={() => setShowCreateModal(false)}
+      >
+        <div
+          className="bg-surface rounded-2xl shadow-lg p-6 w-[420px] max-w-[90vw]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-text-primary text-[16px] font-bold">New Event</h2>
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="p-1 rounded hover:bg-border transition-colors"
+            >
+              <X size={16} className="text-text-muted" />
+            </button>
+          </div>
+
+          <form onSubmit={handleCreateEvent} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-text-muted">Title <span className="text-negative">*</span></label>
+              <input
+                type="text"
+                required
+                value={createForm.title}
+                onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Meeting with client"
+                className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-text-muted">Date <span className="text-negative">*</span></label>
+              <input
+                type="date"
+                required
+                value={createForm.date}
+                onChange={(e) => setCreateForm((f) => ({ ...f, date: e.target.value }))}
+                className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-text-muted">Start Time <span className="text-negative">*</span></label>
+                <input
+                  type="time"
+                  required
+                  value={createForm.startTime}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, startTime: e.target.value }))}
+                  className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary outline-none focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-text-muted">End Time <span className="text-negative">*</span></label>
+                <input
+                  type="time"
+                  required
+                  value={createForm.endTime}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, endTime: e.target.value }))}
+                  className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary outline-none focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-text-muted">Location</label>
+              <input
+                type="text"
+                value={createForm.location}
+                onChange={(e) => setCreateForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="Office, Zoom link, etc."
+                className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-text-muted">Description</label>
+              <textarea
+                value={createForm.description}
+                onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Notes about the event..."
+                rows={3}
+                className="px-3 py-2 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30 resize-none"
+              />
+            </div>
+
+            {createError && (
+              <p className="text-negative text-[12px] bg-negative-bg rounded-lg px-3 py-2">{createError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 rounded-lg text-[12px] font-semibold text-text-secondary hover:bg-input-bg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={creating}
+                className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                {creating ? 'Creating...' : 'Create Event'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   /* ── Render helpers ───────────────────────────────────── */
@@ -656,6 +821,14 @@ export default function Calendar() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <button
+                onClick={openCreateModal}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                <Plus size={12} />
+                New Event
+              </button>
+              <button
                 onClick={() => { setCurrentDate(new Date()) }}
                 className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-input-bg text-text-primary hover:bg-border transition-colors"
               >
@@ -734,6 +907,7 @@ export default function Calendar() {
 
       {/* Event Modal */}
       <EventModal />
+      <CreateEventModal />
     </div>
   )
 }
