@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Plus, Download, ChevronDown } from 'lucide-react'
+import { Plus, Download, ChevronDown, X, Eye } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
-import type { Invoice } from '../hooks/useInvoices'
+import type { Invoice, InvoiceItem } from '../hooks/useInvoices'
+import { supabase } from '../lib/supabase'
+import { generateInvoicePDF } from '../components/InvoicePDF'
 
 const STATUS_FLOW: Record<string, Invoice['status'] | null> = {
   draft: 'sent',
@@ -70,6 +72,9 @@ export default function Invoices() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'sent' | 'paid' | 'overdue'>('all')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
+  const previewBlobRef = useRef<string | null>(null)
 
   const filteredInvoices = useMemo(() => {
     if (statusFilter === 'all') return invoices
@@ -89,6 +94,67 @@ export default function Invoices() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showNewInvoiceMsg])
+
+  const buildPDF = useCallback(async (invoice: Invoice) => {
+    const { data: items, error: itemsError } = await supabase
+      .from('invoice_items')
+      .select('*')
+      .eq('invoice_id', invoice.id)
+
+    if (itemsError) throw new Error(`Failed to load invoice items: ${itemsError.message}`)
+
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id, name, hourly_rate, clients(id, name, email, company)')
+      .eq('id', invoice.project_id)
+      .single()
+
+    if (projectError || !project) throw new Error('Failed to load project details')
+
+    const client = Array.isArray(project.clients) ? project.clients[0] : project.clients
+    const clientInfo = {
+      id: client?.id ?? '',
+      name: client?.name ?? 'Client',
+      email: client?.email,
+      company: client?.company,
+    }
+
+    return generateInvoicePDF(invoice, (items as InvoiceItem[]) ?? [], project, clientInfo)
+  }, [])
+
+  function cleanupPreview() {
+    if (previewBlobRef.current) {
+      URL.revokeObjectURL(previewBlobRef.current)
+      previewBlobRef.current = null
+    }
+    setPreviewUrl(null)
+    setPreviewInvoice(null)
+  }
+
+  const handleDownloadPDF = useCallback(async (invoice: Invoice) => {
+    try {
+      const doc = await buildPDF(invoice)
+      doc.save(`${invoice.invoice_number}.pdf`)
+    } catch (err) {
+      console.error('Failed to generate PDF:', err)
+      alert(`Failed to download invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }, [buildPDF])
+
+  const handlePreviewPDF = useCallback(async (invoice: Invoice) => {
+    try {
+      const doc = await buildPDF(invoice)
+      const blob = doc.output('blob')
+      const url = URL.createObjectURL(blob)
+      cleanupPreview()
+      previewBlobRef.current = url
+      setPreviewUrl(url)
+      setPreviewInvoice(invoice)
+    } catch (err) {
+      console.error('Failed to preview PDF:', err)
+      alert(`Failed to preview invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }, [buildPDF])
 
   const handleStatusAdvance = useCallback(
     async (invoice: Invoice) => {
@@ -230,8 +296,17 @@ export default function Invoices() {
                         isSelected ? 'bg-accent/5 ring-1 ring-inset ring-accent/20' : ''
                       }`}
                     >
-                      <td className="px-5 py-3 text-accent text-[12px] font-semibold">
-                        {inv.invoice_number}
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePreviewPDF(inv)
+                          }}
+                          className="text-accent text-[12px] font-semibold hover:underline"
+                          title="Preview invoice"
+                        >
+                          {inv.invoice_number}
+                        </button>
                       </td>
                       <td className="px-3 py-3 text-text-primary text-[12px] font-medium">
                         {inv.projects?.clients?.name ?? '--'}
@@ -264,9 +339,24 @@ export default function Invoices() {
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handlePreviewPDF(inv)
+                            }}
+                            className="p-1.5 rounded hover:bg-border transition-colors"
+                            aria-label="Preview invoice"
+                            title="Preview"
+                          >
+                            <Eye size={12} className="text-text-muted" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDownloadPDF(inv)
+                            }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
                             aria-label="Download invoice"
+                            title="Download"
                           >
                             <Download size={12} className="text-text-muted" />
                           </button>
@@ -277,6 +367,48 @@ export default function Invoices() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewUrl && previewInvoice && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={cleanupPreview}
+        >
+          <div
+            className="bg-surface rounded-[14px] shadow-card w-[90vw] max-w-3xl h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <h3 className="text-text-primary text-[13px] font-semibold">
+                {previewInvoice.invoice_number}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownloadPDF(previewInvoice)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
+                >
+                  <Download size={12} />
+                  Download
+                </button>
+                <button
+                  onClick={cleanupPreview}
+                  className="p-1.5 rounded hover:bg-border transition-colors"
+                  aria-label="Close preview"
+                >
+                  <X size={14} className="text-text-muted" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title={`Preview ${previewInvoice.invoice_number}`}
+              />
+            </div>
           </div>
         </div>
       )}
