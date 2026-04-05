@@ -221,7 +221,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Row 1: Welcome */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
@@ -245,7 +245,7 @@ export default function Dashboard() {
       </div>
 
       {/* Row 2: Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
         <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
         <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
@@ -278,7 +278,7 @@ export default function Dashboard() {
 
         {/* Top Projects */}
         <div className="lg:col-span-4">
-          <div className="bg-surface rounded-[16px] shadow-card p-5 h-full flex flex-col">
+          <div className="bg-surface rounded-xl border border-border p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-text-primary text-[14px] font-bold">Top Projects</h3>
               <button className="text-accent text-[11px] font-semibold hover:underline">View All</button>
@@ -320,7 +320,7 @@ export default function Dashboard() {
 
         {/* Recent Time Entries */}
         <div>
-          <div className="bg-surface rounded-[16px] shadow-card p-5">
+          <div className="bg-surface rounded-xl border border-border p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-text-primary text-[14px] font-bold">Recent Entries</h3>
               <button className="text-accent text-[11px] font-semibold hover:underline">View All</button>
@@ -356,7 +356,7 @@ export default function Dashboard() {
 
         {/* AI Insights */}
         <div>
-          <div className="bg-surface rounded-[16px] shadow-card p-5 h-full flex flex-col">
+          <div className="bg-surface rounded-xl border border-border p-5 h-full flex flex-col">
             <h3 className="text-text-primary text-[14px] font-bold mb-4">AI Insights</h3>
 
             <div className="flex flex-col gap-3 flex-1">
