@@ -104,18 +104,21 @@ export function initGmailAuth(): Promise<string> {
       scope: SCOPES,
       callback: (response: TokenResponse) => {
         if (response.error) {
+          alert('OAuth error: ' + (response.error_description || response.error));
           reject(new Error(response.error_description || response.error));
           return;
         }
         storeToken(response.access_token, response.expires_in);
+        alert('Gmail connected! Token saved.');
         resolve(response.access_token);
       },
       error_callback: (error) => {
+        alert('OAuth error_callback: ' + (error.message || 'Unknown error'));
         reject(new Error(error.message || 'OAuth error'));
       },
     });
 
-    client.requestAccessToken({ prompt: '' });
+    client.requestAccessToken({ prompt: 'consent' });
   });
 }
 
