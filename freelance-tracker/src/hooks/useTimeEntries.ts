@@ -8,11 +8,12 @@ export interface TimeEntry {
   hours: number;
   date: string;
   billable: boolean;
+  task_id: string | null;
   invoice_id: string | null;
   created_at: string;
 }
 
-export type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at'>;
+export type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at' | 'task_id'> & { task_id?: string | null };
 export type TimeEntryUpdate = Partial<TimeEntryInsert>;
 
 export function useTimeEntries(projectId?: string) {

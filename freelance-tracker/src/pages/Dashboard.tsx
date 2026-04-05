@@ -11,6 +11,7 @@ import {
   Clock3,
   Loader2,
   Receipt,
+  CheckSquare,
 } from 'lucide-react'
 import StatCard from '../components/StatCard'
 import LineChart from '../components/charts/LineChart'
@@ -21,6 +22,7 @@ import { useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices } from '../hooks/useInvoices'
 import { useExpenses } from '../hooks/useExpenses'
+import { useTasks } from '../hooks/useTasks'
 
 const CHART_COLORS = ['#0058be', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -39,6 +41,7 @@ export default function Dashboard() {
   const { entries, loading: tLoading } = useTimeEntries()
   const { invoices, loading: iLoading } = useInvoices()
   const { expenses, loading: expLoading } = useExpenses()
+  const { tasks, loading: taskLoading } = useTasks()
 
   const [profileName] = useState(() => {
     try {
@@ -52,9 +55,10 @@ export default function Dashboard() {
   })
   const { loading: cLoading } = useClients()
 
-  const loading = pLoading || tLoading || iLoading || cLoading || expLoading
+  const loading = pLoading || tLoading || iLoading || cLoading || expLoading || taskLoading
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const pendingTasks = tasks.filter((t) => t.status !== 'done').length
 
   // Compute stats from real data
   const unbilledHours = entries
@@ -241,12 +245,13 @@ export default function Dashboard() {
       </div>
 
       {/* Row 2: Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
         <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
         <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
         <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
         <StatCard icon={TrendingUp} label="Revenue" value={`$${totalRevenue.toLocaleString()}`} trend={0} trendLabel="" />
         <StatCard icon={Receipt} label="Expenses" value={`$${totalExpenses.toLocaleString()}`} trend={0} trendLabel="" />
+        <StatCard icon={CheckSquare} label="Pending Tasks" value={String(pendingTasks)} trend={0} trendLabel="" />
       </div>
 
       {/* Row 3: Charts */}

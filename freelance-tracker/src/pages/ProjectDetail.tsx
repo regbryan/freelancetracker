@@ -5,6 +5,11 @@ import { useProject } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
 import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
+import { useTasks } from '../hooks/useTasks'
+import TaskForm from '../components/TaskForm'
+import type { TaskFormData } from '../components/TaskForm'
+import TaskList from '../components/TaskList'
+import type { TaskRow } from '../components/TaskList'
 import { useContracts } from '../hooks/useContracts'
 import ContractForm from '../components/ContractForm'
 import type { ContractFormData } from '../components/ContractForm'
@@ -70,6 +75,16 @@ export default function ProjectDetail() {
     deleteExpense,
   } = useExpenses(id)
   const { categories: expenseCategories } = useExpenseCategories()
+  const {
+    tasks,
+    loading: tasksLoading,
+    createTask,
+    updateTask,
+    deleteTask,
+  } = useTasks(id)
+  const [taskFormOpen, setTaskFormOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
+
   const contractFilters = useMemo(() => ({ projectId: id }), [id])
   const { contracts, loading: contractsLoading, createContract } = useContracts(contractFilters)
 
@@ -373,8 +388,11 @@ export default function ProjectDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="time">
+      <Tabs defaultValue="tasks">
         <TabsList>
+          <TabsTrigger value="tasks" className="text-[12px]">
+            Tasks
+          </TabsTrigger>
           <TabsTrigger value="time" className="text-[12px]">
             Time Tracking
           </TabsTrigger>
@@ -391,6 +409,79 @@ export default function ProjectDetail() {
             Invoices
           </TabsTrigger>
         </TabsList>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                Project Tasks
+              </p>
+              <button
+                onClick={() => {
+                  setEditingTask(null)
+                  setTaskFormOpen(true)
+                }}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                <Plus size={12} />
+                Add Task
+              </button>
+            </div>
+
+            <TaskList
+              tasks={tasks.map((t) => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                status: t.status,
+                priority: t.priority,
+                dueDate: t.due_date,
+              }))}
+              loading={tasksLoading}
+              onToggle={(taskId, currentStatus) => {
+                const newStatus = currentStatus === 'done' ? 'todo' : 'done'
+                updateTask(taskId, { status: newStatus })
+              }}
+              onEdit={(task) => {
+                setEditingTask(task)
+                setTaskFormOpen(true)
+              }}
+              onDelete={(taskId) => deleteTask(taskId)}
+            />
+
+            <TaskForm
+              open={taskFormOpen}
+              onOpenChange={(open) => {
+                setTaskFormOpen(open)
+                if (!open) setEditingTask(null)
+              }}
+              task={editingTask}
+              onSave={async (data: TaskFormData) => {
+                if (editingTask) {
+                  await updateTask(editingTask.id, {
+                    title: data.title,
+                    description: data.description ?? null,
+                    status: data.status,
+                    priority: data.priority,
+                    due_date: data.dueDate ?? null,
+                  })
+                  setEditingTask(null)
+                } else {
+                  await createTask({
+                    project_id: id!,
+                    title: data.title,
+                    description: data.description ?? null,
+                    status: data.status,
+                    priority: data.priority,
+                    due_date: data.dueDate ?? null,
+                  })
+                }
+              }}
+            />
+          </div>
+        </TabsContent>
 
         {/* Time Tracking Tab */}
         <TabsContent value="time">
