@@ -61,10 +61,7 @@ function storeToken(accessToken: string, expiresIn: number): void {
  * Redirect the user to Google's OAuth consent page.
  * After consent, Google redirects back with the token in the URL hash.
  */
-export function initGmailAuth(): Promise<string> {
-  // Save current path so we can return after auth
-  localStorage.setItem('gmail_auth_return', window.location.pathname);
-
+export function initGmailAuth(): void {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     redirect_uri: window.location.origin + '/settings',
@@ -74,10 +71,8 @@ export function initGmailAuth(): Promise<string> {
     state: 'gmail_auth',
   });
 
+  // Must be synchronous — called from a click handler to preserve user gesture
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-
-  // This promise won't resolve — the page navigates away
-  return new Promise(() => {});
 }
 
 /**

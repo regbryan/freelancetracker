@@ -387,14 +387,7 @@ export default function Settings() {
             <Button
               size="sm"
               variant="gradient"
-              onClick={async () => {
-                try {
-                  await login()
-                } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : String(err)
-                  alert('Gmail connection failed: ' + msg)
-                }
-              }}
+              onClick={() => login()}
               disabled={gmailLoading}
             >
               <Mail size={12} />

@@ -15,19 +15,9 @@ export function useGmail() {
     setAuthenticated(checkAuth());
   }, []);
 
-  const login = useCallback(async () => {
-    setLoading(true);
-    try {
-      await initGmailAuth();
-      // Page navigates away — this won't execute
-      setAuthenticated(true);
-    } catch (error) {
-      console.error('Gmail auth failed:', error);
-      setAuthenticated(false);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+  const login = useCallback(() => {
+    // Must be synchronous to preserve user gesture for navigation
+    initGmailAuth();
   }, []);
 
   const logout = useCallback(() => {
