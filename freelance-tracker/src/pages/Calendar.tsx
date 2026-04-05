@@ -70,6 +70,7 @@ function hourLabel(h: number) {
 /* ── Component ──────────────────────────────────────────── */
 export default function Calendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [apiCalendars, setApiCalendars] = useState<{ name: string; source: string; color: string }[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<View>('month')
   const [loading, setLoading] = useState(true)
@@ -117,10 +118,17 @@ export default function Calendar() {
       if (!res.ok) throw new Error(`API returned ${res.status}`)
       const data = await res.json()
       const fetched: CalendarEvent[] = data.events || []
+      const cals: { name: string; source: string; color: string }[] = data.calendars || []
 
       setEvents(fetched)
+      setApiCalendars(cals)
       setVisibility((prev) => {
         const next = { ...prev }
+        // Include all calendars from the API (even those with no events)
+        cals.forEach((c) => {
+          const key = `${c.source}::${c.name}`
+          if (!(key in next)) next[key] = true
+        })
         fetched.forEach((e) => {
           const key = `${e.source}::${e.calendarName}`
           if (!(key in next)) next[key] = true
@@ -154,6 +162,19 @@ export default function Calendar() {
 
   const calendars = useMemo<CalendarInfo[]>(() => {
     const map = new Map<string, CalendarInfo>()
+    // Seed with all calendars from API (including those with no events)
+    apiCalendars.forEach((c) => {
+      const key = `${c.source}::${c.name}`
+      const overrides = calOverrides[key]
+      if (!map.has(key)) map.set(key, {
+        key,
+        name: overrides?.name || c.name,
+        source: c.source as 'google' | 'microsoft',
+        color: overrides?.color || c.color,
+        count: 0,
+      })
+    })
+    // Count events per calendar
     events.forEach((e) => {
       const key = `${e.source}::${e.calendarName}`
       const overrides = calOverrides[key]
@@ -169,7 +190,7 @@ export default function Calendar() {
     return Array.from(map.values()).sort((a, b) =>
       a.source !== b.source ? (a.source === 'google' ? -1 : 1) : a.name.localeCompare(b.name)
     )
-  }, [events, calOverrides])
+  }, [events, apiCalendars, calOverrides])
 
   const eventsOn = useCallback(
     (day: Date) => filtered.filter((e) => isSameDay(new Date(e.start), day)),
