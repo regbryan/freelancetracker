@@ -21,7 +21,7 @@ export interface GmailMessage {
 const TOKEN_KEY = 'gmail_access_token';
 const EXPIRY_KEY = 'gmail_token_expiry';
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
-const SCOPES = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
 const API_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 // ---------------------------------------------------------------------------
