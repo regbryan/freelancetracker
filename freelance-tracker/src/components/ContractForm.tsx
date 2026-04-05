@@ -85,11 +85,12 @@ export default function ContractForm({
     const projectName = selectedProject?.name || ''
 
     const filled = fillTemplate(template.content, {
-      freelancerName,
-      freelancerCompany,
-      clientName,
-      clientCompany: clientCompany || '',
-      projectName,
+      freelancer_name: freelancerName,
+      freelancer_address: freelancerCompany,
+      client_name: clientName,
+      client_company: clientCompany || '',
+      scope: '[Describe the scope of work]',
+      payment_terms: '[Describe payment terms]',
       date: new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -170,12 +171,12 @@ export default function ContractForm({
               <Label htmlFor="contract-project" className="text-[12px]">
                 Project
               </Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={projectId || 'none'} onValueChange={(v) => setProjectId(v === 'none' ? '' : v)}>
                 <SelectTrigger id="contract-project">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
