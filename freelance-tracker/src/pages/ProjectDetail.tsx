@@ -434,10 +434,10 @@ export default function ProjectDetail() {
               tasks={tasks.map((t) => ({
                 id: t.id,
                 title: t.title,
-                description: t.description,
+                description: t.description ?? undefined,
                 status: t.status,
                 priority: t.priority,
-                dueDate: t.due_date,
+                dueDate: t.due_date ?? undefined,
               }))}
               loading={tasksLoading}
               onToggle={(taskId, currentStatus) => {

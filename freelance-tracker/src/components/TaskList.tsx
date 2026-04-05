@@ -3,10 +3,10 @@ import { Pencil, Trash2 } from 'lucide-react'
 export interface TaskRow {
   id: string
   title: string
-  description?: string | null
+  description?: string
   status: 'todo' | 'in_progress' | 'done'
   priority: 'low' | 'medium' | 'high'
-  dueDate?: string | null
+  dueDate?: string
 }
 
 interface TaskListProps {
