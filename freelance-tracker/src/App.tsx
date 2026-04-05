@@ -7,6 +7,8 @@ import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import TimeTracker from './pages/TimeTracker'
 import Expenses from './pages/Expenses'
+import Contracts from './pages/Contracts'
+import ContractSign from './pages/ContractSign'
 import Invoices from './pages/Invoices'
 import Settings from './pages/Settings'
 import Calendar from './pages/Calendar'
@@ -15,6 +17,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/sign/:token" element={<ContractSign />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />
@@ -23,6 +26,7 @@ export default function App() {
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/time" element={<TimeTracker />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/contracts" element={<Contracts />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/settings" element={<Settings />} />

@@ -7,6 +7,7 @@ const pageTitles: Record<string, string> = {
   '/projects': 'Active Projects',
   '/time': 'Time Tracker',
   '/expenses': 'Expenses',
+  '/contracts': 'Contracts',
   '/invoices': 'Invoice Center',
   '/calendar': 'Calendar',
   '/settings': 'Settings',

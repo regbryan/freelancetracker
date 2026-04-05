@@ -1,10 +1,14 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2 } from 'lucide-react'
 import { useProject } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
 import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
+import { useContracts } from '../hooks/useContracts'
+import ContractForm from '../components/ContractForm'
+import type { ContractFormData } from '../components/ContractForm'
+import { generateContractPDF } from '../components/ContractPDF'
 import type { Expense } from '../hooks/useExpenses'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
@@ -66,8 +70,12 @@ export default function ProjectDetail() {
     deleteExpense,
   } = useExpenses(id)
   const { categories: expenseCategories } = useExpenseCategories()
+  const contractFilters = useMemo(() => ({ projectId: id }), [id])
+  const { contracts, loading: contractsLoading, createContract } = useContracts(contractFilters)
 
   const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
+  const [contractFormOpen, setContractFormOpen] = useState(false)
+  const [copiedContractId, setCopiedContractId] = useState<string | null>(null)
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [copiedPayId, setCopiedPayId] = useState<string | null>(null)
   const [expenseFormOpen, setExpenseFormOpen] = useState(false)
@@ -376,6 +384,9 @@ export default function ProjectDetail() {
           <TabsTrigger value="expenses" className="text-[12px]">
             Expenses
           </TabsTrigger>
+          <TabsTrigger value="contracts" className="text-[12px]">
+            Contracts
+          </TabsTrigger>
           <TabsTrigger value="invoices" className="text-[12px]">
             Invoices
           </TabsTrigger>
@@ -527,6 +538,121 @@ export default function ProjectDetail() {
               projectId={id}
               categories={expenseCategories}
               onSave={handleExpenseSave}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Contracts Tab */}
+        <TabsContent value="contracts">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                Project Contracts
+              </p>
+              <button
+                onClick={() => setContractFormOpen(true)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              >
+                <Plus size={12} />
+                New Contract
+              </button>
+            </div>
+
+            {contractsLoading ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  <p className="text-text-muted text-[12px]">Loading contracts...</p>
+                </div>
+              </div>
+            ) : contracts.length === 0 ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <p className="text-text-muted text-[13px]">No contracts yet.</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px]">
+                    <thead>
+                      <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
+                        <th className="text-left px-5 py-3">Title</th>
+                        <th className="text-center px-3 py-3">Status</th>
+                        <th className="text-left px-3 py-3">Created</th>
+                        <th className="text-right px-5 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contracts.map((c) => {
+                        const statusStyles: Record<string, string> = {
+                          draft: 'bg-status-completed-bg text-status-completed-text',
+                          sent: 'bg-status-scheduled-bg text-status-scheduled-text',
+                          signed: 'bg-status-active-bg text-status-active-text',
+                          expired: 'bg-negative-bg text-negative',
+                        }
+                        return (
+                          <tr key={c.id} className="border-b border-border/50 last:border-0 hover:bg-input-bg/50 transition-colors">
+                            <td className="px-5 py-3 text-text-primary text-[12px] font-semibold">{c.title}</td>
+                            <td className="px-3 py-3 text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[c.status] || ''}`}>
+                                {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-text-muted text-[12px]">{formatDate(c.created_at?.split('T')[0])}</td>
+                            <td className="px-5 py-3 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    const doc = generateContractPDF(c, c.contract_signatures?.[0])
+                                    doc.save(`${c.title.replace(/\s+/g, '-')}.pdf`)
+                                  }}
+                                  className="p-1.5 rounded hover:bg-border transition-colors"
+                                  title="Download PDF"
+                                >
+                                  <Download size={12} className="text-text-muted" />
+                                </button>
+                                {c.status === 'sent' && (
+                                  <button
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(`${window.location.origin}/sign/${c.sign_token}`)
+                                      setCopiedContractId(c.id)
+                                      setTimeout(() => setCopiedContractId(null), 3000)
+                                    }}
+                                    className="p-1.5 rounded hover:bg-border transition-colors"
+                                    title={copiedContractId === c.id ? 'Copied!' : 'Copy signing link'}
+                                  >
+                                    {copiedContractId === c.id ? (
+                                      <Check size={12} className="text-status-active-text" />
+                                    ) : (
+                                      <Link2 size={12} className="text-accent" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <ContractForm
+              open={contractFormOpen}
+              onOpenChange={setContractFormOpen}
+              clients={project?.clients ? [{ id: project.clients.id, name: project.clients.name }] : []}
+              projects={project ? [{ id: project.id, name: project.name }] : []}
+              onSave={async (data: ContractFormData) => {
+                await createContract({
+                  client_id: data.clientId,
+                  project_id: data.projectId || id || null,
+                  title: data.title,
+                  content: data.content,
+                  status: 'draft',
+                })
+              }}
             />
           </div>
         </TabsContent>
