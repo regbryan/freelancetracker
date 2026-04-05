@@ -76,14 +76,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* New Project */}
-      <div className="px-2.5 pb-3 mt-auto">
+      {/* Quick Create */}
+      <div className="px-2.5 pb-4 pt-2 mt-auto border-t border-sidebar-border">
         <button
           onClick={() => { navigate('/projects?new=1'); onClose(); }}
-          className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
-          title="New Project"
+          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] text-text-muted hover:text-accent hover:bg-accent-bg transition-all group"
         >
-          <Plus size={16} />
+          <div className="w-5 h-5 rounded-md bg-accent/10 group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all">
+            <Plus size={12} />
+          </div>
+          <span className="font-medium">New Project</span>
         </button>
       </div>
     </aside>
