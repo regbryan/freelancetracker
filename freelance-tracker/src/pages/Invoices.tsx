@@ -105,7 +105,7 @@ export default function Invoices() {
 
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id, name, hourly_rate, clients(id, name, email, company)')
+      .select('*, clients(id, name, email, company)')
       .eq('id', invoice.project_id)
       .single()
 

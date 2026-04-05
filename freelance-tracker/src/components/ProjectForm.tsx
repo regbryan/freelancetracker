@@ -24,6 +24,7 @@ export interface Project {
   name: string
   description?: string
   status: 'active' | 'completed' | 'on_hold' | 'cancelled'
+  type?: string
   hourlyRate?: number
 }
 
@@ -32,6 +33,7 @@ export interface ProjectFormData {
   name: string
   description?: string
   status: 'active' | 'completed' | 'on_hold' | 'cancelled'
+  type?: string
   hourlyRate?: number
 }
 
@@ -40,6 +42,7 @@ interface ProjectFormProps {
   onOpenChange: (open: boolean) => void
   project?: Project | null
   clients: { id: string; name: string }[]
+  projectTypes?: string[]
   onSave: (data: ProjectFormData) => Promise<void>
 }
 
@@ -55,6 +58,7 @@ export default function ProjectForm({
   onOpenChange,
   project,
   clients,
+  projectTypes = [],
   onSave,
 }: ProjectFormProps) {
   const isEdit = Boolean(project)
@@ -63,8 +67,14 @@ export default function ProjectForm({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<ProjectFormData['status']>('active')
+  const [type, setType] = useState('')
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false)
   const [hourlyRate, setHourlyRate] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const filteredTypes = projectTypes.filter((t) =>
+    t.toLowerCase().includes(type.toLowerCase()),
+  )
 
   useEffect(() => {
     if (open) {
@@ -72,7 +82,9 @@ export default function ProjectForm({
       setName(project?.name ?? '')
       setDescription(project?.description ?? '')
       setStatus(project?.status ?? 'active')
+      setType(project?.type ?? '')
       setHourlyRate(project?.hourlyRate != null ? String(project.hourlyRate) : '')
+      setShowTypeDropdown(false)
     }
   }, [open, project])
 
@@ -85,6 +97,7 @@ export default function ProjectForm({
         name,
         description: description || undefined,
         status,
+        type: type.trim() || undefined,
         hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
       })
       onOpenChange(false)
@@ -152,6 +165,48 @@ export default function ProjectForm({
               rows={3}
               className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
             />
+          </div>
+
+          {/* Project Type — combobox */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="project-type" className="text-[12px]">
+              Type
+            </Label>
+            <div className="relative">
+              <Input
+                id="project-type"
+                value={type}
+                onChange={(e) => {
+                  setType(e.target.value)
+                  setShowTypeDropdown(true)
+                }}
+                onFocus={() => setShowTypeDropdown(true)}
+                onBlur={() => {
+                  // Delay to allow click on dropdown item
+                  setTimeout(() => setShowTypeDropdown(false), 150)
+                }}
+                placeholder="e.g. Web Design, Development..."
+                autoComplete="off"
+              />
+              {showTypeDropdown && filteredTypes.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-card z-20 max-h-32 overflow-y-auto">
+                  {filteredTypes.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="w-full text-left px-3 py-1.5 text-[12px] text-text-primary hover:bg-input-bg transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        setType(t)
+                        setShowTypeDropdown(false)
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Status & Hourly Rate — side by side */}

@@ -7,6 +7,7 @@ export interface Project {
   name: string;
   description: string | null;
   status: 'active' | 'completed' | 'on_hold' | 'cancelled';
+  type: string | null;
   hourly_rate: number | null;
   created_at: string;
   updated_at: string;

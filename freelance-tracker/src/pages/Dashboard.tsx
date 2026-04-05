@@ -140,41 +140,39 @@ export default function Dashboard() {
     }
   }, [entries])
 
-  // --- Donut Chart: Hours per project ---
+  // --- Donut Chart: Projects by type ---
   const donutData = useMemo(() => {
-    const hoursByProject = new Map<string, number>()
-    for (const e of entries) {
-      hoursByProject.set(e.project_id, (hoursByProject.get(e.project_id) || 0) + e.hours)
+    const countByType = new Map<string, number>()
+    for (const p of projects) {
+      const label = p.type || 'Uncategorized'
+      countByType.set(label, (countByType.get(label) || 0) + 1)
     }
 
-    if (hoursByProject.size === 0) {
+    if (countByType.size === 0) {
       return [{ label: 'No data', value: 1, color: CHART_COLORS[0] }]
     }
 
-    const sorted = [...hoursByProject.entries()]
-      .map(([pid, hours]) => ({
-        name: projectMap.get(pid)?.name ?? 'Unknown',
-        hours,
-      }))
-      .sort((a, b) => b.hours - a.hours)
+    const sorted = [...countByType.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count)
 
     return sorted.map((item, i) => ({
-      label: item.name,
-      value: Math.round(item.hours * 10) / 10,
+      label: item.type,
+      value: item.count,
       color: CHART_COLORS[i % CHART_COLORS.length],
     }))
-  }, [entries, projectMap])
+  }, [projects])
 
-  // Donut center: show the top project
+  // Donut center: show the top type
   const donutCenter = useMemo(() => {
     if (donutData.length === 0 || (donutData.length === 1 && donutData[0].label === 'No data')) {
-      return { label: 'No data', value: '0%' }
+      return { label: 'No data', value: '0' }
     }
     const total = donutData.reduce((s, d) => s + d.value, 0)
     const top = donutData[0]
     return {
       label: top.label,
-      value: `${Math.round((top.value / total) * 100)}%`,
+      value: `${top.value}/${total}`,
     }
   }, [donutData])
 
@@ -260,7 +258,7 @@ export default function Dashboard() {
         <div className="lg:col-span-3">
           <DonutChart
             title="Project Types"
-            subtitle="Distribution"
+            subtitle="By category"
             segments={donutData}
             centerLabel={donutCenter.label}
             centerValue={donutCenter.value}

@@ -60,12 +60,21 @@ export default function ClientDetail() {
     refetchClient()
   }
 
+  const projectTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const p of projects) {
+      if (p.type) types.add(p.type)
+    }
+    return Array.from(types).sort()
+  }, [projects])
+
   async function handleProjectSave(data: ProjectFormData) {
     await createProject({
       client_id: data.clientId,
       name: data.name,
       description: data.description ?? null,
       status: data.status,
+      type: data.type ?? null,
       hourly_rate: data.hourlyRate ?? null,
     })
   }
@@ -325,6 +334,7 @@ export default function ClientDetail() {
         open={projectFormOpen}
         onOpenChange={setProjectFormOpen}
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+        projectTypes={projectTypes}
         project={id ? { id: '', clientId: id, name: '', status: 'active' } : undefined}
         onSave={handleProjectSave}
       />

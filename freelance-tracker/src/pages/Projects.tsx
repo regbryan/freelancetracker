@@ -40,8 +40,18 @@ export default function Projects() {
     name: string
     description?: string
     status: 'active' | 'completed' | 'on_hold' | 'cancelled'
+    type?: string
     hourlyRate?: number
   }>(null)
+
+  // Derive unique project types for the picklist
+  const projectTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const p of projects) {
+      if (p.type) types.add(p.type)
+    }
+    return Array.from(types).sort()
+  }, [projects])
 
   const handleSave = async (data: ProjectFormData) => {
     if (editingProject) {
@@ -50,6 +60,7 @@ export default function Projects() {
         name: data.name,
         description: data.description ?? null,
         status: data.status,
+        type: data.type ?? null,
         hourly_rate: data.hourlyRate ?? null,
       })
     } else {
@@ -58,6 +69,7 @@ export default function Projects() {
         name: data.name,
         description: data.description ?? null,
         status: data.status,
+        type: data.type ?? null,
         hourly_rate: data.hourlyRate ?? null,
       })
     }
@@ -135,6 +147,7 @@ export default function Projects() {
           open={formOpen}
           onOpenChange={setFormOpen}
           clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+          projectTypes={projectTypes}
           onSave={handleSave}
         />
       </div>
@@ -394,6 +407,7 @@ export default function Projects() {
         }}
         project={editingProject}
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+        projectTypes={projectTypes}
         onSave={handleSave}
       />
     </div>
