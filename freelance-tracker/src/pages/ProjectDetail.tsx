@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X } from 'lucide-react'
 import { useProject } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
@@ -54,32 +54,66 @@ export default function ProjectDetail() {
   const { communications, loading: commsLoading, refetch: refetchComms } = useCommunications(id)
 
   const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
+  const previewBlobRef = useRef<string | null>(null)
+
+  function cleanupPreview() {
+    if (previewBlobRef.current) {
+      URL.revokeObjectURL(previewBlobRef.current)
+      previewBlobRef.current = null
+    }
+    setPreviewUrl(null)
+    setPreviewInvoice(null)
+  }
+
+  async function buildPDF(invoice: Invoice) {
+    if (!project) throw new Error('Project not loaded')
+
+    const { data: items, error: itemsError } = await supabase
+      .from('invoice_items')
+      .select('*')
+      .eq('invoice_id', invoice.id)
+
+    if (itemsError) throw new Error(`Failed to load invoice items: ${itemsError.message}`)
+
+    const clientInfo = {
+      id: project.clients?.id ?? '',
+      name: project.clients?.name ?? 'Client',
+      email: project.clients?.email,
+      company: project.clients?.company,
+    }
+
+    return generateInvoicePDF(
+      invoice,
+      (items as InvoiceItem[]) ?? [],
+      project,
+      clientInfo,
+    )
+  }
+
+  async function handlePreviewPDF(invoice: Invoice) {
+    try {
+      const doc = await buildPDF(invoice)
+      const blob = doc.output('blob')
+      const url = URL.createObjectURL(blob)
+      cleanupPreview()
+      previewBlobRef.current = url
+      setPreviewUrl(url)
+      setPreviewInvoice(invoice)
+    } catch (err) {
+      console.error('Failed to preview PDF:', err)
+      alert(`Failed to preview invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }
 
   async function handleDownloadPDF(invoice: Invoice) {
-    if (!project) return
     try {
-      // Fetch invoice items
-      const { data: items } = await supabase
-        .from('invoice_items')
-        .select('*')
-        .eq('invoice_id', invoice.id)
-
-      const clientInfo = {
-        id: project.clients?.id ?? '',
-        name: project.clients?.name ?? 'Client',
-        email: project.clients?.email,
-        company: project.clients?.company,
-      }
-
-      const doc = generateInvoicePDF(
-        invoice,
-        (items as InvoiceItem[]) ?? [],
-        project,
-        clientInfo,
-      )
+      const doc = await buildPDF(invoice)
       doc.save(`${invoice.invoice_number}.pdf`)
     } catch (err) {
       console.error('Failed to generate PDF:', err)
+      alert(`Failed to download invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }
 
@@ -383,8 +417,13 @@ export default function ProjectDetail() {
                             key={invoice.id}
                             className="border-b border-border/50 last:border-0 hover:bg-input-bg/50 transition-colors"
                           >
-                            <td className="px-5 py-3 text-text-primary text-[12px] font-semibold">
-                              {invoice.invoice_number}
+                            <td className="px-5 py-3">
+                              <button
+                                onClick={() => handlePreviewPDF(invoice)}
+                                className="text-accent text-[12px] font-semibold hover:underline"
+                              >
+                                {invoice.invoice_number}
+                              </button>
                             </td>
                             <td className="px-3 py-3 text-center">
                               <span
@@ -423,6 +462,51 @@ export default function ProjectDetail() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Invoice Preview Modal */}
+      {previewUrl && previewInvoice && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={cleanupPreview}
+        >
+          <div
+            className="bg-surface rounded-2xl shadow-lg flex flex-col w-full max-w-3xl"
+            style={{ height: 'min(90vh, 900px)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+              <h3 className="text-text-primary text-[14px] font-bold">
+                {previewInvoice.invoice_number}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownloadPDF(previewInvoice)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-colors"
+                  style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                >
+                  <Download size={12} />
+                  Download PDF
+                </button>
+                <button
+                  onClick={cleanupPreview}
+                  className="p-1.5 rounded-lg hover:bg-input-bg transition-colors text-text-muted"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            {/* PDF Viewer */}
+            <div className="flex-1 min-h-0">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-b-2xl"
+                title="Invoice Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
