@@ -52,9 +52,12 @@ export function useTasks(projectId?: string) {
   }, [fetchTasks]);
 
   const createTask = useCallback(async (task: TaskInsert): Promise<Task> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('tasks')
-      .insert(task)
+      .insert({ ...task, user_id: user.id })
       .select()
       .single();
 

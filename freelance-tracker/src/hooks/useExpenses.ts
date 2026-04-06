@@ -51,9 +51,12 @@ export function useExpenses(projectId?: string) {
   }, [fetchExpenses]);
 
   const createExpense = useCallback(async (expense: ExpenseInsert): Promise<Expense> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('expenses')
-      .insert(expense)
+      .insert({ ...expense, user_id: user.id })
       .select()
       .single();
 

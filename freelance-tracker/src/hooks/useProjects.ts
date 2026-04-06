@@ -65,9 +65,12 @@ export function useProjects(filters?: ProjectFilters) {
   }, [fetchProjects]);
 
   const createProject = useCallback(async (project: ProjectInsert): Promise<Project> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('projects')
-      .insert(project)
+      .insert({ ...project, user_id: user.id })
       .select('*, clients(id, name, email, company)')
       .single();
 

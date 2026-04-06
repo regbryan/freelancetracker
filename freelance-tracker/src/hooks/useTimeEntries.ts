@@ -51,9 +51,12 @@ export function useTimeEntries(projectId?: string) {
   }, [fetchEntries]);
 
   const createEntry = useCallback(async (entry: TimeEntryInsert): Promise<TimeEntry> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('time_entries')
-      .insert(entry)
+      .insert({ ...entry, user_id: user.id })
       .select()
       .single();
 

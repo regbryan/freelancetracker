@@ -83,9 +83,12 @@ export function useContracts(filters?: ContractFilters) {
   }, [fetchContracts]);
 
   const createContract = useCallback(async (contract: ContractInsert): Promise<Contract> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('contracts')
-      .insert(contract)
+      .insert({ ...contract, user_id: user.id })
       .select('*, clients(id, name, email, company), projects(id, name), contract_signatures(*)')
       .single();
 

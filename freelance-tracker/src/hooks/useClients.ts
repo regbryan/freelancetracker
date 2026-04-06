@@ -45,9 +45,12 @@ export function useClients() {
   }, [fetchClients]);
 
   const createClient = useCallback(async (client: ClientInsert): Promise<Client> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: insertError } = await supabase
       .from('clients')
-      .insert(client)
+      .insert({ ...client, user_id: user.id })
       .select()
       .single();
 

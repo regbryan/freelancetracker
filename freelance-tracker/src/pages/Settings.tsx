@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Save, Check, Mail, Unplug, Calendar, Loader2, Camera, FileText } from 'lucide-react'
+import { Save, Check, Mail, Unplug, Calendar, Loader2, Camera, FileText, LogOut } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Button } from '../components/ui/button'
+import { useAuth } from '../hooks/useAuth'
 import { useGmail } from '../hooks/useGmail'
 import { useCalendarAuth } from '../hooks/useCalendarAuth'
 
@@ -49,6 +50,7 @@ function loadDefaults(): InvoiceDefaults {
 type ToastState = { section: string; visible: boolean }
 
 export default function Settings() {
+  const { user, signOut } = useAuth()
   const { isAuthenticated, login, logout, loading: gmailLoading } = useGmail()
   const calendarAuth = useCalendarAuth()
 
@@ -595,6 +597,23 @@ export default function Settings() {
             Save Defaults
           </Button>
         </div>
+      </div>
+
+      {/* Account Section */}
+      <div className="bg-surface rounded-xl border border-border p-5">
+        <div className="mb-4">
+          <h3 className="text-text-primary text-[14px] font-bold">Account</h3>
+          <p className="text-text-muted text-[11px] mt-0.5">
+            Signed in as <span className="font-semibold text-text-primary">{user?.email}</span>
+          </p>
+        </div>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold text-negative bg-negative-bg hover:bg-negative/10 transition-colors"
+        >
+          <LogOut size={14} />
+          Sign Out
+        </button>
       </div>
     </div>
   )

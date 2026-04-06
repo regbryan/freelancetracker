@@ -91,10 +91,14 @@ export function useInvoices(filters?: InvoiceFilters) {
     items: InvoiceItemInsert[],
     options?: { expenseIds?: string[] }
   ): Promise<Invoice> => {
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     // Insert the invoice first
     const { data: invoiceData, error: invoiceError } = await supabase
       .from('invoices')
-      .insert(invoice)
+      .insert({ ...invoice, user_id: user.id })
       .select()
       .single();
 
