@@ -389,23 +389,23 @@ export default function ProjectDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="tasks">
-        <TabsList>
-          <TabsTrigger value="tasks" className="text-[12px]">
+        <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
+          <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">
             Tasks
           </TabsTrigger>
-          <TabsTrigger value="time" className="text-[12px]">
-            Time Tracking
+          <TabsTrigger value="time" className="text-[11px] sm:text-[12px] shrink-0">
+            Time
           </TabsTrigger>
-          <TabsTrigger value="communications" className="text-[12px]">
-            Communications
+          <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">
+            Comms
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="text-[12px]">
+          <TabsTrigger value="expenses" className="text-[11px] sm:text-[12px] shrink-0">
             Expenses
           </TabsTrigger>
-          <TabsTrigger value="contracts" className="text-[12px]">
+          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">
             Contracts
           </TabsTrigger>
-          <TabsTrigger value="invoices" className="text-[12px]">
+          <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">
             Invoices
           </TabsTrigger>
         </TabsList>

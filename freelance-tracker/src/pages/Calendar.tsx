@@ -453,7 +453,7 @@ export default function Calendar() {
           {DAY_NAMES.map((d, i) => (
             <div
               key={d}
-              className={`px-2 py-2 text-center text-[11px] font-semibold text-text-muted uppercase tracking-wider ${
+              className={`px-1 sm:px-2 py-1.5 sm:py-2 text-center text-[9px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wider ${
                 i > 0 ? 'border-l border-border' : ''
               }`}
             >
@@ -471,14 +471,14 @@ export default function Calendar() {
             return (
               <div
                 key={i}
-                className={`min-h-[100px] border-b border-border p-1.5 cursor-pointer hover:bg-input-bg/50 transition-colors ${
+                className={`min-h-[60px] sm:min-h-[100px] border-b border-border p-1 sm:p-1.5 cursor-pointer hover:bg-input-bg/50 transition-colors ${
                   col > 0 ? 'border-l border-border' : ''
                 } ${!isCurMonth ? 'opacity-30' : ''} ${isToday ? 'bg-accent/5' : ''}`}
                 onClick={() => { setCurrentDate(new Date(day)); setView('day') }}
               >
                 <div className="flex items-center justify-center mb-1">
                   <span
-                    className={`inline-flex items-center justify-center w-7 h-7 text-[13px] rounded-full ${
+                    className={`inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 text-[11px] sm:text-[13px] rounded-full ${
                       isToday
                         ? 'bg-accent text-white font-bold'
                         : 'text-text-primary font-medium'
@@ -657,7 +657,7 @@ export default function Calendar() {
     const visCount = calendars.filter((c) => visibility[c.key] !== false).length
 
     return (
-      <div className="w-[220px] bg-surface border-l border-border p-4 overflow-y-auto shrink-0">
+      <div className="hidden lg:block w-[220px] bg-surface border-l border-border p-4 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-text-primary text-[13px] font-bold">My Calendars</span>
           <span className="text-text-muted text-[11px]">{visCount}/{calendars.length}</span>
@@ -814,47 +814,50 @@ export default function Calendar() {
       </div>
 
       {/* Calendar Card */}
-      <div className="bg-surface rounded-[16px] shadow-card overflow-hidden flex" style={{ height: 'calc(100vh - 200px)' }}>
+      <div className="bg-surface rounded-xl border border-border overflow-hidden flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
         {/* Main Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
-            <div className="flex items-center gap-2">
+          {/* Toolbar — stacks on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 py-2 border-b border-border gap-2">
+            {/* Top row: nav + title */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={openCreateModal}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all shrink-0"
+                style={{ background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)' }}
               >
-                <Plus size={12} />
-                New Event
+                <Plus size={11} />
+                <span className="hidden sm:inline">New Event</span>
+                <span className="sm:hidden">New</span>
               </button>
               <button
                 onClick={() => { setCurrentDate(new Date()) }}
-                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-input-bg text-text-primary hover:bg-border transition-colors"
+                className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-input-bg text-text-primary hover:bg-border transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={() => navigate(-1)}
-                className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+                className="p-1 rounded-lg hover:bg-input-bg transition-colors"
               >
-                <ChevronLeft size={16} className="text-text-secondary" />
+                <ChevronLeft size={14} className="text-text-secondary" />
               </button>
               <button
                 onClick={() => navigate(1)}
-                className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+                className="p-1 rounded-lg hover:bg-input-bg transition-colors"
               >
-                <ChevronRight size={16} className="text-text-secondary" />
+                <ChevronRight size={14} className="text-text-secondary" />
               </button>
-              <span className="text-text-primary text-[15px] font-semibold ml-2">{headerLabel}</span>
+              <span className="text-text-primary text-[13px] sm:text-[15px] font-semibold ml-1 truncate">{headerLabel}</span>
             </div>
 
+            {/* Bottom row on mobile: view switcher */}
             <div className="flex items-center gap-1">
               {(['month', 'week', 'day'] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold transition-all ${
                     view === v
                       ? 'bg-accent text-white shadow-sm'
                       : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
@@ -863,12 +866,12 @@ export default function Calendar() {
                   {v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>
               ))}
-              <div className="w-px h-5 bg-border mx-1" />
+              <div className="w-px h-4 bg-border mx-1 hidden sm:block" />
               <button
                 onClick={() => setSidebarOpen((p) => !p)}
-                className={`p-1.5 rounded-lg transition-colors ${sidebarOpen ? 'bg-accent/10 text-accent' : 'hover:bg-input-bg text-text-muted'}`}
+                className={`p-1 rounded-lg transition-colors hidden sm:block ${sidebarOpen ? 'bg-accent/10 text-accent' : 'hover:bg-input-bg text-text-muted'}`}
               >
-                {sidebarOpen ? <Eye size={16} /> : <EyeOff size={16} />}
+                {sidebarOpen ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>
             </div>
           </div>
