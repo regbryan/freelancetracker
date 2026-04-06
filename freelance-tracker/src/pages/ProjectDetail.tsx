@@ -476,6 +476,8 @@ export default function ProjectDetail() {
                     status: data.status,
                     priority: data.priority,
                     due_date: data.dueDate ?? null,
+                    meeting_note_id: null,
+                    assignee: 'me',
                   })
                 }
               }}

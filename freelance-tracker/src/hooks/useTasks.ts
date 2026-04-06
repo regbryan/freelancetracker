@@ -9,6 +9,8 @@ export interface Task {
   status: 'todo' | 'in_progress' | 'done';
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
+  meeting_note_id: string | null;
+  assignee: string;
   created_at: string;
   updated_at: string;
 }
@@ -16,7 +18,7 @@ export interface Task {
 export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at'>;
 export type TaskUpdate = Partial<TaskInsert>;
 
-export function useTasks(projectId?: string) {
+export function useTasks(projectId?: string, meetingNoteId?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,10 @@ export function useTasks(projectId?: string) {
         query = query.eq('project_id', projectId);
       }
 
+      if (meetingNoteId) {
+        query = query.eq('meeting_note_id', meetingNoteId);
+      }
+
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
@@ -45,7 +51,7 @@ export function useTasks(projectId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, meetingNoteId]);
 
   useEffect(() => {
     fetchTasks();

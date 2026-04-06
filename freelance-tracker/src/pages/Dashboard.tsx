@@ -6,9 +6,8 @@ import {
   FolderKanban,
   TrendingUp,
   Timer,
-  Sparkles,
-  Lightbulb,
-  Clock3,
+  BookOpen,
+  Calendar,
   Loader2,
   Receipt,
   CheckSquare,
@@ -23,6 +22,7 @@ import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices } from '../hooks/useInvoices'
 import { useExpenses } from '../hooks/useExpenses'
 import { useTasks } from '../hooks/useTasks'
+import { useMeetingNotes } from '../hooks/useMeetingNotes'
 
 const CHART_COLORS = ['#0058be', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -42,6 +42,7 @@ export default function Dashboard() {
   const { invoices, loading: iLoading } = useInvoices()
   const { expenses, loading: expLoading } = useExpenses()
   const { tasks, loading: taskLoading } = useTasks()
+  const { meetingNotes, loading: mnLoading } = useMeetingNotes()
 
   const [profileName] = useState(() => {
     try {
@@ -53,9 +54,9 @@ export default function Dashboard() {
     } catch { /* ignore */ }
     return 'there'
   })
-  const { loading: cLoading } = useClients()
+  const { clients, loading: cLoading } = useClients()
 
-  const loading = pLoading || tLoading || iLoading || cLoading || expLoading || taskLoading
+  const loading = pLoading || tLoading || iLoading || cLoading || expLoading || taskLoading || mnLoading
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
   const pendingTasks = tasks.filter((t) => t.status !== 'done').length
@@ -354,44 +355,61 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* AI Insights */}
+        {/* Recent Meetings */}
         <div>
           <div className="bg-surface rounded-xl border border-border p-5 h-full flex flex-col">
-            <h3 className="text-text-primary text-[14px] font-bold mb-4">AI Insights</h3>
-
-            <div className="flex flex-col gap-3 flex-1">
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
-                  <Clock3 size={14} className="text-accent" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-text-primary text-[12px] font-semibold">Best Productivity</p>
-                  <p className="text-text-muted text-[11px] leading-relaxed">
-                    Tuesday at 10 AM shows the highest focus hours...
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
-                  <Lightbulb size={14} className="text-accent" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-text-primary text-[12px] font-semibold">Rate Suggestion</p>
-                  <p className="text-text-muted text-[11px] leading-relaxed">
-                    Your average rate is below market by 12%...
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-text-primary text-[14px] font-bold">Recent Meetings</h3>
+              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
             </div>
 
-            <button
-              className="mt-3 w-full flex items-center justify-center gap-1.5 h-9 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
-            >
-              <Sparkles size={12} />
-              Open AI Assistant
-            </button>
+            <div className="flex flex-col gap-3 flex-1">
+              {meetingNotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 gap-2">
+                  <BookOpen size={20} className="text-text-muted/40" />
+                  <p className="text-text-muted text-[12px]">No meetings yet</p>
+                  <button
+                    onClick={() => navigate('/meetings')}
+                    className="text-accent text-[11px] font-medium hover:underline"
+                  >
+                    Create your first meeting note →
+                  </button>
+                </div>
+              ) : meetingNotes.slice(0, 3).map(note => {
+                const noteClient = note.client_id ? clients.find(c => c.id === note.client_id) : null
+                const noteTasks = tasks.filter(t => t.meeting_note_id === note.id)
+                const noteDone = noteTasks.filter(t => t.status === 'done').length
+                const meetDate = new Date(note.meeting_date)
+                return (
+                  <button
+                    key={note.id}
+                    onClick={() => navigate(`/meetings/${note.id}`)}
+                    className="flex items-start gap-3 p-3 rounded-xl hover:bg-input-bg/50 transition-all text-left group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0 group-hover:bg-accent transition-all">
+                      <BookOpen size={13} className="text-accent group-hover:text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary text-[12px] font-semibold truncate">{note.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {noteClient && (
+                          <span className="text-text-muted text-[10px]">{noteClient.name}</span>
+                        )}
+                        <span className="text-text-muted text-[10px] flex items-center gap-0.5">
+                          <Calendar size={8} />
+                          {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                    {noteTasks.length > 0 && (
+                      <span className="text-text-muted text-[10px] shrink-0 mt-1">
+                        {noteDone}/{noteTasks.length}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
