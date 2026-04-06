@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import BottomNav from './BottomNav'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -27,10 +28,13 @@ export default function Layout() {
       {/* Main content area */}
       <div className="flex-1 min-w-0 min-h-screen flex flex-col">
         <TopBar onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 p-4 lg:p-6 overflow-y-auto overflow-x-hidden pb-20 lg:pb-6">
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <BottomNav onMoreClick={toggleSidebar} />
     </div>
   )
 }

@@ -84,4 +84,29 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
   }
+
+  /* PWA safe area for iOS notch/home indicator */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Prevent pull-to-refresh on mobile */
+  html {
+    overscroll-behavior: none;
+  }
+
+  /* Touch targets - ensure minimum 44px on mobile */
+  @media (max-width: 1023px) {
+    button, a, [role="button"] {
+      min-height: 36px;
+    }
+  }
+
+  /* Hide scrollbar on mobile for cleaner look */
+  @media (max-width: 1023px) {
+    ::-webkit-scrollbar {
+      width: 0;
+      display: none;
+    }
+  }
 }
