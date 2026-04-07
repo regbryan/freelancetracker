@@ -383,8 +383,12 @@ export default function ProjectDetail() {
             <button
               onClick={async () => {
                 if (!confirm(`Delete "${project.name}" and all associated data? This cannot be undone.`)) return
-                await deleteProject(project.id)
-                navigate('/projects')
+                try {
+                  await deleteProject(project.id)
+                  navigate('/projects')
+                } catch (err) {
+                  alert(`Failed to delete project: ${err instanceof Error ? err.message : 'Unknown error'}`)
+                }
               }}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
             >

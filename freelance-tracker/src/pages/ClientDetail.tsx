@@ -50,8 +50,12 @@ export default function ClientDetail() {
   async function handleDeleteClient() {
     if (!client) return
     if (!confirm(`Delete "${client.name}" and all associated data? This cannot be undone.`)) return
-    await deleteClient(client.id)
-    navigate('/clients')
+    try {
+      await deleteClient(client.id)
+      navigate('/clients')
+    } catch (err) {
+      alert(`Failed to delete client: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
   async function handleClientSave(data: ClientFormData) {
