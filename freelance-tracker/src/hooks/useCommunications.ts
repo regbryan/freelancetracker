@@ -68,3 +68,34 @@ export function useCommunications(projectId: string | undefined) {
 
   return { communications, loading, error, createCommunication, refetch: fetchCommunications };
 }
+
+export function useAllCommunications() {
+  const [communications, setCommunications] = useState<Communication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('communications')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setCommunications(data ?? []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch communications';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  return { communications, loading, error, refetch: fetchAll };
+}

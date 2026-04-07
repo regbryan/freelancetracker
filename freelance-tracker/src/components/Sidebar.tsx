@@ -11,6 +11,7 @@ import {
   Calendar,
   Settings,
   Plus,
+  Mail,
 } from 'lucide-react'
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/time', label: 'Time Tracker', icon: Clock },
   { to: '/meetings', label: 'Meeting Notes', icon: BookOpen },
+  { to: '/emails', label: 'Email Search', icon: Mail },
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/contracts', label: 'Contracts', icon: FileCheck },
   { to: '/invoices', label: 'Invoices', icon: FileText },

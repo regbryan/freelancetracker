@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import Calendar from './pages/Calendar'
 import MeetingNotes from './pages/MeetingNotes'
 import MeetingNoteDetail from './pages/MeetingNoteDetail'
+import EmailSearch from './pages/EmailSearch'
 import { Loader2 } from 'lucide-react'
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/meetings" element={<MeetingNotes />} />
             <Route path="/meetings/:id" element={<MeetingNoteDetail />} />
+            <Route path="/emails" element={<EmailSearch />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
