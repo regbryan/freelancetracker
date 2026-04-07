@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2 } from 'lucide-react'
-import { useProject } from '../hooks/useProjects'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2 } from 'lucide-react'
+import { useProject, useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
 import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
@@ -56,6 +56,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate()
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
+  const { deleteProject } = useProjects()
   const {
     entries,
     loading: entriesLoading,
@@ -368,16 +369,29 @@ export default function ProjectDetail() {
             </div>
           </div>
 
-          {project.hourly_rate != null && (
-            <div className="text-right shrink-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                Hourly Rate
-              </p>
-              <p className="text-text-primary text-[16px] font-bold">
-                ${project.hourly_rate.toFixed(2)}/hr
-              </p>
-            </div>
-          )}
+          <div className="flex items-start gap-3 shrink-0">
+            {project.hourly_rate != null && (
+              <div className="text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Hourly Rate
+                </p>
+                <p className="text-text-primary text-[16px] font-bold">
+                  ${project.hourly_rate.toFixed(2)}/hr
+                </p>
+              </div>
+            )}
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete "${project.name}" and all associated data? This cannot be undone.`)) return
+                await deleteProject(project.id)
+                navigate('/projects')
+              }}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
+          </div>
         </div>
 
         {project.description && (

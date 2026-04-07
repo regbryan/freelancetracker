@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Pencil, Plus, Mail, Phone, DollarSign, Loader2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Mail, Phone, DollarSign, Loader2, Trash2 } from 'lucide-react'
 import { useClient, useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useInvoices } from '../hooks/useInvoices'
@@ -45,7 +45,14 @@ export default function ClientDetail() {
   const [clientFormOpen, setClientFormOpen] = useState(false)
   const [projectFormOpen, setProjectFormOpen] = useState(false)
 
-  const { updateClient } = useClients()
+  const { updateClient, deleteClient } = useClients()
+
+  async function handleDeleteClient() {
+    if (!client) return
+    if (!confirm(`Delete "${client.name}" and all associated data? This cannot be undone.`)) return
+    await deleteClient(client.id)
+    navigate('/clients')
+  }
 
   async function handleClientSave(data: ClientFormData) {
     if (!client) return
@@ -149,13 +156,22 @@ export default function ClientDetail() {
             </div>
           </div>
 
-          <button
-            onClick={() => setClientFormOpen(true)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
-          >
-            <Pencil size={12} />
-            Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setClientFormOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
+            >
+              <Pencil size={12} />
+              Edit
+            </button>
+            <button
+              onClick={handleDeleteClient}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
+          </div>
         </div>
 
         {/* Contact details row */}
