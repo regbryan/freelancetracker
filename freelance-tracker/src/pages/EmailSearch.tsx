@@ -10,9 +10,17 @@ import {
   Loader2,
   FolderKanban,
   Sparkles,
+  PenSquare,
 } from 'lucide-react'
 import { useAllCommunications } from '../hooks/useCommunications'
 import { useProjects } from '../hooks/useProjects'
+import EmailComposer from '../components/EmailComposer'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
@@ -44,7 +52,7 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 
 export default function EmailSearch() {
   const navigate = useNavigate()
-  const { communications, loading } = useAllCommunications()
+  const { communications, loading, refetch } = useAllCommunications()
   const { projects } = useProjects()
   const [search, setSearch] = useState('')
   const [filterDirection, setFilterDirection] = useState<'' | 'sent' | 'received'>('')
@@ -54,6 +62,7 @@ export default function EmailSearch() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiResults, setAiResults] = useState<{ summary: string; matches: { id: string; reason: string }[] } | null>(null)
+  const [composeOpen, setComposeOpen] = useState(false)
 
   const reasonMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -154,14 +163,25 @@ export default function EmailSearch() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div>
-        <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] flex items-center gap-2">
-          <Mail size={20} className="text-accent" />
-          Email Search
-        </h2>
-        <p className="text-text-muted text-[12px] mt-0.5">
-          Search across {communications.length} synced email{communications.length !== 1 ? 's' : ''} from all projects
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] flex items-center gap-2">
+            <Mail size={20} className="text-accent" />
+            Email Search
+          </h2>
+          <p className="text-text-muted text-[12px] mt-0.5">
+            Search across {communications.length} synced email{communications.length !== 1 ? 's' : ''} from all projects
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setComposeOpen(true)}
+          className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white shrink-0 shadow-[0px_4px_12px_rgba(0,88,190,0.30)] hover:opacity-90 transition-all active:scale-95"
+          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+        >
+          <PenSquare size={13} />
+          Compose
+        </button>
       </div>
 
       {/* Search + Filters */}
@@ -373,6 +393,23 @@ export default function EmailSearch() {
           })}
         </div>
       )}
+      {/* Standalone compose dialog */}
+      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PenSquare size={16} className="text-accent" />
+              New Email
+            </DialogTitle>
+          </DialogHeader>
+          <EmailComposer
+            onSent={() => {
+              setComposeOpen(false)
+              refetch()
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

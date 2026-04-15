@@ -26,10 +26,15 @@ export interface ReplyTarget {
 }
 
 interface EmailComposerProps {
-  projectId: string;
-  clientEmail: string;
+  /** When omitted the composer runs in standalone mode — not tied to any project. */
+  projectId?: string;
+  /**
+   * Pre-fills the To field and makes it read-only.
+   * Omit (or pass undefined) for standalone mode where the user types the recipient.
+   */
+  clientEmail?: string;
   onSent?: () => void;
-  /** Invoices for this project that can be attached as PDFs. */
+  /** Invoices for this project that can be attached as PDFs. Only used when projectId is set. */
   invoices?: AttachableInvoice[];
   /** When set, the composer pre-fills for a threaded reply. */
   replyTo?: ReplyTarget | null;
@@ -37,13 +42,26 @@ interface EmailComposerProps {
   onClearReply?: () => void;
 }
 
-export default function EmailComposer({ projectId, clientEmail, onSent, invoices, replyTo, onClearReply }: EmailComposerProps) {
+export default function EmailComposer({
+  projectId,
+  clientEmail,
+  onSent,
+  invoices,
+  replyTo,
+  onClearReply,
+}: EmailComposerProps) {
+  const [toEmail, setToEmail] = useState(clientEmail ?? '');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+
+  // Keep to field in sync when clientEmail prop changes (e.g. project switching)
+  useEffect(() => {
+    setToEmail(clientEmail ?? '');
+  }, [clientEmail]);
 
   // When a reply target arrives, pre-fill the subject line.
   useEffect(() => {
@@ -55,6 +73,10 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
 
   const { isAuthenticated: authenticated, login } = useGmail();
   const { createCommunication } = useCommunications(projectId);
+
+  const isStandalone = !projectId;
+  // In standalone mode the To field is editable; with a fixed clientEmail it's read-only.
+  const toIsReadOnly = !isStandalone && !!clientEmail;
 
   async function handleConnect() {
     setConnecting(true);
@@ -71,7 +93,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
 
   /** Fetches invoice + project data and generates a base64 PDF attachment. */
   async function buildAttachment(): Promise<EmailAttachment | undefined> {
-    if (!selectedInvoiceId) return undefined;
+    if (!selectedInvoiceId || !projectId) return undefined;
 
     const { data: invoiceData, error: invErr } = await supabase
       .from('invoices')
@@ -105,7 +127,6 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
       clientInfo,
     );
 
-    // jsPDF types don't expose 'base64' directly — pull from arraybuffer instead.
     const ab = doc.output('arraybuffer');
     const bytes = new Uint8Array(ab as ArrayBuffer);
     let binary = '';
@@ -121,22 +142,23 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!subject.trim() || !body.trim()) return;
+    const recipient = toEmail.trim();
+    if (!recipient || !subject.trim() || !body.trim()) return;
 
     setSending(true);
     setError(null);
     try {
       const attachment = await buildAttachment();
       const threadId = replyTo?.threadId;
-      const response = await sendEmail(clientEmail, subject, body, threadId, attachment);
+      const response = await sendEmail(recipient, subject, body, threadId, attachment);
 
       await createCommunication({
-        project_id: projectId,
+        project_id: projectId ?? null,
         direction: 'sent',
         subject,
         body,
         from_email: 'me',
-        to_email: clientEmail,
+        to_email: recipient,
         gmail_message_id: response.id,
         gmail_thread_id: response.threadId,
         date: new Date().toISOString(),
@@ -145,6 +167,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
       setSubject('');
       setBody('');
       setSelectedInvoiceId(null);
+      if (!toIsReadOnly) setToEmail('');
       onClearReply?.();
       onSent?.();
     } catch (err: unknown) {
@@ -195,11 +218,13 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
   const selectedInvoice = invoices?.find((i) => i.id === selectedInvoiceId);
 
   return (
-    <div className="rounded-[14px] bg-surface p-5 shadow-card">
-      <div className="mb-4 flex items-center gap-2">
-        <Send className="h-4 w-4 text-accent" />
-        <h3 className="text-[13px] font-semibold text-text-primary">Compose Email</h3>
-      </div>
+    <div className={isStandalone ? '' : 'rounded-[14px] bg-surface p-5 shadow-card'}>
+      {!isStandalone && (
+        <div className="mb-4 flex items-center gap-2">
+          <Send className="h-4 w-4 text-accent" />
+          <h3 className="text-[13px] font-semibold text-text-primary">Compose Email</h3>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {/* Reply-to banner */}
@@ -230,9 +255,12 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
           <Input
             id="email-to"
             type="email"
-            value={clientEmail}
-            readOnly
-            className="bg-input-bg text-[12px] opacity-70 cursor-default"
+            value={toEmail}
+            readOnly={toIsReadOnly}
+            onChange={(e) => !toIsReadOnly && setToEmail(e.target.value)}
+            placeholder={isStandalone ? 'recipient@example.com' : ''}
+            required
+            className={`text-[12px] ${toIsReadOnly ? 'opacity-70 cursor-default bg-input-bg' : ''}`}
           />
         </div>
 
@@ -262,13 +290,13 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write your message..."
             required
-            rows={4}
+            rows={5}
             className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
           />
         </div>
 
-        {/* Invoice attachment picker */}
-        {invoices && invoices.length > 0 && (
+        {/* Invoice attachment picker — only available when tied to a project */}
+        {!isStandalone && invoices && invoices.length > 0 && (
           <div className="flex flex-col gap-1">
             <Label className="text-[11px] text-text-muted flex items-center gap-1">
               <Paperclip className="h-3 w-3" />
@@ -276,7 +304,6 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
             </Label>
 
             {selectedInvoice ? (
-              /* Chip showing the selected invoice */
               <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] border border-accent/40 bg-accent-bg">
                 <Paperclip className="h-3.5 w-3.5 text-accent shrink-0" />
                 <span className="text-[12px] text-accent font-medium flex-1 truncate">
@@ -295,7 +322,6 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
                 </button>
               </div>
             ) : (
-              /* Dropdown to pick an invoice */
               <select
                 value=""
                 onChange={(e) => setSelectedInvoiceId(e.target.value || null)}
@@ -323,7 +349,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
             type="submit"
             variant="gradient"
             size="sm"
-            disabled={sending || !subject.trim() || !body.trim()}
+            disabled={sending || !toEmail.trim() || !subject.trim() || !body.trim()}
           >
             {sending ? (
               <>

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 export interface Communication {
   id: string;
-  project_id: string;
+  project_id: string | null;
   direction: 'sent' | 'received';
   subject: string | null;
   body: string | null;
