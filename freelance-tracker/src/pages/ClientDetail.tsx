@@ -257,11 +257,17 @@ export default function ClientDetail() {
                           {status.label}
                         </span>
                       </div>
-                      {project.hourly_rate != null && (
-                        <p className="text-text-muted text-[11px]">
-                          ${project.hourly_rate.toFixed(2)}/hr
-                        </p>
-                      )}
+                      {project.billing_type === 'monthly'
+                        ? project.monthly_rate != null && (
+                          <p className="text-text-muted text-[11px]">
+                            ${project.monthly_rate.toFixed(2)}/mo
+                          </p>
+                        )
+                        : project.hourly_rate != null && (
+                          <p className="text-text-muted text-[11px]">
+                            ${project.hourly_rate.toFixed(2)}/hr
+                          </p>
+                        )}
                     </Link>
                   )
                 })}

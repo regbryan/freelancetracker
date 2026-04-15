@@ -8,7 +8,9 @@ export interface Project {
   description: string | null;
   status: 'active' | 'completed' | 'on_hold' | 'cancelled';
   type: string | null;
+  billing_type: 'hourly' | 'monthly';
   hourly_rate: number | null;
+  monthly_rate: number | null;
   created_at: string;
   updated_at: string;
   clients?: {

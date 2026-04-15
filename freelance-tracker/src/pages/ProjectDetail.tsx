@@ -171,9 +171,11 @@ export default function ProjectDetail() {
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0)
   const billableHours = entries.filter((e) => e.billable).reduce((sum, e) => sum + e.hours, 0)
   const rate = project?.hourly_rate ?? 0
+  const isMonthlyProject = project?.billing_type === 'monthly'
   const unbilledEntries = entries.filter((e) => e.billable && !e.invoice_id)
   const unbilledHours = unbilledEntries.reduce((sum, e) => sum + e.hours, 0)
-  const unbilledAmount = unbilledHours * rate
+  // For monthly projects unbilled amount reflects only uninvoiced expenses (retainer is billed manually)
+  const unbilledAmount = isMonthlyProject ? 0 : unbilledHours * rate
 
   // Expense stats
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
@@ -373,16 +375,27 @@ export default function ProjectDetail() {
           </div>
 
           <div className="flex items-start gap-3 shrink-0">
-            {project.hourly_rate != null && (
-              <div className="text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Hourly Rate
-                </p>
-                <p className="text-text-primary text-[16px] font-bold">
-                  ${project.hourly_rate.toFixed(2)}/hr
-                </p>
-              </div>
-            )}
+            {project.billing_type === 'monthly'
+              ? project.monthly_rate != null && (
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                    Monthly Rate
+                  </p>
+                  <p className="text-text-primary text-[16px] font-bold">
+                    ${project.monthly_rate.toFixed(2)}/mo
+                  </p>
+                </div>
+              )
+              : project.hourly_rate != null && (
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                    Hourly Rate
+                  </p>
+                  <p className="text-text-primary text-[16px] font-bold">
+                    ${project.hourly_rate.toFixed(2)}/hr
+                  </p>
+                </div>
+              )}
             <button
               onClick={async () => {
                 if (!confirm(`Delete "${project.name}" and all associated data? This cannot be undone.`)) return

@@ -50,6 +50,9 @@ export default function InvoiceBuilder({
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  // Monthly billing fields
+  const [monthlyQty, setMonthlyQty] = useState('1')
+  const [monthlyDesc, setMonthlyDesc] = useState('')
 
   // Suggest the next sequential invoice number when the dialog opens.
   // The user can override the value before generating.
@@ -90,11 +93,16 @@ export default function InvoiceBuilder({
       setDueDate(todayPlusDays(30))
       setNotes('')
       setInvoiceNumber('')
+      setMonthlyQty('1')
+      setMonthlyDesc('')
     }
     onOpenChange(nextOpen)
   }
 
+  const isMonthly = project?.billing_type === 'monthly'
+
   const rate = project?.hourly_rate ?? 0
+  const monthlyRate = project?.monthly_rate ?? 0
 
   const selectedEntries = useMemo(
     () => entries.filter((e) => selectedIds.has(e.id)),
@@ -116,7 +124,11 @@ export default function InvoiceBuilder({
     [selectedExpenses]
   )
 
-  const subtotal = timeSubtotal + expenseSubtotal
+  // Monthly billing subtotal: qty × monthly_rate + expenses
+  const monthlyRetainerSubtotal = (Number(monthlyQty) || 1) * monthlyRate
+  const monthlySubtotal = monthlyRetainerSubtotal + expenseSubtotal
+
+  const subtotal = isMonthly ? monthlySubtotal : timeSubtotal + expenseSubtotal
 
   const taxRateNum = Number(taxRate) || 0
   const taxAmount = subtotal * (taxRateNum / 100)
@@ -160,8 +172,8 @@ export default function InvoiceBuilder({
   }
 
   async function handleGenerate() {
-    if (selectedEntries.length === 0 && selectedExpenses.length === 0) return
     if (!project) return
+    if (!isMonthly && selectedEntries.length === 0 && selectedExpenses.length === 0) return
 
     setSubmitting(true)
     try {
@@ -174,25 +186,47 @@ export default function InvoiceBuilder({
       const today = new Date()
       const issuedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-      const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => ({
-        description: entry.description || 'Time entry',
-        quantity: entry.hours,
-        rate,
-        amount: entry.hours * rate,
-        time_entry_id: entry.id,
-        item_type: 'time' as const,
-      }))
+      let items: InvoiceItemInsert[]
 
-      const expenseItems: InvoiceItemInsert[] = selectedExpenses.map((exp) => ({
-        description: `${exp.category}: ${exp.description}`,
-        quantity: 1,
-        rate: exp.amount,
-        amount: exp.amount,
-        time_entry_id: null,
-        item_type: 'expense' as const,
-      }))
-
-      const items = [...timeItems, ...expenseItems]
+      if (isMonthly) {
+        const qty = Number(monthlyQty) || 1
+        const retainerDesc = monthlyDesc.trim() || 'Monthly retainer'
+        const retainerItem: InvoiceItemInsert = {
+          description: retainerDesc,
+          quantity: qty,
+          rate: monthlyRate,
+          amount: qty * monthlyRate,
+          time_entry_id: null,
+          item_type: 'time' as const,
+        }
+        const expenseItems: InvoiceItemInsert[] = selectedExpenses.map((exp) => ({
+          description: `${exp.category}: ${exp.description}`,
+          quantity: 1,
+          rate: exp.amount,
+          amount: exp.amount,
+          time_entry_id: null,
+          item_type: 'expense' as const,
+        }))
+        items = [retainerItem, ...expenseItems]
+      } else {
+        const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => ({
+          description: entry.description || 'Time entry',
+          quantity: entry.hours,
+          rate,
+          amount: entry.hours * rate,
+          time_entry_id: entry.id,
+          item_type: 'time' as const,
+        }))
+        const expenseItems: InvoiceItemInsert[] = selectedExpenses.map((exp) => ({
+          description: `${exp.category}: ${exp.description}`,
+          quantity: 1,
+          rate: exp.amount,
+          amount: exp.amount,
+          time_entry_id: null,
+          item_type: 'expense' as const,
+        }))
+        items = [...timeItems, ...expenseItems]
+      }
 
       await createInvoice(
         {
@@ -220,7 +254,8 @@ export default function InvoiceBuilder({
   }
 
   const loading = entriesLoading || expensesLoading || projectLoading
-  const hasItems = entries.length > 0 || unbilledExpenses.length > 0
+  // For monthly projects, the retainer line always provides content — no time entries needed
+  const hasItems = isMonthly || entries.length > 0 || unbilledExpenses.length > 0
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -228,7 +263,7 @@ export default function InvoiceBuilder({
         <DialogHeader>
           <DialogTitle>Create Invoice</DialogTitle>
           <DialogDescription>
-            Select unbilled time entries for{' '}
+            {isMonthly ? 'Configure the monthly retainer for ' : 'Select unbilled time entries for '}
             {project ? (
               <span className="font-medium text-text-primary">{project.name}</span>
             ) : (
@@ -251,65 +286,115 @@ export default function InvoiceBuilder({
           </div>
         ) : (
           <>
-            {/* Entry checklist */}
-            <div className="border border-border rounded-[12px] overflow-hidden">
-              {/* Table header */}
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-input-bg text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                <div className="w-6">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === entries.length}
-                    onChange={toggleAll}
-                    className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                    aria-label="Select all entries"
-                  />
+            {/* Monthly retainer config OR time-entry checklist */}
+            {isMonthly ? (
+              <div className="border border-border rounded-[12px] overflow-hidden">
+                <div className="px-4 py-2.5 bg-input-bg text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Monthly Retainer
                 </div>
-                <div className="flex-1">Description</div>
-                <div className="w-16 text-right">Hours</div>
-                <div className="w-20 text-right">Rate</div>
-                <div className="w-24 text-right">Amount</div>
+                <div className="divide-y divide-border">
+                  <div className="flex items-end gap-3 px-4 py-3">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[11px] text-text-muted">Description</label>
+                      <input
+                        type="text"
+                        value={monthlyDesc}
+                        onChange={(e) => setMonthlyDesc(e.target.value)}
+                        placeholder="Monthly retainer"
+                        className="flex h-9 w-full rounded-[10px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      />
+                    </div>
+                    <div className="w-20 flex flex-col gap-1">
+                      <label className="text-[11px] text-text-muted">Months</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={monthlyQty}
+                        onChange={(e) => setMonthlyQty(e.target.value)}
+                        className="flex h-9 w-full rounded-[10px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-primary text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      />
+                    </div>
+                    <div className="w-24 flex flex-col gap-1">
+                      <label className="text-[11px] text-text-muted text-right">Rate / mo</label>
+                      <p className="h-9 flex items-center justify-end text-sm text-text-muted pr-0.5">
+                        ${monthlyRate.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="w-24 flex flex-col gap-1">
+                      <label className="text-[11px] text-text-muted text-right">Amount</label>
+                      <p className="h-9 flex items-center justify-end text-sm font-semibold text-text-primary">
+                        ${monthlyRetainerSubtotal.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
+            ) : (
+              /* Hourly: time-entry checklist */
+              <div className="border border-border rounded-[12px] overflow-hidden">
+                {/* Table header */}
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-input-bg text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  <div className="w-6">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === entries.length}
+                      onChange={toggleAll}
+                      className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                      aria-label="Select all entries"
+                    />
+                  </div>
+                  <div className="flex-1">Description</div>
+                  <div className="w-16 text-right">Hours</div>
+                  <div className="w-20 text-right">Rate</div>
+                  <div className="w-24 text-right">Amount</div>
+                </div>
 
-              {/* Rows */}
-              <div className="divide-y divide-border">
-                {entries.map((entry: TimeEntry) => {
-                  const checked = selectedIds.has(entry.id)
-                  const amount = entry.hours * rate
-                  return (
-                    <label
-                      key={entry.id}
-                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                        checked ? 'bg-surface' : 'bg-surface opacity-50'
-                      } hover:bg-accent-bg-subtle`}
-                    >
-                      <div className="w-6">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleEntry(entry.id)}
-                          className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text-primary truncate">
-                          {entry.description || 'Untitled entry'}
-                        </p>
-                        <p className="text-[11px] text-text-muted">{formatEntryDate(entry.date)}</p>
-                      </div>
-                      <div className="w-16 text-right text-sm text-text-secondary">
-                        {entry.hours.toFixed(2)}
-                      </div>
-                      <div className="w-20 text-right text-sm text-text-muted">
-                        ${rate.toFixed(2)}
-                      </div>
-                      <div className="w-24 text-right text-sm font-medium text-text-primary">
-                        ${amount.toFixed(2)}
-                      </div>
-                    </label>
-                  )
-                })}
+                {/* Rows */}
+                <div className="divide-y divide-border">
+                  {entries.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-[12px] text-text-muted">
+                      No unbilled time entries for this project.
+                    </p>
+                  ) : entries.map((entry: TimeEntry) => {
+                    const checked = selectedIds.has(entry.id)
+                    const amount = entry.hours * rate
+                    return (
+                      <label
+                        key={entry.id}
+                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                          checked ? 'bg-surface' : 'bg-surface opacity-50'
+                        } hover:bg-accent-bg-subtle`}
+                      >
+                        <div className="w-6">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleEntry(entry.id)}
+                            className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-text-primary truncate">
+                            {entry.description || 'Untitled entry'}
+                          </p>
+                          <p className="text-[11px] text-text-muted">{formatEntryDate(entry.date)}</p>
+                        </div>
+                        <div className="w-16 text-right text-sm text-text-secondary">
+                          {entry.hours.toFixed(2)}
+                        </div>
+                        <div className="w-20 text-right text-sm text-text-muted">
+                          ${rate.toFixed(2)}
+                        </div>
+                        <div className="w-24 text-right text-sm font-medium text-text-primary">
+                          ${amount.toFixed(2)}
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Unbilled Expenses */}
             {unbilledExpenses.length > 0 && (
@@ -420,8 +505,9 @@ export default function InvoiceBuilder({
             <div className="border-t border-border pt-4 space-y-1.5">
               <div className="flex justify-between text-sm text-text-secondary">
                 <span>
-                  Subtotal ({selectedEntries.length + selectedExpenses.length} item
-                  {selectedEntries.length + selectedExpenses.length !== 1 ? 's' : ''})
+                  {isMonthly
+                    ? `Subtotal (retainer${selectedExpenses.length > 0 ? ` + ${selectedExpenses.length} expense${selectedExpenses.length !== 1 ? 's' : ''}` : ''})`
+                    : `Subtotal (${selectedEntries.length + selectedExpenses.length} item${selectedEntries.length + selectedExpenses.length !== 1 ? 's' : ''})`}
                 </span>
                 <span className="font-medium text-text-primary">${subtotal.toFixed(2)}</span>
               </div>
@@ -445,7 +531,7 @@ export default function InvoiceBuilder({
               <Button
                 variant="gradient"
                 onClick={handleGenerate}
-                disabled={submitting || (selectedEntries.length === 0 && selectedExpenses.length === 0)}
+                disabled={submitting || (!isMonthly && selectedEntries.length === 0 && selectedExpenses.length === 0)}
               >
                 <FileText size={16} />
                 {submitting ? 'Creating...' : 'Generate Invoice'}

@@ -42,7 +42,9 @@ export default function Projects() {
     description?: string
     status: 'active' | 'completed' | 'on_hold' | 'cancelled'
     type?: string
+    billingType?: 'hourly' | 'monthly'
     hourlyRate?: number
+    monthlyRate?: number
   }>(null)
 
   // Derive unique project types for the picklist
@@ -62,7 +64,9 @@ export default function Projects() {
         description: data.description ?? null,
         status: data.status,
         type: data.type ?? null,
-        hourly_rate: data.hourlyRate ?? null,
+        billing_type: data.billingType,
+        hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
+        monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
       })
     } else {
       await createProject({
@@ -71,7 +75,9 @@ export default function Projects() {
         description: data.description ?? null,
         status: data.status,
         type: data.type ?? null,
-        hourly_rate: data.hourlyRate ?? null,
+        billing_type: data.billingType,
+        hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
+        monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
       })
     }
     setEditingProject(null)
@@ -90,7 +96,9 @@ export default function Projects() {
         description: project.description,
         status: 'active',
         type: project.type,
+        billing_type: project.billing_type,
         hourly_rate: project.hourly_rate,
+        monthly_rate: project.monthly_rate,
       })
     } catch (err) {
       console.error('Failed to clone project:', err)
@@ -284,11 +292,13 @@ export default function Projects() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">Hourly Rate</p>
+                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">
+                      {featuredProject.billing_type === 'monthly' ? 'Monthly Rate' : 'Hourly Rate'}
+                    </p>
                     <span className="text-text-primary text-[13px] font-semibold">
-                      {featuredProject.hourly_rate != null
-                        ? `$${featuredProject.hourly_rate.toFixed(2)}/hr`
-                        : '--'}
+                      {featuredProject.billing_type === 'monthly'
+                        ? (featuredProject.monthly_rate != null ? `$${featuredProject.monthly_rate.toFixed(2)}/mo` : '--')
+                        : (featuredProject.hourly_rate != null ? `$${featuredProject.hourly_rate.toFixed(2)}/hr` : '--')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -383,9 +393,13 @@ export default function Projects() {
                 {project.clients?.name ?? 'No client'}
               </p>
               <div className="flex items-center justify-between py-3 w-full">
-                <span className="text-text-secondary text-[12px]">Hourly Rate</span>
+                <span className="text-text-secondary text-[12px]">
+                  {project.billing_type === 'monthly' ? 'Monthly Rate' : 'Hourly Rate'}
+                </span>
                 <span className="text-[12px] font-bold text-text-primary">
-                  {project.hourly_rate != null ? `$${project.hourly_rate.toFixed(2)}` : '--'}
+                  {project.billing_type === 'monthly'
+                    ? (project.monthly_rate != null ? `$${project.monthly_rate.toFixed(2)}/mo` : '--')
+                    : (project.hourly_rate != null ? `$${project.hourly_rate.toFixed(2)}/hr` : '--')}
                 </span>
               </div>
               <div className="border-t border-border flex items-center justify-between pt-3 w-full">

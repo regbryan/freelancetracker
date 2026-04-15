@@ -25,7 +25,9 @@ export interface Project {
   description?: string
   status: 'active' | 'completed' | 'on_hold' | 'cancelled'
   type?: string
+  billingType?: 'hourly' | 'monthly'
   hourlyRate?: number
+  monthlyRate?: number
 }
 
 export interface ProjectFormData {
@@ -34,7 +36,9 @@ export interface ProjectFormData {
   description?: string
   status: 'active' | 'completed' | 'on_hold' | 'cancelled'
   type?: string
+  billingType: 'hourly' | 'monthly'
   hourlyRate?: number
+  monthlyRate?: number
 }
 
 interface ProjectFormProps {
@@ -69,7 +73,9 @@ export default function ProjectForm({
   const [status, setStatus] = useState<ProjectFormData['status']>('active')
   const [type, setType] = useState('')
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
+  const [billingType, setBillingType] = useState<'hourly' | 'monthly'>('hourly')
   const [hourlyRate, setHourlyRate] = useState('')
+  const [monthlyRate, setMonthlyRate] = useState('')
   const [saving, setSaving] = useState(false)
 
   const filteredTypes = projectTypes.filter((t) =>
@@ -83,7 +89,9 @@ export default function ProjectForm({
       setDescription(project?.description ?? '')
       setStatus(project?.status ?? 'active')
       setType(project?.type ?? '')
+      setBillingType(project?.billingType ?? 'hourly')
       setHourlyRate(project?.hourlyRate != null ? String(project.hourlyRate) : '')
+      setMonthlyRate(project?.monthlyRate != null ? String(project.monthlyRate) : '')
       setShowTypeDropdown(false)
     }
   }, [open, project])
@@ -98,7 +106,9 @@ export default function ProjectForm({
         description: description || undefined,
         status,
         type: type.trim() || undefined,
-        hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
+        billingType,
+        hourlyRate: billingType === 'hourly' && hourlyRate ? Number(hourlyRate) : undefined,
+        monthlyRate: billingType === 'monthly' && monthlyRate ? Number(monthlyRate) : undefined,
       })
       onOpenChange(false)
     } finally {
@@ -209,37 +219,59 @@ export default function ProjectForm({
             </div>
           </div>
 
-          {/* Status & Hourly Rate — side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-status" className="text-[12px]">
-                Status <span className="text-negative">*</span>
-              </Label>
-              <Select
-                value={status}
-                onValueChange={(v) => setStatus(v as ProjectFormData['status'])}
-              >
-                <SelectTrigger id="project-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Status */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="project-status" className="text-[12px]">
+              Status <span className="text-negative">*</span>
+            </Label>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as ProjectFormData['status'])}
+            >
+              <SelectTrigger id="project-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-rate" className="text-[12px]">
-                Hourly Rate
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[13px]">
-                  $
-                </span>
+          {/* Billing Type toggle + Rate */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Billing Type</Label>
+            <div className="flex gap-1 p-1 rounded-[10px] bg-input-bg border border-border w-full">
+              {(['hourly', 'monthly'] as const).map((bt) => (
+                <button
+                  key={bt}
+                  type="button"
+                  onClick={() => setBillingType(bt)}
+                  className={`flex-1 py-1.5 rounded-[8px] text-[12px] font-semibold transition-colors ${
+                    billingType === bt
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {bt === 'hourly' ? 'Hourly' : 'Monthly Flat Rate'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Rate field — label & step change based on billing type */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="project-rate" className="text-[12px]">
+              {billingType === 'hourly' ? 'Hourly Rate' : 'Monthly Rate'}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[13px]">
+                $
+              </span>
+              {billingType === 'hourly' ? (
                 <Input
                   id="project-rate"
                   type="number"
@@ -250,7 +282,21 @@ export default function ProjectForm({
                   placeholder="0.00"
                   className="pl-7"
                 />
-              </div>
+              ) : (
+                <Input
+                  id="project-rate"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={monthlyRate}
+                  onChange={(e) => setMonthlyRate(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-7"
+                />
+              )}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-[11px]">
+                {billingType === 'hourly' ? '/hr' : '/mo'}
+              </span>
             </div>
           </div>
 
