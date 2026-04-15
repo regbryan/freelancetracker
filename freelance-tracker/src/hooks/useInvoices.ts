@@ -39,6 +39,38 @@ export interface Invoice {
 }
 
 export type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'payment_url' | 'projects' | 'invoice_items'>;
+export type InvoiceUpdate = Partial<Pick<Invoice, 'invoice_number' | 'status' | 'tax_rate' | 'total' | 'notes' | 'due_date' | 'issued_date'>>;
+
+/**
+ * Returns the next sequential invoice number for the current year, in the
+ * form `INV-YYYY-NNN`. The sequence resets to 001 each new year.
+ * Scans existing invoices for the current user (RLS scopes the query) and
+ * finds the highest NNN matching the current year.
+ */
+export async function getNextInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear()
+  const prefix = `INV-${year}-`
+
+  const { data, error: fetchError } = await supabase
+    .from('invoices')
+    .select('invoice_number')
+    .like('invoice_number', `${prefix}%`)
+
+  if (fetchError) throw fetchError
+
+  let maxSeq = 0
+  for (const row of data ?? []) {
+    const num: string = row.invoice_number ?? ''
+    const tail = num.slice(prefix.length)
+    const parsed = parseInt(tail, 10)
+    if (!Number.isNaN(parsed) && parsed > maxSeq) {
+      maxSeq = parsed
+    }
+  }
+
+  const next = String(maxSeq + 1).padStart(3, '0')
+  return `${prefix}${next}`
+}
 
 export interface InvoiceFilters {
   projectId?: string;
@@ -162,7 +194,23 @@ export function useInvoices(filters?: InvoiceFilters) {
     return data;
   }, [fetchInvoices]);
 
-  return { invoices, loading, error, createInvoice, updateInvoiceStatus, refetch: fetchInvoices };
+  const updateInvoice = useCallback(async (
+    id: string,
+    updates: InvoiceUpdate
+  ): Promise<Invoice> => {
+    const { data, error: updateError } = await supabase
+      .from('invoices')
+      .update(updates)
+      .eq('id', id)
+      .select('*, projects(id, name, clients(id, name)), invoice_items(*)')
+      .single();
+
+    if (updateError) throw updateError;
+    await fetchInvoices();
+    return data;
+  }, [fetchInvoices]);
+
+  return { invoices, loading, error, createInvoice, updateInvoiceStatus, updateInvoice, refetch: fetchInvoices };
 }
 
 export function useInvoice(id: string | undefined) {

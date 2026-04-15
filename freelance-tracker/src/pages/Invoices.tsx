@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Plus, Download, ChevronDown, X, Eye, CreditCard, Link2, Check } from 'lucide-react'
+import { Plus, Download, ChevronDown, X, Eye, CreditCard, Link2, Check, Pencil } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import type { Invoice, InvoiceItem } from '../hooks/useInvoices'
 import { supabase } from '../lib/supabase'
 import { generateInvoicePDF } from '../components/InvoicePDF'
+import InvoiceEditDialog from '../components/InvoiceEditDialog'
 
 const STATUS_FLOW: Record<string, Invoice['status'] | null> = {
   draft: 'sent',
@@ -68,6 +69,7 @@ function formatCurrency(amount: number): string {
 
 export default function Invoices() {
   const { invoices, loading, error, updateInvoiceStatus, refetch } = useInvoices()
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [showNewInvoiceMsg, setShowNewInvoiceMsg] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -404,6 +406,17 @@ export default function Invoices() {
                           >
                             <Download size={12} className="text-text-muted" />
                           </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingInvoice(inv)
+                            }}
+                            className="p-1.5 rounded hover:bg-border transition-colors"
+                            aria-label="Edit invoice"
+                            title="Edit"
+                          >
+                            <Pencil size={12} className="text-text-muted" />
+                          </button>
                           {(inv.status === 'sent' || inv.status === 'overdue') && (
                             <button
                               onClick={(e) => {
@@ -476,6 +489,15 @@ export default function Invoices() {
           </div>
         </div>
       )}
+
+      <InvoiceEditDialog
+        open={editingInvoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingInvoice(null)
+        }}
+        invoice={editingInvoice}
+        onSaved={refetch}
+      />
     </div>
   )
 }

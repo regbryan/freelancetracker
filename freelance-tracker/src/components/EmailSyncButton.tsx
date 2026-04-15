@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { RefreshCw, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { syncEmails, isAuthenticated, initGmailAuth } from '@/lib/gmail';
+import { syncEmails } from '@/lib/gmail';
+import { useGmail } from '@/hooks/useGmail';
 import { useCommunications } from '@/hooks/useCommunications';
 
 interface EmailSyncButtonProps {
@@ -14,8 +15,8 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
 
+  const { isAuthenticated: authenticated, login } = useGmail();
   const { communications, createCommunication } = useCommunications(projectId);
 
   const handleSync = useCallback(async () => {
@@ -69,9 +70,6 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sync failed';
       setError(msg);
-      if (msg.includes('expired') || msg.includes('Not authenticated')) {
-        setAuthenticated(false);
-      }
       // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000);
     } finally {
@@ -82,8 +80,7 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
   async function handleConnect() {
     setError(null);
     try {
-      await initGmailAuth();
-      setAuthenticated(true);
+      await login();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to connect';
       setError(msg);

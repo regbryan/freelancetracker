@@ -257,7 +257,96 @@ export default function Dashboard() {
         <StatCard icon={CheckSquare} label="Pending Tasks" value={String(pendingTasks)} trend={0} trendLabel="" />
       </div>
 
-      {/* Row 3: Charts */}
+      {/* Row 3: To-Do Dashboard */}
+      <div className="bg-surface rounded-xl border border-border p-5 flex flex-col">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-text-primary text-[14px] font-bold flex items-center gap-2">
+            <CheckSquare size={15} className="text-accent" />
+            To-Do
+          </h3>
+          <span className="text-text-muted text-[11px]">
+            {tasks.filter(t => t.status === 'done').length}/{tasks.length} done
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        {tasks.length > 0 && (
+          <div className="w-full h-1.5 bg-border rounded-full overflow-hidden mb-4">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
+                background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
+              }}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1.5 flex-1 max-h-[320px] overflow-y-auto">
+          {tasks.filter(t => t.status !== 'done').length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <CheckSquare size={24} className="text-text-muted/30" />
+              <p className="text-text-muted text-[12px]">
+                {tasks.length === 0 ? 'No tasks yet' : 'All tasks complete!'}
+              </p>
+            </div>
+          ) : (
+            tasks
+              .filter(t => t.status !== 'done')
+              .sort((a, b) => {
+                const priorityOrder = { high: 0, medium: 1, low: 2 }
+                const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+                if (pDiff !== 0) return pDiff
+                if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+                if (a.due_date) return -1
+                if (b.due_date) return 1
+                return 0
+              })
+              .slice(0, 10)
+              .map(task => {
+                const proj = projectMap.get(task.project_id)
+                const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T00:00:00') < new Date(new Date().toDateString())
+                return (
+                  <button
+                    key={task.id}
+                    onClick={() => proj ? navigate(`/projects/${proj.id}`) : undefined}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-input-bg/50 transition-all text-left group w-full"
+                  >
+                    <Circle size={14} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary text-[12px] font-medium truncate">{task.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {proj && (
+                          <span className="text-text-muted text-[10px] truncate max-w-[120px]">{proj.name}</span>
+                        )}
+                        {task.due_date && (
+                          <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue ? 'text-negative font-medium' : 'text-text-muted'}`}>
+                            {isOverdue && <AlertTriangle size={8} />}
+                            <Calendar size={8} />
+                            {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {task.priority === 'high' && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-negative-bg text-negative">High</span>
+                      )}
+                      {task.priority === 'medium' && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-hold-bg text-status-hold-text">Med</span>
+                      )}
+                      {task.assignee && task.assignee !== 'me' && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700">{task.assignee}</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })
+          )}
+        </div>
+      </div>
+
+      {/* Row 4: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Hours Tracked - Line Chart */}
         <div className="lg:col-span-5">
@@ -314,101 +403,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Row 4: To-Do + Revenue */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* To-Do Dashboard */}
-        <div className="bg-surface rounded-xl border border-border p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-text-primary text-[14px] font-bold flex items-center gap-2">
-              <CheckSquare size={15} className="text-accent" />
-              To-Do
-            </h3>
-            <span className="text-text-muted text-[11px]">
-              {tasks.filter(t => t.status === 'done').length}/{tasks.length} done
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          {tasks.length > 0 && (
-            <div className="w-full h-1.5 bg-border rounded-full overflow-hidden mb-4">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
-                  background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
-                }}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5 flex-1 max-h-[320px] overflow-y-auto">
-            {tasks.filter(t => t.status !== 'done').length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <CheckSquare size={24} className="text-text-muted/30" />
-                <p className="text-text-muted text-[12px]">
-                  {tasks.length === 0 ? 'No tasks yet' : 'All tasks complete!'}
-                </p>
-              </div>
-            ) : (
-              tasks
-                .filter(t => t.status !== 'done')
-                .sort((a, b) => {
-                  const priorityOrder = { high: 0, medium: 1, low: 2 }
-                  const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
-                  if (pDiff !== 0) return pDiff
-                  if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
-                  if (a.due_date) return -1
-                  if (b.due_date) return 1
-                  return 0
-                })
-                .slice(0, 10)
-                .map(task => {
-                  const proj = projectMap.get(task.project_id)
-                  const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T00:00:00') < new Date(new Date().toDateString())
-                  return (
-                    <button
-                      key={task.id}
-                      onClick={() => proj ? navigate(`/projects/${proj.id}`) : undefined}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-input-bg/50 transition-all text-left group w-full"
-                    >
-                      <Circle size={14} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-text-primary text-[12px] font-medium truncate">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {proj && (
-                            <span className="text-text-muted text-[10px] truncate max-w-[120px]">{proj.name}</span>
-                          )}
-                          {task.due_date && (
-                            <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue ? 'text-negative font-medium' : 'text-text-muted'}`}>
-                              {isOverdue && <AlertTriangle size={8} />}
-                              <Calendar size={8} />
-                              {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {task.priority === 'high' && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-negative-bg text-negative">High</span>
-                        )}
-                        {task.priority === 'medium' && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-hold-bg text-status-hold-text">Med</span>
-                        )}
-                        {task.assignee && task.assignee !== 'me' && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700">{task.assignee}</span>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })
-            )}
-          </div>
-        </div>
-
-        {/* Revenue Growth */}
-        <div>
-          <BarChart title="Revenue Growth" data={barChartData} />
-        </div>
+      {/* Revenue Growth */}
+      <div>
+        <BarChart title="Revenue Growth" data={barChartData} />
       </div>
 
       {/* Row 5: Recent entries + Meetings */}

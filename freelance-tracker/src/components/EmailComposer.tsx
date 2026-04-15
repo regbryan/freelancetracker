@@ -3,7 +3,8 @@ import { Send, Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { sendEmail, initGmailAuth, isAuthenticated } from '@/lib/gmail';
+import { sendEmail } from '@/lib/gmail';
+import { useGmail } from '@/hooks/useGmail';
 import { useCommunications } from '@/hooks/useCommunications';
 
 interface EmailComposerProps {
@@ -17,17 +18,16 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
   const [connecting, setConnecting] = useState(false);
 
+  const { isAuthenticated: authenticated, login } = useGmail();
   const { createCommunication } = useCommunications(projectId);
 
   async function handleConnect() {
     setConnecting(true);
     setError(null);
     try {
-      await initGmailAuth();
-      setAuthenticated(true);
+      await login();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to connect Gmail';
       setError(message);
@@ -63,10 +63,6 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send email';
       setError(message);
-      // If token expired, reset auth state
-      if (message.includes('expired') || message.includes('Not authenticated')) {
-        setAuthenticated(false);
-      }
     } finally {
       setSending(false);
     }

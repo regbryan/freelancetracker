@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { FileText } from 'lucide-react'
 import {
   Dialog,
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { useUnbilledEntries, type TimeEntry } from '@/hooks/useTimeEntries'
 import { useUnbilledExpenses, type Expense } from '@/hooks/useExpenses'
 import { useProject } from '@/hooks/useProjects'
-import { useInvoices, type InvoiceItemInsert } from '@/hooks/useInvoices'
+import { useInvoices, getNextInvoiceNumber, type InvoiceItemInsert } from '@/hooks/useInvoices'
 
 interface InvoiceBuilderProps {
   open: boolean
@@ -29,12 +29,6 @@ function todayPlusDays(days: number): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
-}
-
-function generateInvoiceNumber(): string {
-  const year = new Date().getFullYear()
-  const seq = String(Math.floor(Math.random() * 900) + 100)
-  return `INV-${year}-${seq}`
 }
 
 export default function InvoiceBuilder({
@@ -53,8 +47,31 @@ export default function InvoiceBuilder({
   const [taxRate, setTaxRate] = useState('0')
   const [dueDate, setDueDate] = useState(todayPlusDays(30))
   const [notes, setNotes] = useState('')
+  const [invoiceNumber, setInvoiceNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [initialized, setInitialized] = useState(false)
+
+  // Suggest the next sequential invoice number when the dialog opens.
+  // The user can override the value before generating.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    getNextInvoiceNumber()
+      .then((next) => {
+        if (!cancelled) setInvoiceNumber(next)
+      })
+      .catch((err) => {
+        console.error('Failed to load next invoice number:', err)
+        if (!cancelled) {
+          // Fallback so the user can still create an invoice if the lookup fails.
+          const year = new Date().getFullYear()
+          setInvoiceNumber(`INV-${year}-001`)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   // Initialize all entries and expenses as selected once loaded
   if (!initialized && (entries.length > 0 || unbilledExpenses.length > 0)) {
@@ -72,6 +89,7 @@ export default function InvoiceBuilder({
       setTaxRate('0')
       setDueDate(todayPlusDays(30))
       setNotes('')
+      setInvoiceNumber('')
     }
     onOpenChange(nextOpen)
   }
@@ -147,7 +165,12 @@ export default function InvoiceBuilder({
 
     setSubmitting(true)
     try {
-      const invoiceNumber = generateInvoiceNumber()
+      const trimmedNumber = invoiceNumber.trim()
+      if (!trimmedNumber) {
+        alert('Please enter an invoice number.')
+        setSubmitting(false)
+        return
+      }
       const today = new Date()
       const issuedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -174,7 +197,7 @@ export default function InvoiceBuilder({
       await createInvoice(
         {
           project_id: projectId,
-          invoice_number: invoiceNumber,
+          invoice_number: trimmedNumber,
           status: 'draft',
           subtotal,
           tax_rate: taxRateNum,
@@ -345,6 +368,19 @@ export default function InvoiceBuilder({
 
             {/* Invoice settings */}
             <div className="grid grid-cols-2 gap-4 mt-2">
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="invoice-number">Invoice Number</Label>
+                <Input
+                  id="invoice-number"
+                  type="text"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="INV-2026-001"
+                />
+                <p className="text-[10px] text-text-muted">
+                  Auto-suggested from your existing invoices for {new Date().getFullYear()}. Edit if needed.
+                </p>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="tax-rate">Tax Rate (%)</Label>
                 <Input

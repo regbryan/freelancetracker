@@ -1,4 +1,5 @@
-import { Pencil, Trash2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Pencil, Trash2, Play, Square } from 'lucide-react'
 
 export interface TaskRow {
   id: string
@@ -15,6 +16,14 @@ interface TaskListProps {
   onToggle: (id: string, currentStatus: string) => void
   onEdit: (task: TaskRow) => void
   onDelete: (id: string) => void
+  onTimerSave?: (taskId: string, hours: number, description: string) => Promise<void>
+}
+
+function formatElapsed(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return [hours, minutes, seconds].map((v) => String(v).padStart(2, '0')).join(':')
 }
 
 function isOverdue(dueDate: string | null | undefined, status: string): boolean {
@@ -30,7 +39,53 @@ function formatDate(date: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete }: TaskListProps) {
+export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onTimerSave }: TaskListProps) {
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (activeTaskId) {
+      intervalRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1)
+      }, 1000)
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [activeTaskId])
+
+  const handleStart = useCallback((taskId: string) => {
+    setActiveTaskId(taskId)
+    setElapsedSeconds(0)
+  }, [])
+
+  const handleStop = useCallback(
+    async (taskId: string, taskTitle: string) => {
+      if (!onTimerSave || elapsedSeconds === 0) {
+        setActiveTaskId(null)
+        setElapsedSeconds(0)
+        return
+      }
+      // Round up to nearest 0.25 hour (15 min) increment, matching Timer.tsx
+      const rawHours = elapsedSeconds / 3600
+      const hours = Math.ceil(rawHours * 4) / 4
+      setIsSaving(true)
+      try {
+        await onTimerSave(taskId, hours, taskTitle)
+      } finally {
+        setIsSaving(false)
+        setActiveTaskId(null)
+        setElapsedSeconds(0)
+      }
+    },
+    [elapsedSeconds, onTimerSave]
+  )
+
   if (loading) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
@@ -161,6 +216,37 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete }:
 
               {/* Actions */}
               <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Timer */}
+                {onTimerSave && !done && (
+                  <>
+                    {activeTaskId === task.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-mono font-semibold text-accent tabular-nums">
+                          {formatElapsed(elapsedSeconds)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleStop(task.id, task.title)}
+                          disabled={isSaving}
+                          aria-label="Stop timer and save entry"
+                          className="p-1 rounded hover:bg-input-bg transition-colors disabled:opacity-50"
+                        >
+                          <Square size={12} className="text-negative" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleStart(task.id)}
+                        disabled={activeTaskId !== null || isSaving}
+                        aria-label="Start timer"
+                        className="p-1 rounded hover:bg-input-bg transition-colors disabled:opacity-30"
+                      >
+                        <Play size={12} className="text-accent" />
+                      </button>
+                    )}
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => onEdit(task)}

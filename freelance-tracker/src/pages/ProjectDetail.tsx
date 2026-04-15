@@ -467,6 +467,17 @@ export default function ProjectDetail() {
                 setTaskFormOpen(true)
               }}
               onDelete={(taskId) => deleteTask(taskId)}
+              onTimerSave={async (taskId, hours, description) => {
+                await createEntry({
+                  project_id: id!,
+                  description,
+                  hours,
+                  date: new Date().toISOString().split('T')[0],
+                  billable: true,
+                  invoice_id: null,
+                  task_id: taskId,
+                })
+              }}
             />
 
             <TaskForm

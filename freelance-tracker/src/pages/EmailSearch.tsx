@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Loader2,
   FolderKanban,
+  Sparkles,
 } from 'lucide-react'
 import { useAllCommunications } from '../hooks/useCommunications'
 import { useProjects } from '../hooks/useProjects'
@@ -49,6 +50,49 @@ export default function EmailSearch() {
   const [filterDirection, setFilterDirection] = useState<'' | 'sent' | 'received'>('')
   const [filterProject, setFilterProject] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [aiMode, setAiMode] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiResults, setAiResults] = useState<{ summary: string; matches: { id: string; reason: string }[] } | null>(null)
+
+  const reasonMap = useMemo(() => {
+    const m = new Map<string, string>()
+    if (aiResults) for (const r of aiResults.matches) m.set(r.id, r.reason)
+    return m
+  }, [aiResults])
+
+  async function runAiSearch() {
+    if (!search.trim() || communications.length === 0) return
+    setAiLoading(true)
+    setAiError(null)
+    setAiResults(null)
+    try {
+      const payload = {
+        action: 'email-search',
+        query: search.trim(),
+        emails: communications.slice(0, 200).map(c => ({
+          id: c.id,
+          subject: c.subject || '',
+          from: c.from_email || '',
+          to: c.to_email || '',
+          date: c.date,
+          snippet: (c.body || '').slice(0, 200),
+        })),
+      }
+      const res = await fetch('https://unified-calendar-eight.vercel.app/api/parse-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'AI search failed')
+      setAiResults({ summary: data.summary || '', matches: data.matches || [] })
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI search failed')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects])
 
@@ -61,7 +105,16 @@ export default function EmailSearch() {
     if (filterProject) {
       results = results.filter(c => c.project_id === filterProject)
     }
-    if (search.trim()) {
+
+    // AI mode: use ordered AI matches when results are present
+    if (aiMode && aiResults) {
+      const byId = new Map(results.map(c => [c.id, c]))
+      return aiResults.matches
+        .map(m => byId.get(m.id))
+        .filter((c): c is typeof communications[number] => Boolean(c))
+    }
+
+    if (!aiMode && search.trim()) {
       const q = search.toLowerCase()
       results = results.filter(c =>
         (c.subject?.toLowerCase().includes(q)) ||
@@ -72,7 +125,7 @@ export default function EmailSearch() {
     }
 
     return results
-  }, [communications, search, filterDirection, filterProject])
+  }, [communications, search, filterDirection, filterProject, aiMode, aiResults])
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -113,17 +166,57 @@ export default function EmailSearch() {
 
       {/* Search + Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[250px] max-w-[480px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <div className="relative flex-1 min-w-[250px] max-w-[520px]">
+          {aiMode ? (
+            <Sparkles size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent" />
+          ) : (
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          )}
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by subject, body, sender, or recipient..."
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            onChange={e => { setSearch(e.target.value); if (aiMode) setAiResults(null) }}
+            onKeyDown={e => { if (aiMode && e.key === 'Enter') runAiSearch() }}
+            placeholder={aiMode
+              ? "Ask anything... e.g., 'who asked about logo revisions last week?'"
+              : 'Search by subject, body, sender, or recipient...'}
+            className={`w-full h-10 pl-9 pr-3 rounded-lg border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:ring-1 transition-all ${
+              aiMode
+                ? 'border-accent/40 focus:border-accent focus:ring-accent/30'
+                : 'border-border focus:border-accent focus:ring-accent/30'
+            }`}
             autoFocus
           />
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            const next = !aiMode
+            setAiMode(next)
+            setAiResults(null)
+            setAiError(null)
+          }}
+          className={`h-10 px-3 rounded-lg border text-[12px] font-semibold flex items-center gap-1.5 transition-all ${
+            aiMode
+              ? 'bg-accent text-white border-accent hover:opacity-90'
+              : 'bg-input-bg text-text-primary border-border hover:border-accent/40'
+          }`}
+          title={aiMode ? 'Switch to keyword search' : 'Switch to AI-powered search'}
+        >
+          <Sparkles size={13} />
+          Ask AI
+        </button>
+        {aiMode && (
+          <button
+            type="button"
+            onClick={runAiSearch}
+            disabled={!search.trim() || aiLoading}
+            className="h-10 px-3 rounded-lg bg-accent text-white text-[12px] font-semibold disabled:opacity-50 hover:opacity-90 transition-all flex items-center gap-1.5"
+          >
+            {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+            {aiLoading ? 'Searching...' : 'Search'}
+          </button>
+        )}
         <select
           value={filterDirection}
           onChange={e => setFilterDirection(e.target.value as '' | 'sent' | 'received')}
@@ -145,8 +238,24 @@ export default function EmailSearch() {
         </select>
       </div>
 
+      {/* AI summary callout */}
+      {aiMode && aiResults && (
+        <div className="bg-accent-bg border border-accent/30 rounded-xl p-4 flex items-start gap-3">
+          <Sparkles size={16} className="text-accent shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-accent uppercase tracking-wide mb-0.5">AI Answer</p>
+            <p className="text-[13px] text-text-primary leading-relaxed">{aiResults.summary || 'No summary available.'}</p>
+          </div>
+        </div>
+      )}
+      {aiMode && aiError && (
+        <div className="bg-negative-bg border border-negative/30 rounded-xl p-3 text-[12px] text-negative">
+          {aiError}
+        </div>
+      )}
+
       {/* Results count */}
-      {search.trim() && (
+      {((aiMode && aiResults) || (!aiMode && search.trim())) && (
         <p className="text-text-muted text-[12px]">
           {filtered.length} result{filtered.length !== 1 ? 's' : ''} found
         </p>
@@ -221,8 +330,16 @@ export default function EmailSearch() {
 
                   {/* Subject */}
                   <p className="text-[13px] font-semibold text-text-primary leading-snug">
-                    {q && comm.subject ? highlightMatch(comm.subject, q) : (comm.subject || '(no subject)')}
+                    {q && !aiMode && comm.subject ? highlightMatch(comm.subject, q) : (comm.subject || '(no subject)')}
                   </p>
+
+                  {/* AI relevance reason */}
+                  {aiMode && reasonMap.has(comm.id) && (
+                    <p className="mt-1 text-[11px] text-accent flex items-start gap-1">
+                      <Sparkles size={10} className="mt-0.5 shrink-0" />
+                      <span className="italic">{reasonMap.get(comm.id)}</span>
+                    </p>
+                  )}
 
                   {/* Body */}
                   {comm.body && (
