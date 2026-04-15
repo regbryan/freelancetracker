@@ -215,6 +215,13 @@ export async function handleOAuthRedirect(): Promise<boolean> {
     throw new Error('Missing PKCE verifier — please try connecting again');
   }
 
+  // On a fresh page load (post-OAuth redirect) the Supabase client may not
+  // have finished restoring the session from localStorage yet.
+  // Awaiting getSession() guarantees the JWT is available before we invoke
+  // the Edge Function — without it, functions.invoke() sends no auth header
+  // and the Edge Function returns 401.
+  await supabase.auth.getSession();
+
   const result = await invokeGmail<{ connected: boolean; email?: string }>({
     action: 'exchange',
     code,
