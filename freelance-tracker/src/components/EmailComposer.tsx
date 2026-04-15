@@ -71,7 +71,7 @@ export default function EmailComposer({
     }
   }, [replyTo]);
 
-  const { isAuthenticated: authenticated, login } = useGmail();
+  const { isAuthenticated: authenticated, login, loading: gmailLoading } = useGmail();
   const { createCommunication } = useCommunications(projectId);
 
   const isStandalone = !projectId;
@@ -176,6 +176,19 @@ export default function EmailComposer({
     } finally {
       setSending(false);
     }
+  }
+
+  // Still checking — show a neutral loading state so we don't flash
+  // "Connect Gmail" for users who are already connected.
+  if (gmailLoading) {
+    return (
+      <div className="rounded-[14px] bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-center py-6 gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <span className="text-[12px] text-text-muted">Checking Gmail connection...</span>
+        </div>
+      </div>
+    );
   }
 
   // Not authenticated — show connect prompt
