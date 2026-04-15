@@ -1,24 +1,39 @@
 import { useState } from 'react';
-import { Send, Mail, Loader2 } from 'lucide-react';
+import { Send, Mail, Loader2, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sendEmail } from '@/lib/gmail';
+import type { EmailAttachment } from '@/lib/gmail';
 import { useGmail } from '@/hooks/useGmail';
 import { useCommunications } from '@/hooks/useCommunications';
+import { supabase } from '@/lib/supabase';
+import { generateInvoicePDF } from '@/components/InvoicePDF';
+import type { Invoice, InvoiceItem } from '@/hooks/useInvoices';
+import type { Project } from '@/hooks/useProjects';
+
+export interface AttachableInvoice {
+  id: string;
+  invoice_number: string;
+  total: number;
+  status: string;
+}
 
 interface EmailComposerProps {
   projectId: string;
   clientEmail: string;
   onSent?: () => void;
+  /** Invoices for this project that can be attached as PDFs. */
+  invoices?: AttachableInvoice[];
 }
 
-export default function EmailComposer({ projectId, clientEmail, onSent }: EmailComposerProps) {
+export default function EmailComposer({ projectId, clientEmail, onSent, invoices }: EmailComposerProps) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
 
   const { isAuthenticated: authenticated, login } = useGmail();
   const { createCommunication } = useCommunications(projectId);
@@ -36,6 +51,49 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
     }
   }
 
+  /** Fetches invoice + project data and generates a base64 PDF attachment. */
+  async function buildAttachment(): Promise<EmailAttachment | undefined> {
+    if (!selectedInvoiceId) return undefined;
+
+    const { data: invoiceData, error: invErr } = await supabase
+      .from('invoices')
+      .select('*, invoice_items(*)')
+      .eq('id', selectedInvoiceId)
+      .single();
+    if (invErr || !invoiceData) throw new Error('Failed to load invoice for attachment');
+
+    const { data: projectData, error: projErr } = await supabase
+      .from('projects')
+      .select('*, clients(id, name, email, company)')
+      .eq('id', projectId)
+      .single();
+    if (projErr || !projectData) throw new Error('Failed to load project for attachment');
+
+    const rawClient = Array.isArray(projectData.clients)
+      ? projectData.clients[0]
+      : projectData.clients;
+
+    const clientInfo = {
+      id: rawClient?.id ?? '',
+      name: rawClient?.name ?? 'Client',
+      email: rawClient?.email ?? null,
+      company: rawClient?.company ?? null,
+    };
+
+    const doc = generateInvoicePDF(
+      invoiceData as Invoice,
+      (invoiceData.invoice_items ?? []) as InvoiceItem[],
+      projectData as Project,
+      clientInfo,
+    );
+
+    return {
+      filename: `${invoiceData.invoice_number}.pdf`,
+      data: doc.output('base64'),
+      mimeType: 'application/pdf',
+    };
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!subject.trim() || !body.trim()) return;
@@ -43,7 +101,8 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
     setSending(true);
     setError(null);
     try {
-      const response = await sendEmail(clientEmail, subject, body);
+      const attachment = await buildAttachment();
+      const response = await sendEmail(clientEmail, subject, body, undefined, attachment);
 
       await createCommunication({
         project_id: projectId,
@@ -59,6 +118,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
 
       setSubject('');
       setBody('');
+      setSelectedInvoiceId(null);
       onSent?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send email';
@@ -68,7 +128,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
     }
   }
 
-  // Not authenticated — show connect button
+  // Not authenticated — show connect prompt
   if (!authenticated) {
     return (
       <div className="rounded-[14px] bg-surface p-5 shadow-card">
@@ -105,6 +165,8 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
     );
   }
 
+  const selectedInvoice = invoices?.find((i) => i.id === selectedInvoiceId);
+
   return (
     <div className="rounded-[14px] bg-surface p-5 shadow-card">
       <div className="mb-4 flex items-center gap-2">
@@ -113,7 +175,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {/* To field */}
+        {/* To */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="email-to" className="text-[11px] text-text-muted">
             To
@@ -127,7 +189,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
           />
         </div>
 
-        {/* Subject field */}
+        {/* Subject */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="email-subject" className="text-[11px] text-text-muted">
             Subject
@@ -142,7 +204,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
           />
         </div>
 
-        {/* Body field */}
+        {/* Body */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="email-body" className="text-[11px] text-text-muted">
             Message
@@ -158,12 +220,57 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
           />
         </div>
 
-        {/* Error message */}
+        {/* Invoice attachment picker */}
+        {invoices && invoices.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <Label className="text-[11px] text-text-muted flex items-center gap-1">
+              <Paperclip className="h-3 w-3" />
+              Attach Invoice (optional)
+            </Label>
+
+            {selectedInvoice ? (
+              /* Chip showing the selected invoice */
+              <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] border border-accent/40 bg-accent-bg">
+                <Paperclip className="h-3.5 w-3.5 text-accent shrink-0" />
+                <span className="text-[12px] text-accent font-medium flex-1 truncate">
+                  {selectedInvoice.invoice_number}.pdf
+                  <span className="text-accent/60 font-normal ml-1.5">
+                    ${selectedInvoice.total.toLocaleString()}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedInvoiceId(null)}
+                  className="p-0.5 rounded hover:bg-accent/20 transition-colors"
+                  aria-label="Remove attachment"
+                >
+                  <X className="h-3 w-3 text-accent" />
+                </button>
+              </div>
+            ) : (
+              /* Dropdown to pick an invoice */
+              <select
+                value=""
+                onChange={(e) => setSelectedInvoiceId(e.target.value || null)}
+                className="flex h-9 w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">— Select an invoice to attach —</option>
+                {invoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.invoice_number} · ${inv.total.toLocaleString()} · {inv.status}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {/* Error */}
         {error && (
           <p className="text-[12px] text-negative">{error}</p>
         )}
 
-        {/* Send button */}
+        {/* Send */}
         <div className="flex justify-end pt-1">
           <Button
             type="submit"
@@ -174,12 +281,12 @@ export default function EmailComposer({ projectId, clientEmail, onSent }: EmailC
             {sending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Sending...
+                {selectedInvoiceId ? 'Generating & Sending...' : 'Sending...'}
               </>
             ) : (
               <>
                 <Send className="h-3.5 w-3.5" />
-                Send Email
+                {selectedInvoiceId ? 'Send with Invoice' : 'Send Email'}
               </>
             )}
           </Button>

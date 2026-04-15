@@ -584,6 +584,12 @@ export default function ProjectDetail() {
                 projectId={id!}
                 clientEmail={project.clients.email}
                 onSent={refetchComms}
+                invoices={invoices.map((inv) => ({
+                  id: inv.id,
+                  invoice_number: inv.invoice_number,
+                  total: inv.total,
+                  status: inv.status,
+                }))}
               />
             )}
 

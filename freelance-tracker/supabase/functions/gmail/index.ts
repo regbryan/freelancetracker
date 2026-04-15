@@ -408,6 +408,9 @@ async function handleSend(userId: string, body: Record<string, unknown>) {
   const subject = body.subject as string | undefined;
   const text = body.body as string | undefined;
   const threadId = body.threadId as string | undefined;
+  const attachment = body.attachment as
+    | { filename: string; data: string; mimeType?: string }
+    | undefined;
 
   if (!to || !subject || text === undefined) {
     return error('to, subject, and body are required');
@@ -415,15 +418,42 @@ async function handleSend(userId: string, body: Record<string, unknown>) {
 
   const accessToken = await getAccessTokenForUser(userId);
 
-  const messageParts = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    'MIME-Version: 1.0',
-    '',
-    text,
-  ];
-  const rawMessage = messageParts.join('\r\n');
+  let rawMessage: string;
+
+  if (attachment) {
+    // Build a multipart/mixed MIME message so the PDF rides alongside the text body.
+    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const mimeType = attachment.mimeType ?? 'application/pdf';
+    rawMessage = [
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      text,
+      '',
+      `--${boundary}`,
+      `Content-Type: ${mimeType}; name="${attachment.filename}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${attachment.filename}"`,
+      '',
+      attachment.data,
+      '',
+      `--${boundary}--`,
+    ].join('\r\n');
+  } else {
+    rawMessage = [
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      text,
+    ].join('\r\n');
+  }
 
   const encoded = btoa(unescape(encodeURIComponent(rawMessage)))
     .replace(/\+/g, '-')

@@ -230,11 +230,19 @@ export async function handleOAuthRedirect(): Promise<boolean> {
 // Gmail API calls — all proxied through the edge function
 // ---------------------------------------------------------------------------
 
+export interface EmailAttachment {
+  filename: string;
+  /** Standard base64-encoded file content (not base64url). */
+  data: string;
+  mimeType?: string;
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   body: string,
   threadId?: string,
+  attachment?: EmailAttachment,
 ): Promise<{ id: string; threadId: string }> {
   return invokeGmail<{ id: string; threadId: string }>({
     action: 'send',
@@ -242,6 +250,7 @@ export async function sendEmail(
     subject,
     body,
     threadId,
+    attachment,
   });
 }
 
