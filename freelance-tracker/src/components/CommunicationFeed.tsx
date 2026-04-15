@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Mail, Loader2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Mail, Loader2, CornerUpLeft } from 'lucide-react';
 import type { Communication } from '@/hooks/useCommunications';
 
 interface CommunicationFeedProps {
   communications: Communication[];
   loading?: boolean;
+  onReply?: (comm: Communication) => void;
 }
 
 function formatDate(dateString: string): string {
@@ -26,7 +27,7 @@ function truncateBody(body: string | null, maxLength: number = 100): string {
   return body.slice(0, maxLength).trimEnd() + '...';
 }
 
-export default function CommunicationFeed({ communications, loading }: CommunicationFeedProps) {
+export default function CommunicationFeed({ communications, loading, onReply }: CommunicationFeedProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   function toggleExpand(id: string) {
@@ -46,7 +47,6 @@ export default function CommunicationFeed({ communications, loading }: Communica
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -56,7 +56,6 @@ export default function CommunicationFeed({ communications, loading }: Communica
     );
   }
 
-  // Empty state
   if (sorted.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -76,6 +75,7 @@ export default function CommunicationFeed({ communications, loading }: Communica
         const isSent = comm.direction === 'sent';
         const isExpanded = expandedIds.has(comm.id);
         const hasLongBody = (comm.body?.length ?? 0) > 100;
+        const canReply = !isSent && !!onReply;
 
         return (
           <div
@@ -86,7 +86,7 @@ export default function CommunicationFeed({ communications, loading }: Communica
                 : 'border-l-[3px] border-l-positive border-t-border border-r-border border-b-border'
             }`}
           >
-            {/* Clickable header area */}
+            {/* Clickable header / body area */}
             <button
               type="button"
               onClick={() => hasLongBody && toggleExpand(comm.id)}
@@ -100,11 +100,7 @@ export default function CommunicationFeed({ communications, loading }: Communica
                   ) : (
                     <ArrowDownLeft className="h-3.5 w-3.5 text-positive" />
                   )}
-                  <span
-                    className={`text-[11px] font-medium ${
-                      isSent ? 'text-accent' : 'text-positive'
-                    }`}
-                  >
+                  <span className={`text-[11px] font-medium ${isSent ? 'text-accent' : 'text-positive'}`}>
                     {isSent ? 'Sent' : 'Received'}
                   </span>
                 </div>
@@ -118,30 +114,38 @@ export default function CommunicationFeed({ communications, loading }: Communica
                 {comm.subject || '(no subject)'}
               </p>
 
-              {/* Body preview / full body */}
+              {/* Body preview / full */}
               {comm.body && (
                 <p className="mt-1 text-[12px] text-text-secondary leading-relaxed whitespace-pre-wrap">
                   {isExpanded ? comm.body : truncateBody(comm.body)}
                 </p>
               )}
 
-              {/* Expand/collapse indicator */}
+              {/* Expand/collapse hint */}
               {hasLongBody && (
                 <div className="mt-1.5 flex items-center gap-1 text-[11px] text-text-muted">
                   {isExpanded ? (
-                    <>
-                      <ChevronUp className="h-3 w-3" />
-                      <span>Show less</span>
-                    </>
+                    <><ChevronUp className="h-3 w-3" /><span>Show less</span></>
                   ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3" />
-                      <span>Show more</span>
-                    </>
+                    <><ChevronDown className="h-3 w-3" /><span>Show more</span></>
                   )}
                 </div>
               )}
             </button>
+
+            {/* Footer: reply button (received emails only) */}
+            {canReply && (
+              <div className="px-4 pb-2.5 flex justify-end border-t border-border/40 pt-2">
+                <button
+                  type="button"
+                  onClick={() => onReply(comm)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
+                >
+                  <CornerUpLeft className="h-3 w-3" />
+                  Reply
+                </button>
+              </div>
+            )}
           </div>
         );
       })}

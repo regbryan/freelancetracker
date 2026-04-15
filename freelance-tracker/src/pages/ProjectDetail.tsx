@@ -26,6 +26,7 @@ import type { ExpenseFormData } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import type { ExpenseRow } from '../components/ExpenseList'
 import EmailComposer from '../components/EmailComposer'
+import type { ReplyTarget } from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
 import { generateInvoicePDF } from '../components/InvoicePDF'
@@ -99,6 +100,8 @@ export default function ProjectDetail() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
   const previewBlobRef = useRef<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null)
+  const composerRef = useRef<HTMLDivElement | null>(null)
 
   function cleanupPreview() {
     if (previewBlobRef.current) {
@@ -580,23 +583,35 @@ export default function ProjectDetail() {
 
             {/* Email composer */}
             {project.clients?.email && (
-              <EmailComposer
-                projectId={id!}
-                clientEmail={project.clients.email}
-                onSent={refetchComms}
-                invoices={invoices.map((inv) => ({
-                  id: inv.id,
-                  invoice_number: inv.invoice_number,
-                  total: inv.total,
-                  status: inv.status,
-                }))}
-              />
+              <div ref={composerRef}>
+                <EmailComposer
+                  projectId={id!}
+                  clientEmail={project.clients.email}
+                  onSent={refetchComms}
+                  invoices={invoices.map((inv) => ({
+                    id: inv.id,
+                    invoice_number: inv.invoice_number,
+                    total: inv.total,
+                    status: inv.status,
+                  }))}
+                  replyTo={replyingTo}
+                  onClearReply={() => setReplyingTo(null)}
+                />
+              </div>
             )}
 
             {/* Communication feed */}
             <CommunicationFeed
               communications={communications}
               loading={commsLoading}
+              onReply={(comm) => {
+                setReplyingTo({
+                  subject: comm.subject,
+                  threadId: comm.gmail_thread_id ?? '',
+                  fromEmail: comm.from_email,
+                })
+                composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
             />
           </div>
         </TabsContent>

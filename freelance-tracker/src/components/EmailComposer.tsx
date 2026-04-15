@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Send, Mail, Loader2, Paperclip, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Send, Mail, Loader2, Paperclip, X, CornerUpLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,21 +19,39 @@ export interface AttachableInvoice {
   status: string;
 }
 
+export interface ReplyTarget {
+  subject: string | null;
+  threadId: string;
+  fromEmail: string | null;
+}
+
 interface EmailComposerProps {
   projectId: string;
   clientEmail: string;
   onSent?: () => void;
   /** Invoices for this project that can be attached as PDFs. */
   invoices?: AttachableInvoice[];
+  /** When set, the composer pre-fills for a threaded reply. */
+  replyTo?: ReplyTarget | null;
+  /** Called when the user dismisses the reply context. */
+  onClearReply?: () => void;
 }
 
-export default function EmailComposer({ projectId, clientEmail, onSent, invoices }: EmailComposerProps) {
+export default function EmailComposer({ projectId, clientEmail, onSent, invoices, replyTo, onClearReply }: EmailComposerProps) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+
+  // When a reply target arrives, pre-fill the subject line.
+  useEffect(() => {
+    if (replyTo) {
+      const raw = replyTo.subject ?? '';
+      setSubject(raw.toLowerCase().startsWith('re:') ? raw : `Re: ${raw}`);
+    }
+  }, [replyTo]);
 
   const { isAuthenticated: authenticated, login } = useGmail();
   const { createCommunication } = useCommunications(projectId);
@@ -109,7 +127,8 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
     setError(null);
     try {
       const attachment = await buildAttachment();
-      const response = await sendEmail(clientEmail, subject, body, undefined, attachment);
+      const threadId = replyTo?.threadId;
+      const response = await sendEmail(clientEmail, subject, body, threadId, attachment);
 
       await createCommunication({
         project_id: projectId,
@@ -126,6 +145,7 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
       setSubject('');
       setBody('');
       setSelectedInvoiceId(null);
+      onClearReply?.();
       onSent?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send email';
@@ -182,6 +202,26 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {/* Reply-to banner */}
+        {replyTo && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-input-bg border border-border">
+            <CornerUpLeft className="h-3.5 w-3.5 text-accent shrink-0" />
+            <span className="text-[12px] text-text-secondary flex-1 truncate">
+              Replying to{replyTo.fromEmail ? <span className="font-medium text-text-primary"> {replyTo.fromEmail}</span> : ''}{replyTo.subject ? <>: <span className="italic">{replyTo.subject}</span></> : ''}
+            </span>
+            {onClearReply && (
+              <button
+                type="button"
+                onClick={onClearReply}
+                className="p-0.5 rounded hover:bg-border transition-colors"
+                aria-label="Cancel reply"
+              >
+                <X className="h-3 w-3 text-text-muted" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* To */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="email-to" className="text-[11px] text-text-muted">
