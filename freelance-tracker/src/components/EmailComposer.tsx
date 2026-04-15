@@ -87,9 +87,16 @@ export default function EmailComposer({ projectId, clientEmail, onSent, invoices
       clientInfo,
     );
 
+    // jsPDF types don't expose 'base64' directly — pull from arraybuffer instead.
+    const ab = doc.output('arraybuffer');
+    const bytes = new Uint8Array(ab as ArrayBuffer);
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    const base64 = btoa(binary);
+
     return {
       filename: `${invoiceData.invoice_number}.pdf`,
-      data: doc.output('base64'),
+      data: base64,
       mimeType: 'application/pdf',
     };
   }
