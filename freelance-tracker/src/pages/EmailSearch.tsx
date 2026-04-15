@@ -297,7 +297,7 @@ export default function EmailSearch() {
             const isSent = comm.direction === 'sent'
             const isExpanded = expandedIds.has(comm.id)
             const hasLongBody = (comm.body?.length ?? 0) > 200
-            const proj = projectMap.get(comm.project_id)
+            const proj = comm.project_id ? projectMap.get(comm.project_id) : undefined
             const q = search.trim()
 
             return (
