@@ -121,11 +121,23 @@ const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
 
 async function getUserId(req: Request): Promise<string | null> {
   const authHeader = req.headers.get('authorization');
+  console.log('[gmail] Authorization header present:', !!authHeader);
+  if (authHeader) {
+    console.log('[gmail] Authorization starts with Bearer:', authHeader.startsWith('Bearer '));
+    console.log('[gmail] Token length:', authHeader.length);
+  }
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.slice('Bearer '.length);
   const { data, error: authError } = await admin.auth.getUser(token);
-  if (authError || !data.user) return null;
+  if (authError) {
+    console.error('[gmail] getUser error:', authError.message);
+  }
+  if (!data?.user) {
+    console.error('[gmail] getUser returned no user');
+    return null;
+  }
+  console.log('[gmail] Authenticated user:', data.user.id);
   return data.user.id;
 }
 
