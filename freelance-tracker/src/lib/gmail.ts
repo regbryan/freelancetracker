@@ -95,15 +95,16 @@ async function invokeGmail<T = unknown>(
     // surface the original { error: "..." } message from the edge function.
     type MaybeHttpError = { context?: { json?: () => Promise<{ error?: string }> } };
     const ctx = (error as MaybeHttpError).context;
+    let edgeFnMessage: string | undefined;
     if (ctx?.json) {
       try {
         const parsed = await ctx.json();
-        if (parsed?.error) throw new Error(parsed.error);
+        if (parsed?.error) edgeFnMessage = parsed.error;
       } catch {
-        // fall through
+        // JSON parsing failed — fall through to generic message
       }
     }
-    throw new Error(error.message || 'Gmail request failed');
+    throw new Error(edgeFnMessage || error.message || 'Gmail request failed');
   }
   return data as T;
 }

@@ -325,8 +325,15 @@ async function handleExchange(userId: string, body: Record<string, unknown>) {
   const codeVerifier = body.code_verifier as string | undefined;
   const redirectUri = body.redirect_uri as string | undefined;
 
+  console.log('[gmail] exchange: code length:', code?.length, 'verifier length:', codeVerifier?.length, 'redirectUri:', redirectUri);
+  console.log('[gmail] exchange: GOOGLE_CLIENT_ID present:', !!GOOGLE_CLIENT_ID, 'GOOGLE_CLIENT_SECRET present:', !!GOOGLE_CLIENT_SECRET);
+
   if (!code || !codeVerifier || !redirectUri) {
     return error('code, code_verifier, and redirect_uri are required');
+  }
+
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return error('Server misconfiguration: Google OAuth credentials are not set. Contact the administrator.', 500);
   }
 
   const tokens = await exchangeCode(code, codeVerifier, redirectUri);
@@ -376,7 +383,15 @@ async function handleStatus(userId: string) {
 
   if (rowError) return error(`DB error: ${rowError.message}`, 500);
 
-  if (!row) return json({ connected: false });
+  if (!row) {
+    return json({
+      connected: false,
+      _debug: {
+        hasClientId: !!GOOGLE_CLIENT_ID,
+        hasClientSecret: !!GOOGLE_CLIENT_SECRET,
+      },
+    });
+  }
 
   return json({
     connected: true,
@@ -594,7 +609,9 @@ Deno.serve(async (req: Request) => {
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(`Action ${action} failed:`, message);
+    const stack = e instanceof Error ? e.stack : undefined;
+    console.error(`[gmail] Action ${action} failed:`, message);
+    if (stack) console.error(`[gmail] Stack:`, stack);
     return error(message, 500);
   }
 });
