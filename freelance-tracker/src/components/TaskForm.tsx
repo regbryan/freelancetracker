@@ -24,6 +24,7 @@ export interface TaskFormData {
   status: 'todo' | 'in_progress' | 'done'
   priority: 'low' | 'medium' | 'high'
   dueDate?: string
+  projectId?: string
 }
 
 interface TaskFormProps {
@@ -37,6 +38,8 @@ interface TaskFormProps {
     priority: string
     dueDate?: string
   } | null
+  /** When provided, a project selector is shown (for creating tasks outside a project context). */
+  projects?: { id: string; name: string }[]
   onSave: (data: TaskFormData) => Promise<void>
 }
 
@@ -56,6 +59,7 @@ export default function TaskForm({
   open,
   onOpenChange,
   task,
+  projects,
   onSave,
 }: TaskFormProps) {
   const isEdit = Boolean(task)
@@ -65,6 +69,7 @@ export default function TaskForm({
   const [status, setStatus] = useState<TaskFormData['status']>('todo')
   const [priority, setPriority] = useState<TaskFormData['priority']>('medium')
   const [dueDate, setDueDate] = useState('')
+  const [projectId, setProjectId] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -74,11 +79,13 @@ export default function TaskForm({
       setStatus((task?.status as TaskFormData['status']) ?? 'todo')
       setPriority((task?.priority as TaskFormData['priority']) ?? 'medium')
       setDueDate(task?.dueDate ?? '')
+      setProjectId('')
     }
   }, [open, task])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (projects && !isEdit && !projectId) return
     setSaving(true)
     try {
       await onSave({
@@ -87,6 +94,7 @@ export default function TaskForm({
         status,
         priority,
         dueDate: dueDate || undefined,
+        projectId: projectId || undefined,
       })
       onOpenChange(false)
     } finally {
@@ -107,6 +115,27 @@ export default function TaskForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Project — only when creating from global tasks page */}
+          {projects && !isEdit && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-project" className="text-[12px]">
+                Project <span className="text-negative">*</span>
+              </Label>
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger id="task-project">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-title" className="text-[12px]">
@@ -203,7 +232,7 @@ export default function TaskForm({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="gradient" disabled={saving || !title.trim()}>
+            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId)}>
               {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Task'}
             </Button>
           </DialogFooter>

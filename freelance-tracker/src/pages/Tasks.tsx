@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, X, ExternalLink, Loader2 } from 'lucide-react'
+import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useProjects } from '../hooks/useProjects'
 import { supabase } from '../lib/supabase'
+import TaskForm from '../components/TaskForm'
+import type { TaskFormData } from '../components/TaskForm'
+import type { TaskRow } from '../components/TaskList'
 
 type StatusFilter = 'all' | 'todo' | 'in_progress' | 'done'
 
@@ -26,10 +29,12 @@ function formatDate(date: string): string {
 }
 
 export default function Tasks() {
-  const { tasks, loading: tasksLoading, updateTask } = useTasks()
+  const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [taskFormOpen, setTaskFormOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
   const [logHours, setLogHours] = useState('')
   const [logDate, setLogDate] = useState(todayISO)
@@ -97,7 +102,8 @@ export default function Tasks() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-text-primary text-[20px] font-bold tracking-[-0.3px]">Tasks</h1>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -114,6 +120,15 @@ export default function Tasks() {
               </span>
             </button>
           ))}
+          </div>
+          <button
+            onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+          >
+            <Plus size={12} />
+            Add Task
+          </button>
         </div>
       </div>
 
@@ -187,18 +202,46 @@ export default function Tasks() {
                     )}
                   </div>
 
-                  {/* Log time button */}
-                  {!done && (
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {!done && (
+                      <button
+                        type="button"
+                        onClick={() => loggingTaskId === task.id ? setLoggingTaskId(null) : openLogForm(task.id)}
+                        aria-label="Log time"
+                        title="Log time"
+                        className="p-1 rounded hover:bg-input-bg transition-colors"
+                      >
+                        <Clock size={12} className={loggingTaskId === task.id ? 'text-accent' : 'text-text-muted'} />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => loggingTaskId === task.id ? setLoggingTaskId(null) : openLogForm(task.id)}
-                      aria-label="Log time"
-                      title="Log time"
-                      className="p-1 rounded hover:bg-input-bg transition-colors flex-shrink-0"
+                      onClick={() => {
+                        setEditingTask({
+                          id: task.id,
+                          title: task.title,
+                          description: task.description ?? undefined,
+                          status: task.status,
+                          priority: task.priority,
+                          dueDate: task.due_date ?? undefined,
+                        })
+                        setTaskFormOpen(true)
+                      }}
+                      aria-label="Edit task"
+                      className="p-1 rounded hover:bg-input-bg transition-colors"
                     >
-                      <Clock size={12} className={loggingTaskId === task.id ? 'text-accent' : 'text-text-muted'} />
+                      <Pencil size={12} className="text-text-muted" />
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => { if (confirm('Delete this task?')) deleteTask(task.id) }}
+                      aria-label="Delete task"
+                      className="p-1 rounded hover:bg-input-bg transition-colors"
+                    >
+                      <Trash2 size={12} className="text-negative" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Inline log time form */}
@@ -269,6 +312,39 @@ export default function Tasks() {
           })}
         </div>
       )}
+
+      <TaskForm
+        open={taskFormOpen}
+        onOpenChange={(open) => {
+          setTaskFormOpen(open)
+          if (!open) setEditingTask(null)
+        }}
+        task={editingTask}
+        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+        onSave={async (data: TaskFormData) => {
+          if (editingTask) {
+            await updateTask(editingTask.id, {
+              title: data.title,
+              description: data.description ?? null,
+              status: data.status,
+              priority: data.priority,
+              due_date: data.dueDate ?? null,
+            })
+            setEditingTask(null)
+          } else {
+            await createTask({
+              project_id: data.projectId!,
+              title: data.title,
+              description: data.description ?? null,
+              status: data.status,
+              priority: data.priority,
+              due_date: data.dueDate ?? null,
+              meeting_note_id: null,
+              assignee: 'me',
+            })
+          }
+        }}
+      />
     </div>
   )
 }

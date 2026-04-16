@@ -17,7 +17,6 @@ import { generateContractPDF } from '../components/ContractPDF'
 import type { Expense } from '../hooks/useExpenses'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
-import TimeEntryList from '../components/TimeEntryList'
 import InvoiceBuilder from '../components/InvoiceBuilder'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormData } from '../components/ExpenseForm'
@@ -58,11 +57,7 @@ export default function ProjectDetail() {
   const { deleteProject } = useProjects()
   const {
     entries,
-    loading: entriesLoading,
     createEntry,
-    updateEntry,
-    deleteEntry,
-    refetch: refetchEntries,
   } = useTimeEntries(id)
   const invoiceFilters = useMemo(() => ({ projectId: id }), [id])
   const { invoices, loading: invoicesLoading, refetch: invoicesRefetch } = useInvoices(invoiceFilters)
@@ -165,15 +160,7 @@ export default function ProjectDetail() {
     }
   }
 
-  // Compute summary stats from entries
-  const totalHours = entries.reduce((sum, e) => sum + e.hours, 0)
-  const billableHours = entries.filter((e) => e.billable).reduce((sum, e) => sum + e.hours, 0)
   const rate = project?.hourly_rate ?? 0
-  const isMonthlyProject = project?.billing_type === 'monthly'
-  const unbilledEntries = entries.filter((e) => e.billable && !e.invoice_id)
-  const unbilledHours = unbilledEntries.reduce((sum, e) => sum + e.hours, 0)
-  // For monthly projects unbilled amount reflects only uninvoiced expenses (retainer is billed manually)
-  const unbilledAmount = isMonthlyProject ? 0 : unbilledHours * rate
 
   // Expense stats
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
@@ -261,26 +248,6 @@ export default function ProjectDetail() {
     })
   }
 
-  function handleEditEntry(entry: {
-    id: string
-    projectId: string
-    description: string
-    hours: number
-    date: string
-    billable: boolean
-  }) {
-    // For now, simple prompt-based edit for description
-    const newDesc = window.prompt('Edit description:', entry.description)
-    if (newDesc !== null && newDesc !== entry.description) {
-      updateEntry(entry.id, { description: newDesc }).then(() => refetchEntries())
-    }
-  }
-
-  async function handleDeleteEntry(entryId: string) {
-    const confirmed = window.confirm('Delete this time entry?')
-    if (!confirmed) return
-    await deleteEntry(entryId)
-  }
 
   if (projectLoading) {
     return (
@@ -308,16 +275,6 @@ export default function ProjectDetail() {
   }
 
   const status = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.active
-
-  // Map entries to the shape TimeEntryList expects
-  const listEntries = entries.map((e) => ({
-    id: e.id,
-    projectId: e.project_id,
-    description: e.description ?? '',
-    hours: e.hours,
-    date: e.date,
-    billable: e.billable,
-  }))
 
   return (
     <div className="flex flex-col gap-5">
@@ -404,9 +361,6 @@ export default function ProjectDetail() {
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
           <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">
             Tasks
-          </TabsTrigger>
-          <TabsTrigger value="time" className="text-[11px] sm:text-[12px] shrink-0">
-            Time
           </TabsTrigger>
           <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">
             Comms
@@ -509,51 +463,7 @@ export default function ProjectDetail() {
           </div>
         </TabsContent>
 
-        {/* Time Tracking Tab */}
-        <TabsContent value="time">
-          <div className="flex flex-col gap-4">
-            {/* Note */}
-            <p className="text-[12px] text-text-muted">
-              Time entries are logged from the Tasks tab — use the clock icon on any task to log hours.
-            </p>
 
-            {/* Summary stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Total Hours
-                </p>
-                <p className="text-text-primary text-[20px] font-bold mt-1">
-                  {totalHours.toFixed(2)}
-                </p>
-              </div>
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Billable Hours
-                </p>
-                <p className="text-text-primary text-[20px] font-bold mt-1">
-                  {billableHours.toFixed(2)}
-                </p>
-              </div>
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Unbilled Amount
-                </p>
-                <p className="text-accent text-[20px] font-bold mt-1">
-                  ${unbilledAmount.toFixed(2)}
-                </p>
-              </div>
-            </div>
-
-            {/* Time entries list */}
-            <TimeEntryList
-              entries={listEntries}
-              onEdit={handleEditEntry}
-              onDelete={handleDeleteEntry}
-              loading={entriesLoading}
-            />
-          </div>
-        </TabsContent>
 
         {/* Communications Tab */}
         <TabsContent value="communications">
