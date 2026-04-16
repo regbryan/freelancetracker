@@ -19,6 +19,7 @@ export interface Client {
   phone?: string
   hourlyRate?: number
   notes?: string
+  status?: 'active' | 'inactive'
 }
 
 export interface ClientFormData {
@@ -28,6 +29,7 @@ export interface ClientFormData {
   phone?: string
   hourlyRate?: number
   notes?: string
+  status: 'active' | 'inactive'
 }
 
 interface ClientFormProps {
@@ -46,6 +48,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
   const [phone, setPhone] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
   const [notes, setNotes] = useState('')
+  const [status, setStatus] = useState<'active' | 'inactive'>('active')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -56,6 +59,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
       setPhone(client?.phone ?? '')
       setHourlyRate(client?.hourlyRate != null ? String(client.hourlyRate) : '')
       setNotes(client?.notes ?? '')
+      setStatus(client?.status ?? 'active')
     }
   }, [open, client])
 
@@ -70,6 +74,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
         phone: phone || undefined,
         hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
         notes: notes || undefined,
+        status,
       })
       onOpenChange(false)
     } finally {
@@ -165,6 +170,29 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
                 placeholder="0.00"
                 className="pl-7"
               />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[12px]">Status</Label>
+            <div className="flex gap-2">
+              {(['active', 'inactive'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className={`flex-1 h-9 rounded-[10px] text-[12px] font-semibold border transition-colors ${
+                    status === s
+                      ? s === 'active'
+                        ? 'bg-status-active-bg text-status-active-text border-status-active-text/30'
+                        : 'bg-input-bg text-text-muted border-border'
+                      : 'bg-transparent text-text-muted border-border hover:bg-input-bg'
+                  }`}
+                >
+                  {s === 'active' ? 'Retained' : 'Inactive'}
+                </button>
+              ))}
             </div>
           </div>
 

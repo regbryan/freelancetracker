@@ -329,11 +329,11 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {task.priority === 'high' && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-negative-bg text-negative">High</span>
+                      {task.status === 'in_progress' && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>
                       )}
-                      {task.priority === 'medium' && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-hold-bg text-status-hold-text">Med</span>
+                      {task.status === 'todo' && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-completed-bg text-status-completed-text">To Do</span>
                       )}
                       {task.assignee && task.assignee !== 'me' && (
                         <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700">{task.assignee}</span>

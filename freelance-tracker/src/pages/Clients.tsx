@@ -30,8 +30,10 @@ export default function Clients() {
           (c.company && c.company.toLowerCase().includes(q)),
       )
     }
-    // Status filter — currently all clients are treated as active
-    // Can be extended when status field is added to the DB
+    if (statusFilter !== 'all') {
+      const mapped = statusFilter === 'active' ? 'active' : 'inactive'
+      result = result.filter((c) => c.status === mapped)
+    }
     return result
   }, [clients, searchQuery, statusFilter])
 
@@ -73,6 +75,7 @@ export default function Clients() {
       phone: data.phone ?? null,
       hourly_rate: data.hourlyRate ?? null,
       notes: data.notes ?? null,
+      status: data.status,
     }
 
     if (editingClient) {
@@ -91,6 +94,7 @@ export default function Clients() {
       phone: client.phone ?? undefined,
       hourlyRate: client.hourly_rate ?? undefined,
       notes: client.notes ?? undefined,
+      status: client.status,
     }
   }
 
@@ -242,7 +246,7 @@ export default function Clients() {
               </thead>
               <tbody>
                 {filteredClients.map((client) => {
-                  const status = statusColors.active
+                  const status = statusColors[client.status] ?? statusColors.active
                   const isSelected = selectedClient?.id === client.id
                   return (
                     <tr
@@ -286,12 +290,22 @@ export default function Clients() {
                         </p>
                       </td>
                       <td className="px-2 py-3.5">
-                        <button
-                          onClick={(e) => handleEditClick(e, client)}
-                          className="p-1 rounded hover:bg-input-bg transition-colors"
-                        >
-                          <MoreVertical size={14} className="text-text-muted" />
-                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={(e) => handleEditClick(e, client)}
+                            className="p-1 rounded hover:bg-input-bg transition-colors"
+                            aria-label="Edit client"
+                          >
+                            <MoreVertical size={14} className="text-text-muted" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteClick(e, client)}
+                            className="p-1 rounded hover:bg-negative/10 transition-colors"
+                            aria-label="Delete client"
+                          >
+                            <Trash2 size={13} className="text-negative" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

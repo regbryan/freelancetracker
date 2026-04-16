@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Pencil, Trash2, Play, Square, Clock, X } from 'lucide-react'
 
+function formatHours(h: number): string {
+  const rounded = Math.round(h * 100) / 100
+  return `${rounded}h logged`
+}
+
 export interface TaskRow {
   id: string
   title: string
@@ -18,6 +23,7 @@ interface TaskListProps {
   onDelete: (id: string) => void
   onTimerSave?: (taskId: string, hours: number, description: string) => Promise<void>
   onLogTime?: (taskId: string, hours: number, date: string, billable: boolean) => Promise<void>
+  timeByTaskId?: Record<string, number>
 }
 
 function todayISO(): string {
@@ -45,7 +51,7 @@ function formatDate(date: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onTimerSave, onLogTime }: TaskListProps) {
+export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onTimerSave, onLogTime, timeByTaskId }: TaskListProps) {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
@@ -205,6 +211,12 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                 {task.description && (
                   <p className="text-text-muted text-[11px] truncate mt-0.5">
                     {task.description}
+                  </p>
+                )}
+                {timeByTaskId && (timeByTaskId[task.id] ?? 0) > 0 && (
+                  <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
+                    <Clock size={9} />
+                    {formatHours(timeByTaskId[task.id])}
                   </p>
                 )}
               </div>

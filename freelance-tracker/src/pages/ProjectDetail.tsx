@@ -1,13 +1,16 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil } from 'lucide-react'
 import { useProject, useProjects } from '../hooks/useProjects'
+import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
 import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
 import { useTasks } from '../hooks/useTasks'
 import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
+import ProjectForm from '../components/ProjectForm'
+import type { ProjectFormData } from '../components/ProjectForm'
 import TaskList from '../components/TaskList'
 import type { TaskRow } from '../components/TaskList'
 import { useContracts } from '../hooks/useContracts'
@@ -54,7 +57,8 @@ export default function ProjectDetail() {
   const navigate = useNavigate()
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
-  const { deleteProject } = useProjects()
+  const { deleteProject, updateProject } = useProjects()
+  const { clients } = useClients()
   const {
     entries,
     createEntry,
@@ -77,10 +81,19 @@ export default function ProjectDetail() {
     updateTask,
     deleteTask,
   } = useTasks(id)
+  const [projectFormOpen, setProjectFormOpen] = useState(false)
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
 
   const contractFilters = useMemo(() => ({ projectId: id }), [id])
+
+  const timeByTaskId = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const e of entries) {
+      if (e.task_id) map[e.task_id] = (map[e.task_id] ?? 0) + e.hours
+    }
+    return map
+  }, [entries])
   const { contracts, loading: contractsLoading, createContract } = useContracts(contractFilters)
 
   const [invoiceBuilderOpen, setInvoiceBuilderOpen] = useState(false)
@@ -332,6 +345,13 @@ export default function ProjectDetail() {
                 </div>
               )}
             <button
+              onClick={() => setProjectFormOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
+            >
+              <Pencil size={12} />
+              Edit
+            </button>
+            <button
               onClick={async () => {
                 if (!confirm(`Delete "${project.name}" and all associated data? This cannot be undone.`)) return
                 try {
@@ -427,6 +447,7 @@ export default function ProjectDetail() {
                 })
               }}
               onLogTime={handleTaskLogTime}
+              timeByTaskId={timeByTaskId}
             />
 
             <TaskForm
@@ -864,6 +885,35 @@ export default function ProjectDetail() {
           </div>
         </div>
       )}
+
+      <ProjectForm
+        open={projectFormOpen}
+        onOpenChange={setProjectFormOpen}
+        project={project ? {
+          id: project.id,
+          clientId: project.client_id,
+          name: project.name,
+          description: project.description ?? undefined,
+          status: project.status,
+          type: project.type ?? undefined,
+          billingType: project.billing_type ?? 'hourly',
+          hourlyRate: project.hourly_rate ?? undefined,
+          monthlyRate: project.monthly_rate ?? undefined,
+        } : null}
+        clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+        onSave={async (data: ProjectFormData) => {
+          await updateProject(project.id, {
+            client_id: data.clientId,
+            name: data.name,
+            description: data.description ?? null,
+            status: data.status,
+            type: data.type ?? null,
+            billing_type: data.billingType,
+            hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
+            monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
+          })
+        }}
+      />
     </div>
   )
 }

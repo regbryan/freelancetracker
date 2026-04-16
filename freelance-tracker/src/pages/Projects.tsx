@@ -8,6 +8,7 @@ import {
   Loader2,
   FolderOpen,
   Copy,
+  Pencil,
 } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
@@ -85,6 +86,22 @@ export default function Projects() {
 
   const openNewForm = () => {
     setEditingProject(null)
+    setFormOpen(true)
+  }
+
+  const openEditForm = (e: React.MouseEvent, project: typeof projects[0]) => {
+    e.stopPropagation()
+    setEditingProject({
+      id: project.id,
+      clientId: project.client_id,
+      name: project.name,
+      description: project.description ?? undefined,
+      status: project.status,
+      type: project.type ?? undefined,
+      billingType: project.billing_type ?? 'hourly',
+      hourlyRate: project.hourly_rate ?? undefined,
+      monthlyRate: project.monthly_rate ?? undefined,
+    })
     setFormOpen(true)
   }
 
@@ -266,7 +283,14 @@ export default function Projects() {
             className="lg:col-span-8 bg-surface rounded-[16px] shadow-card p-6 flex flex-col justify-center overflow-hidden relative cursor-pointer hover:shadow-card-hover transition-shadow"
             onClick={() => navigate(`/projects/${featuredProject.id}`)}
           >
-            <div className="absolute top-5 right-6">
+            <div className="absolute top-5 right-6 flex items-center gap-2">
+              <button
+                onClick={(e) => openEditForm(e, featuredProject)}
+                className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+                title="Edit project"
+              >
+                <Pencil size={13} className="text-text-muted" />
+              </button>
               <span className={`bg-accent-bg text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${featuredStatus.textColor}`}>
                 {featuredStatus.label}
               </span>
@@ -410,6 +434,13 @@ export default function Projects() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => openEditForm(e, project)}
+                    className="p-1 rounded hover:bg-border transition-colors"
+                    title="Edit project"
+                  >
+                    <Pencil size={11} className="text-text-muted" />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()

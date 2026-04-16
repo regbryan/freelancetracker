@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useProjects } from '../hooks/useProjects'
+import { useTimeEntries } from '../hooks/useTimeEntries'
 import { supabase } from '../lib/supabase'
 import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
@@ -31,6 +32,7 @@ function formatDate(date: string): string {
 export default function Tasks() {
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
+  const { entries: timeEntries, refetch: refetchTimeEntries } = useTimeEntries()
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [taskFormOpen, setTaskFormOpen] = useState(false)
@@ -42,6 +44,14 @@ export default function Tasks() {
   const [logSaving, setLogSaving] = useState(false)
 
   const projectMap = new Map(projects.map((p) => [p.id, p]))
+
+  const timeByTaskId = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const e of timeEntries) {
+      if (e.task_id) map[e.task_id] = (map[e.task_id] ?? 0) + e.hours
+    }
+    return map
+  }, [timeEntries])
 
   const filtered = tasks.filter((t) =>
     statusFilter === 'all' ? true : t.status === statusFilter
@@ -76,6 +86,7 @@ export default function Tasks() {
         invoice_id: null,
       })
       setLoggingTaskId(null)
+      refetchTimeEntries()
     } finally {
       setLogSaving(false)
     }
@@ -169,6 +180,12 @@ export default function Tasks() {
                     </p>
                     {task.description && (
                       <p className="text-text-muted text-[11px] truncate mt-0.5">{task.description}</p>
+                    )}
+                    {(timeByTaskId[task.id] ?? 0) > 0 && (
+                      <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
+                        <Clock size={9} />
+                        {timeByTaskId[task.id]}h logged
+                      </p>
                     )}
                   </div>
 
