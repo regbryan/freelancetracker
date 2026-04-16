@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Mail, Phone, MoreVertical, Users, Loader2, Search, X } from 'lucide-react'
+import { Plus, Mail, Phone, MoreVertical, Users, Loader2, Search, X, Trash2 } from 'lucide-react'
 import { useClients } from '../hooks/useClients'
 import type { Client } from '../hooks/useClients'
 import ClientForm from '../components/ClientForm'
@@ -378,6 +378,14 @@ export default function Clients() {
                 >
                   Edit Client
                 </Button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteClick(e, selectedClient)}
+                  className="flex items-center justify-center gap-1.5 h-8 w-full rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
+                >
+                  <Trash2 size={12} />
+                  Delete Client
+                </button>
               </div>
             </div>
           </div>
