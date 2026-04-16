@@ -16,11 +16,13 @@ export interface TimeEntryFormData {
   hours: number
   date: string
   billable: boolean
+  taskId?: string | null
 }
 
 interface TimeEntryFormProps {
   projectId?: string
   projects?: { id: string; name: string }[]
+  tasks?: { id: string; title: string }[]
   onSave: (data: TimeEntryFormData) => Promise<void>
 }
 
@@ -32,8 +34,9 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
-export default function TimeEntryForm({ projectId, projects, onSave }: TimeEntryFormProps) {
+export default function TimeEntryForm({ projectId, projects, tasks, onSave }: TimeEntryFormProps) {
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? '')
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('')
   const [description, setDescription] = useState('')
   const [hours, setHours] = useState('')
   const [date, setDate] = useState(todayISO)
@@ -56,12 +59,14 @@ export default function TimeEntryForm({ projectId, projects, onSave }: TimeEntry
         hours: roundedHours,
         date,
         billable,
+        taskId: selectedTaskId || null,
       })
       // Reset form after successful save
       setDescription('')
       setHours('')
       setDate(todayISO())
       setBillable(true)
+      setSelectedTaskId('')
       if (!projectId) setSelectedProjectId('')
     } finally {
       setSaving(false)
@@ -88,6 +93,37 @@ export default function TimeEntryForm({ projectId, projects, onSave }: TimeEntry
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Task selector */}
+        {tasks && tasks.length > 0 && (
+          <div className="flex flex-col gap-1 min-w-[160px]">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Task (optional)
+            </label>
+            <Select
+              value={selectedTaskId}
+              onValueChange={(val) => {
+                setSelectedTaskId(val)
+                if (val) {
+                  const task = tasks.find((t) => t.id === val)
+                  if (task) setDescription(task.title)
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 text-[12px]">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {tasks.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.title}
                   </SelectItem>
                 ))}
               </SelectContent>

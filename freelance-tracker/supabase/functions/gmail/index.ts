@@ -433,52 +433,57 @@ async function handleDisconnect(userId: string) {
 async function handleSend(userId: string, body: Record<string, unknown>) {
   const to = body.to as string | undefined;
   const subject = body.subject as string | undefined;
-  const text = body.body as string | undefined;
+  const htmlBody = body.body as string | undefined;
   const threadId = body.threadId as string | undefined;
-  const attachment = body.attachment as
-    | { filename: string; data: string; mimeType?: string }
-    | undefined;
+  const cc = body.cc as string | undefined;
+  const bcc = body.bcc as string | undefined;
+  const attachments = (body.attachments ?? []) as
+    { filename: string; data: string; mimeType?: string }[];
 
-  if (!to || !subject || text === undefined) {
+  if (!to || !subject || htmlBody === undefined) {
     return error('to, subject, and body are required');
   }
 
   const accessToken = await getAccessTokenForUser(userId);
 
+  const headerLines = [
+    `To: ${to}`,
+    ...(cc  ? [`Cc: ${cc}`]  : []),
+    ...(bcc ? [`Bcc: ${bcc}`] : []),
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+  ];
+
   let rawMessage: string;
 
-  if (attachment) {
-    // Build a multipart/mixed MIME message so the PDF rides alongside the text body.
+  if (attachments.length > 0) {
     const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const mimeType = attachment.mimeType ?? 'application/pdf';
     rawMessage = [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      'MIME-Version: 1.0',
+      ...headerLines,
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       '',
       `--${boundary}`,
-      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Type: text/html; charset="UTF-8"',
       '',
-      text,
+      htmlBody,
       '',
-      `--${boundary}`,
-      `Content-Type: ${mimeType}; name="${attachment.filename}"`,
-      'Content-Transfer-Encoding: base64',
-      `Content-Disposition: attachment; filename="${attachment.filename}"`,
-      '',
-      attachment.data,
-      '',
+      ...attachments.flatMap((att) => [
+        `--${boundary}`,
+        `Content-Type: ${att.mimeType ?? 'application/octet-stream'}; name="${att.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        '',
+        att.data,
+        '',
+      ]),
       `--${boundary}--`,
     ].join('\r\n');
   } else {
     rawMessage = [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset="UTF-8"',
+      ...headerLines,
+      'Content-Type: text/html; charset="UTF-8"',
       '',
-      text,
+      htmlBody,
     ].join('\r\n');
   }
 

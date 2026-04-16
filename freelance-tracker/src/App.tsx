@@ -8,6 +8,7 @@ import ClientDetail from './pages/ClientDetail'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import TimeTracker from './pages/TimeTracker'
+import Tasks from './pages/Tasks'
 import Expenses from './pages/Expenses'
 import Contracts from './pages/Contracts'
 import ContractSign from './pages/ContractSign'
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/time" element={<TimeTracker />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/contracts" element={<Contracts />} />

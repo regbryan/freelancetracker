@@ -17,8 +17,6 @@ import { generateContractPDF } from '../components/ContractPDF'
 import type { Expense } from '../hooks/useExpenses'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
-import Timer from '../components/Timer'
-import TimeEntryForm from '../components/TimeEntryForm'
 import TimeEntryList from '../components/TimeEntryList'
 import InvoiceBuilder from '../components/InvoiceBuilder'
 import ExpenseForm from '../components/ExpenseForm'
@@ -250,36 +248,16 @@ export default function ProjectDetail() {
     }
   }, [])
 
-  async function handleTimerSave(data: {
-    projectId: string
-    description: string
-    hours: number
-    date: string
-  }) {
+  async function handleTaskLogTime(taskId: string, hours: number, date: string, billable: boolean) {
+    const task = tasks.find((t) => t.id === taskId)
     await createEntry({
-      project_id: data.projectId,
-      description: data.description,
-      hours: data.hours,
-      date: data.date,
-      billable: true,
+      project_id: id!,
+      description: task?.title ?? '',
+      hours,
+      date,
+      billable,
       invoice_id: null,
-    })
-  }
-
-  async function handleTimeEntrySave(data: {
-    projectId: string
-    description: string
-    hours: number
-    date: string
-    billable: boolean
-  }) {
-    await createEntry({
-      project_id: data.projectId,
-      description: data.description,
-      hours: data.hours,
-      date: data.date,
-      billable: data.billable,
-      invoice_id: null,
+      task_id: taskId,
     })
   }
 
@@ -494,6 +472,7 @@ export default function ProjectDetail() {
                   task_id: taskId,
                 })
               }}
+              onLogTime={handleTaskLogTime}
             />
 
             <TaskForm
@@ -533,11 +512,10 @@ export default function ProjectDetail() {
         {/* Time Tracking Tab */}
         <TabsContent value="time">
           <div className="flex flex-col gap-4">
-            {/* Timer */}
-            <Timer projectId={id} onSave={handleTimerSave} />
-
-            {/* Manual entry form */}
-            <TimeEntryForm projectId={id} onSave={handleTimeEntrySave} />
+            {/* Note */}
+            <p className="text-[12px] text-text-muted">
+              Time entries are logged from the Tasks tab — use the clock icon on any task to log hours.
+            </p>
 
             {/* Summary stats */}
             <div className="grid grid-cols-3 gap-3">

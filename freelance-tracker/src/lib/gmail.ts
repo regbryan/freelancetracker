@@ -261,7 +261,9 @@ export async function sendEmail(
   subject: string,
   body: string,
   threadId?: string,
-  attachment?: EmailAttachment,
+  attachments?: EmailAttachment[],
+  cc?: string,
+  bcc?: string,
 ): Promise<{ id: string; threadId: string }> {
   return invokeGmail<{ id: string; threadId: string }>({
     action: 'send',
@@ -269,7 +271,9 @@ export async function sendEmail(
     subject,
     body,
     threadId,
-    attachment,
+    attachments,
+    cc,
+    bcc,
   });
 }
 

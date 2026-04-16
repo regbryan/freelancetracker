@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAllCommunications } from '../hooks/useCommunications'
 import { useProjects } from '../hooks/useProjects'
+import { useInvoices } from '../hooks/useInvoices'
 import EmailComposer from '../components/EmailComposer'
 import {
   Dialog,
@@ -54,6 +55,7 @@ export default function EmailSearch() {
   const navigate = useNavigate()
   const { communications, loading, refetch } = useAllCommunications()
   const { projects } = useProjects()
+  const { invoices } = useInvoices()
   const [search, setSearch] = useState('')
   const [filterDirection, setFilterDirection] = useState<'' | 'sent' | 'received'>('')
   const [filterProject, setFilterProject] = useState('')
@@ -407,6 +409,12 @@ export default function EmailSearch() {
               setComposeOpen(false)
               refetch()
             }}
+            invoices={invoices.map((inv) => ({
+              id: inv.id,
+              invoice_number: inv.invoice_number,
+              total: inv.total,
+              status: inv.status,
+            }))}
           />
         </DialogContent>
       </Dialog>
