@@ -74,7 +74,22 @@ export function subscribeGmail(cb: () => void): () => void {
 async function invokeGmail<T = unknown>(
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('gmail', { body });
+  // Ensure the Supabase session is loaded from localStorage before invoking.
+  // On a fresh page load the client may not have restored the JWT yet —
+  // without this, functions.invoke() sends no Authorization header → 401.
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // If a session exists, explicitly pass the access token so we never rely on
+  // the internal header state of the supabase client being up-to-date.
+  const headers: Record<string, string> = {};
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  const { data, error } = await supabase.functions.invoke('gmail', {
+    body,
+    headers,
+  });
   if (error) {
     // supabase-js wraps the response body inside FunctionsHttpError — try to
     // surface the original { error: "..." } message from the edge function.
@@ -215,12 +230,8 @@ export async function handleOAuthRedirect(): Promise<boolean> {
     throw new Error('Missing PKCE verifier — please try connecting again');
   }
 
-  // On a fresh page load (post-OAuth redirect) the Supabase client may not
-  // have finished restoring the session from localStorage yet.
-  // Awaiting getSession() guarantees the JWT is available before we invoke
-  // the Edge Function — without it, functions.invoke() sends no auth header
-  // and the Edge Function returns 401.
-  await supabase.auth.getSession();
+  // invokeGmail now handles session restoration internally — no need to
+  // manually call getSession() here.
 
   const result = await invokeGmail<{ connected: boolean; email?: string }>({
     action: 'exchange',
