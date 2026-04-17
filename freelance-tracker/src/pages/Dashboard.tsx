@@ -394,7 +394,7 @@ export default function Dashboard() {
       {/* Row 4: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Hours Tracked - Line Chart */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 h-full">
           <LineChart
             title="Hours Tracked"
             subtitle="Last 30 days overview"
@@ -403,7 +403,7 @@ export default function Dashboard() {
         </div>
 
         {/* Project Types - Donut Chart */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 h-full">
           <DonutChart
             title="Project Types"
             subtitle="By category"

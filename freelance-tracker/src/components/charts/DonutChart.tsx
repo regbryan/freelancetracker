@@ -57,7 +57,7 @@ export default function DonutChart({ title, subtitle, segments, centerLabel, cen
   })
 
   return (
-    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col">
+    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col h-full">
       {/* Header */}
       <div className="mb-1">
         <h3 className="text-text-primary text-[13px] font-bold">{title}</h3>

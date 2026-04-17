@@ -45,7 +45,7 @@ export default function LineChart({ title, subtitle, data }: LineChartProps) {
   const tooltipIdx = Math.floor(labels.length * 0.6)
 
   return (
-    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col">
+    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col h-full">
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <div>
@@ -64,7 +64,7 @@ export default function LineChart({ title, subtitle, data }: LineChartProps) {
       </div>
 
       {/* Chart */}
-      <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full mt-2" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full mt-2 flex-1" preserveAspectRatio="xMidYMid meet">
         {/* Grid lines */}
         {ySteps.map(step => (
           <g key={step}>
