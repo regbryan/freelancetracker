@@ -130,14 +130,76 @@ export default function Clients() {
     <div className="flex flex-col gap-5">
       {/* Hero Banner */}
       <div
-        className="rounded-[16px] px-8 py-7 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 50%, #3b82f6 100%)' }}
+        className="rounded-[16px] text-white relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #0a1628 0%, #0d2244 35%, #0058be 70%, #1a6fd4 100%)',
+          minHeight: '160px',
+        }}
       >
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-white/20" />
-          <div className="absolute -left-8 -bottom-8 w-32 h-32 rounded-full bg-white/10" />
-        </div>
-        <div className="relative z-10 max-w-lg">
+        {/* Abstract office/network SVG scene */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 900 160"
+          preserveAspectRatio="xMidYMid slice"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Soft ambient glow blobs */}
+          <ellipse cx="700" cy="80" rx="220" ry="120" fill="#3b82f6" opacity="0.18" />
+          <ellipse cx="820" cy="140" rx="160" ry="90" fill="#60a5fa" opacity="0.12" />
+          <ellipse cx="200" cy="20" rx="180" ry="80" fill="#1e40af" opacity="0.2" />
+
+          {/* Architectural grid lines — floor plane */}
+          {[0, 1, 2, 3, 4, 5, 6].map(i => (
+            <line key={`fl-${i}`} x1={480 + i * 70} y1="160" x2={600 + i * 20} y2="60" stroke="white" strokeOpacity="0.04" strokeWidth="1" />
+          ))}
+          {[0, 1, 2, 3, 4].map(i => (
+            <line key={`fh-${i}`} x1="480" y1={60 + i * 25} x2="900" y2={60 + i * 25} stroke="white" strokeOpacity="0.04" strokeWidth="1" />
+          ))}
+
+          {/* Building silhouette — right side */}
+          <rect x="730" y="50" width="60" height="110" fill="white" opacity="0.04" rx="2" />
+          <rect x="800" y="70" width="45" height="90" fill="white" opacity="0.05" rx="2" />
+          <rect x="855" y="40" width="55" height="120" fill="white" opacity="0.03" rx="2" />
+          {/* Window grids */}
+          {[0,1,2,3].map(row => [0,1,2].map(col => (
+            <rect key={`w-${row}-${col}`} x={735 + col * 18} y={55 + row * 22} width="12" height="14" fill="white" opacity="0.07" rx="1" />
+          )))}
+          {[0,1,2].map(row => [0,1].map(col => (
+            <rect key={`w2-${row}-${col}`} x={805 + col * 19} y={75 + row * 22} width="13" height="14" fill="white" opacity="0.09" rx="1" />
+          )))}
+
+          {/* Handshake / connection nodes — abstract */}
+          <circle cx="560" cy="80" r="28" fill="white" opacity="0.05" />
+          <circle cx="560" cy="80" r="18" fill="white" opacity="0.06" />
+          <circle cx="640" cy="80" r="28" fill="white" opacity="0.05" />
+          <circle cx="640" cy="80" r="18" fill="white" opacity="0.06" />
+          <line x1="578" y1="80" x2="622" y2="80" stroke="white" strokeOpacity="0.2" strokeWidth="2" strokeDasharray="4,3" />
+          <circle cx="600" cy="80" r="5" fill="white" opacity="0.5" />
+
+          {/* Person silhouettes */}
+          {/* Left person */}
+          <circle cx="553" cy="65" r="7" fill="white" opacity="0.12" />
+          <path d="M543 95 Q553 82 563 95" fill="white" opacity="0.1" />
+          {/* Right person */}
+          <circle cx="647" cy="65" r="7" fill="white" opacity="0.12" />
+          <path d="M637 95 Q647 82 657 95" fill="white" opacity="0.1" />
+
+          {/* Dotted connection lines radiating outward */}
+          <line x1="600" y1="80" x2="480" y2="40" stroke="white" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="3,4" />
+          <line x1="600" y1="80" x2="480" y2="120" stroke="white" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="3,4" />
+          <line x1="600" y1="80" x2="730" y2="50" stroke="white" strokeOpacity="0.08" strokeWidth="1" strokeDasharray="3,4" />
+          <circle cx="480" cy="40" r="3" fill="white" opacity="0.2" />
+          <circle cx="480" cy="120" r="3" fill="white" opacity="0.2" />
+
+          {/* Subtle horizontal light streak */}
+          <rect x="0" y="74" width="900" height="1" fill="white" opacity="0.04" />
+
+          {/* Diagonal light flare */}
+          <path d="M800 0 L900 0 L900 80 Z" fill="white" opacity="0.025" />
+        </svg>
+
+        {/* Text content */}
+        <div className="relative z-10 px-8 py-7 max-w-lg">
           <p className="text-white/70 text-[11px] font-semibold uppercase tracking-[1.5px] mb-2">Clients Directory</p>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.3px] italic">
             "Curation is the bridge between project and partnership."

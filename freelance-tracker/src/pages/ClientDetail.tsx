@@ -44,6 +44,8 @@ export default function ClientDetail() {
 
   const [clientFormOpen, setClientFormOpen] = useState(false)
   const [projectFormOpen, setProjectFormOpen] = useState(false)
+  const [notesText, setNotesText] = useState<string | null>(null)
+  const [notesSaving, setNotesSaving] = useState(false)
 
   const { updateClient, deleteClient } = useClients()
 
@@ -55,6 +57,17 @@ export default function ClientDetail() {
       navigate('/clients')
     } catch (err) {
       alert(`Failed to delete client: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }
+
+  async function handleNotesSave() {
+    if (!client || notesText === null) return
+    setNotesSaving(true)
+    try {
+      await updateClient(client.id, { notes: notesText || null })
+      refetchClient()
+    } finally {
+      setNotesSaving(false)
     }
   }
 
@@ -204,12 +217,9 @@ export default function ClientDetail() {
       {/* Tabs */}
       <Tabs defaultValue="projects">
         <TabsList>
-          <TabsTrigger value="projects" className="text-[12px]">
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="text-[12px]">
-            Invoices
-          </TabsTrigger>
+          <TabsTrigger value="projects" className="text-[12px]">Projects</TabsTrigger>
+          <TabsTrigger value="notes" className="text-[12px]">Notes</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-[12px]">Invoices</TabsTrigger>
         </TabsList>
 
         {/* Projects Tab */}
@@ -272,6 +282,58 @@ export default function ClientDetail() {
                   )
                 })}
               </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Notes Tab */}
+        <TabsContent value="notes">
+          <div className="bg-surface rounded-[14px] shadow-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Client Notes</p>
+              {notesText !== null && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setNotesText(null)}
+                    className="text-[12px] text-text-muted hover:text-text-secondary px-2 py-1 rounded-lg hover:bg-input-bg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleNotesSave}
+                    disabled={notesSaving}
+                    className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  >
+                    {notesSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {notesText !== null ? (
+              <textarea
+                className="w-full min-h-[180px] rounded-xl border border-border bg-input-bg px-4 py-3 text-[13px] text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                placeholder="Add notes about this client…"
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                autoFocus
+              />
+            ) : client.notes ? (
+              <div
+                className="bg-input-bg/50 rounded-xl p-4 cursor-pointer hover:bg-input-bg transition-colors"
+                onClick={() => setNotesText(client.notes ?? '')}
+              >
+                <p className="text-text-secondary text-[13px] leading-relaxed whitespace-pre-wrap">{client.notes}</p>
+                <p className="text-text-muted text-[11px] mt-2">Click to edit</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNotesText('')}
+                className="flex items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed border-border text-text-muted text-[13px] hover:border-accent/40 hover:text-accent transition-colors"
+              >
+                + Add notes for this client
+              </button>
             )}
           </div>
         </TabsContent>

@@ -70,6 +70,8 @@ export default function ProjectDetail() {
   const [projectFormOpen, setProjectFormOpen] = useState(false)
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
+  const [notesText, setNotesText] = useState<string | null>(null)
+  const [notesSaving, setNotesSaving] = useState(false)
 
   const contractFilters = useMemo(() => ({ projectId: id }), [id])
 
@@ -92,6 +94,17 @@ export default function ProjectDetail() {
   const previewBlobRef = useRef<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null)
   const composerRef = useRef<HTMLDivElement | null>(null)
+
+  async function handleNotesSave() {
+    if (!project || notesText === null) return
+    setNotesSaving(true)
+    try {
+      await updateProject(project.id, { description: notesText || null })
+    } finally {
+      setNotesSaving(false)
+      setNotesText(null)
+    }
+  }
 
   function cleanupPreview() {
     if (previewBlobRef.current) {
@@ -332,18 +345,11 @@ export default function ProjectDetail() {
       {/* Tabs */}
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
-          <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">
-            Tasks
-          </TabsTrigger>
-          <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">
-            Comms
-          </TabsTrigger>
-          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">
-            Contracts
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">
-            Invoices
-          </TabsTrigger>
+          <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">Tasks</TabsTrigger>
+          <TabsTrigger value="notes" className="text-[11px] sm:text-[12px] shrink-0">Notes</TabsTrigger>
+          <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">Comms</TabsTrigger>
+          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">Contracts</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">Invoices</TabsTrigger>
         </TabsList>
 
         {/* Tasks Tab */}
@@ -435,6 +441,58 @@ export default function ProjectDetail() {
         </TabsContent>
 
 
+
+        {/* Notes Tab */}
+        <TabsContent value="notes">
+          <div className="bg-surface rounded-[14px] shadow-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Project Notes</p>
+              {notesText !== null && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setNotesText(null)}
+                    className="text-[12px] text-text-muted hover:text-text-secondary px-2 py-1 rounded-lg hover:bg-input-bg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleNotesSave}
+                    disabled={notesSaving}
+                    className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  >
+                    {notesSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {notesText !== null ? (
+              <textarea
+                className="w-full min-h-[180px] rounded-xl border border-border bg-input-bg px-4 py-3 text-[13px] text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                placeholder="Add notes about this project…"
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                autoFocus
+              />
+            ) : project.description ? (
+              <div
+                className="bg-input-bg/50 rounded-xl p-4 cursor-pointer hover:bg-input-bg transition-colors"
+                onClick={() => setNotesText(project.description ?? '')}
+              >
+                <p className="text-text-secondary text-[13px] leading-relaxed whitespace-pre-wrap">{project.description}</p>
+                <p className="text-text-muted text-[11px] mt-2">Click to edit</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNotesText('')}
+                className="flex items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed border-border text-text-muted text-[13px] hover:border-accent/40 hover:text-accent transition-colors"
+              >
+                + Add notes for this project
+              </button>
+            )}
+          </div>
+        </TabsContent>
 
         {/* Communications Tab */}
         <TabsContent value="communications">

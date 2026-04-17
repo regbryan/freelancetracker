@@ -20,11 +20,11 @@ const navItems = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/meetings', label: 'Meeting Notes', icon: BookOpen },
+  { to: '/calendar', label: 'Calendar', icon: Calendar },
   { to: '/emails', label: 'Email Search', icon: Mail },
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/contracts', label: 'Contracts', icon: FileCheck },
   { to: '/invoices', label: 'Invoices', icon: FileText },
-  { to: '/calendar', label: 'Calendar', icon: Calendar },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
