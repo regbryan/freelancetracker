@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
 import type { TaskRow } from '../components/TaskList'
+import TaskInsight from '../components/TaskInsight'
 
 type StatusFilter = 'all' | 'todo' | 'in_progress' | 'done'
 
@@ -195,11 +196,18 @@ export default function Tasks() {
           className="absolute inset-0"
           style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.80) 0%, rgba(10,18,35,0.50) 60%, rgba(10,18,35,0.15) 100%)' }}
         />
-        <div className="relative z-10 px-7 py-6">
-          <h1 className="text-[22px] font-bold tracking-[-0.4px] text-white">Tasks</h1>
-          <p className="text-white/70 text-[13px] mt-1">{tasks.length} total · {doneCount} done · {inProgressCount} in progress</p>
+        <div className="relative z-10 px-7 py-7 max-w-2xl">
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Focus</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Tasks</h1>
+          <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+            "Finishing beats starting — momentum is the quiet compounder."
+          </p>
+          <p className="text-white/60 text-[12px] mt-3">{tasks.length} total · {doneCount} done · {inProgressCount} in progress</p>
         </div>
       </div>
+
+      {/* Task Insight */}
+      <TaskInsight tasks={tasks} />
 
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-3">
