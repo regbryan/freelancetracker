@@ -545,7 +545,7 @@ export default function Dashboard() {
         </div>
 
         {/* Revenue Growth */}
-        <div>
+        <div className="h-full">
           <BarChart title="Revenue Growth" data={barChartData} />
         </div>
       </div>

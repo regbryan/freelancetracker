@@ -28,10 +28,10 @@ export default function BarChart({ title, data }: BarChartProps) {
   }
 
   return (
-    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col">
+    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col h-full">
       <h3 className="text-text-primary text-[13px] font-bold mb-3">{title}</h3>
 
-      <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full flex-1" preserveAspectRatio="xMidYMid meet">
         {/* Grid lines */}
         {ySteps.map(step => (
           <g key={step}>
