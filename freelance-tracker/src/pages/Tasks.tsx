@@ -28,6 +28,7 @@ export default function Tasks() {
   const [logHours, setLogHours] = useState('')
   const [logDate, setLogDate] = useState(todayISO)
   const [logBillable, setLogBillable] = useState(true)
+  const [logNotes, setLogNotes] = useState('')
   const [logSaving, setLogSaving] = useState(false)
 
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects])
@@ -108,6 +109,7 @@ export default function Tasks() {
     setLogHours('')
     setLogDate(todayISO())
     setLogBillable(true)
+    setLogNotes('')
   }
 
   async function submitLogTime(task: { id: string; project_id: string; title: string }) {
@@ -121,7 +123,7 @@ export default function Tasks() {
         user_id: user.id,
         project_id: task.project_id,
         task_id: task.id,
-        description: task.title,
+        description: logNotes.trim() || task.title,
         hours,
         date: logDate,
         billable: logBillable,
@@ -379,6 +381,15 @@ export default function Tasks() {
                         <div className="px-5 pb-3 pt-2 border-t border-border/50 bg-input-bg/40">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">Log time — {task.title}</p>
                           <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-col gap-1 w-full">
+                              <label className="text-[10px] text-text-muted">Notes (optional)</label>
+                              <input
+                                type="text" value={logNotes}
+                                onChange={(e) => setLogNotes(e.target.value)}
+                                placeholder="What did you work on?"
+                                className="h-8 w-full rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
+                              />
+                            </div>
                             <div className="flex flex-col gap-1">
                               <label className="text-[10px] text-text-muted">Hours</label>
                               <input
