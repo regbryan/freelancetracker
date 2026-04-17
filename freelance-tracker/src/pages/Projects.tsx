@@ -209,16 +209,30 @@ export default function Projects() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Hero Banner */}
+      <div
+        className="rounded-[16px] text-white relative overflow-hidden"
+        style={{
+          backgroundColor: '#0a1223',
+          backgroundImage: 'url(/projects-hero.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 40%',
+          minHeight: '160px',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
+        />
+        <div className="relative z-10 px-7 py-6">
+          <h1 className="text-[22px] font-bold tracking-[-0.4px] text-white">Projects</h1>
+          <p className="text-white/70 text-[13px] mt-1">{projects.length} total · {activeCount} active</p>
+        </div>
+      </div>
+
       {/* Header Section */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <p className="font-semibold text-[11px] text-accent tracking-[1.5px] uppercase">
-            Your Projects
-          </p>
-          <h2 className="font-bold text-[20px] text-text-primary tracking-[-0.3px] mt-1">
-            Active Projects
-          </h2>
-        </div>
         <div className="flex gap-3">
           <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
             <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
