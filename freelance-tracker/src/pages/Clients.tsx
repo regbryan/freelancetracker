@@ -63,7 +63,7 @@ export default function Clients() {
       await deleteClient(client.id)
       if (selectedClient?.id === client.id) setSelectedClient(null)
     } catch (err) {
-      console.error('Failed to delete client:', err)
+      alert(`Failed to delete "${client.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }
 
