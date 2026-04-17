@@ -293,7 +293,7 @@ export default function Dashboard() {
         }
 
         return (
-          <div className="bg-surface rounded-xl border border-border flex flex-col overflow-hidden">
+          <div className="bg-surface rounded-xl border border-accent/20 shadow-card flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="text-text-primary text-[14px] font-bold flex items-center gap-2">
@@ -415,7 +415,7 @@ export default function Dashboard() {
 
         {/* Top Projects */}
         <div className="lg:col-span-4">
-          <div className="bg-surface rounded-xl border border-border p-5 h-full flex flex-col">
+          <div className="bg-surface rounded-xl border border-accent/20 shadow-card p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-text-primary text-[14px] font-bold">Top Projects</h3>
               <button className="text-accent text-[11px] font-semibold hover:underline">View All</button>
@@ -457,7 +457,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Recent Time Entries */}
         <div>
-          <div className="bg-surface rounded-xl border border-border p-5">
+          <div className="bg-surface rounded-xl border border-accent/20 shadow-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-text-primary text-[14px] font-bold">Recent Entries</h3>
               <button onClick={() => navigate('/time')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
@@ -493,7 +493,7 @@ export default function Dashboard() {
 
         {/* Recent Meetings */}
         <div>
-          <div className="bg-surface rounded-xl border border-border p-5 h-full flex flex-col">
+          <div className="bg-surface rounded-xl border border-accent/20 shadow-card p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-text-primary text-[14px] font-bold">Recent Meetings</h3>
               <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>

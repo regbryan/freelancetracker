@@ -10,7 +10,7 @@ interface StatCardProps {
 
 export default function StatCard({ icon: Icon, label, value }: StatCardProps) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 min-w-0 hover:shadow-card-hover transition-shadow">
+    <div className="bg-surface border border-accent/20 rounded-xl p-4 shadow-card flex items-center gap-3 min-w-0 hover:shadow-card-hover transition-shadow">
       <div className="w-9 h-9 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
         <Icon size={16} className="text-accent" />
       </div>
