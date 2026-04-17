@@ -19,7 +19,7 @@ function todayISO(): string {
 export default function Tasks() {
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
-  const { entries: timeEntries, refetch: refetchTimeEntries } = useTimeEntries()
+  const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [taskFormOpen, setTaskFormOpen] = useState(false)
@@ -42,19 +42,52 @@ export default function Tasks() {
   }, [timeEntries])
 
   const entriesByTaskId = useMemo(() => {
-    const map: Record<string, { date: string; hours: number }[]> = {}
+    const map: Record<string, typeof timeEntries> = {}
     for (const e of timeEntries) {
       if (!e.task_id) continue
       if (!map[e.task_id]) map[e.task_id] = []
-      const existing = map[e.task_id].find(d => d.date === e.date)
-      if (existing) existing.hours += e.hours
-      else map[e.task_id].push({ date: e.date, hours: e.hours })
+      map[e.task_id].push(e)
     }
     for (const arr of Object.values(map)) arr.sort((a, b) => b.date.localeCompare(a.date))
     return map
   }, [timeEntries])
 
   const [expandedTimeTaskId, setExpandedTimeTaskId] = useState<string | null>(null)
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editHours, setEditHours] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editBillable, setEditBillable] = useState(true)
+  const [editSaving, setEditSaving] = useState(false)
+
+  function openEntryEdit(entry: typeof timeEntries[0]) {
+    setEditingEntryId(entry.id)
+    setEditHours(String(entry.hours))
+    setEditDate(entry.date)
+    setEditNotes(entry.description ?? '')
+    setEditBillable(entry.billable)
+  }
+
+  async function saveEntryEdit() {
+    if (!editingEntryId || !editHours) return
+    setEditSaving(true)
+    try {
+      await updateEntry(editingEntryId, {
+        hours: Math.ceil(Number(editHours) * 4) / 4,
+        date: editDate,
+        description: editNotes.trim() || undefined,
+        billable: editBillable,
+      })
+      setEditingEntryId(null)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  async function handleDeleteEntry(id: string) {
+    if (!confirm('Delete this time entry?')) return
+    await deleteEntry(id)
+  }
 
   const doneCount = tasks.filter((t) => t.status === 'done').length
   const todoCount = tasks.filter((t) => t.status === 'todo').length
@@ -366,11 +399,85 @@ export default function Tasks() {
                       {expandedTimeTaskId === task.id && entriesByTaskId[task.id] && (
                         <div className="px-5 pb-2 pt-1 border-t border-border/40 bg-input-bg/20">
                           {entriesByTaskId[task.id].map(entry => (
-                            <div key={entry.date} className="flex items-center gap-3 py-0.5">
-                              <span className="text-[10px] text-text-muted w-20 shrink-0">
-                                {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                              <span className="text-[10px] font-semibold text-text-secondary">{entry.hours}h</span>
+                            <div key={entry.id}>
+                              {editingEntryId === entry.id ? (
+                                <div className="flex flex-wrap items-end gap-2 py-2">
+                                  <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+                                    <label className="text-[10px] text-text-muted">Notes</label>
+                                    <input
+                                      type="text" value={editNotes}
+                                      onChange={(e) => setEditNotes(e.target.value)}
+                                      placeholder="Notes"
+                                      className="h-7 rounded-[6px] border border-border bg-input-bg px-2 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-text-muted">Hours</label>
+                                    <input
+                                      type="number" min="0.25" step="0.25" value={editHours}
+                                      onChange={(e) => setEditHours(e.target.value)}
+                                      className="h-7 w-[70px] rounded-[6px] border border-border bg-input-bg px-2 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-text-muted">Date</label>
+                                    <input
+                                      type="date" value={editDate}
+                                      onChange={(e) => setEditDate(e.target.value)}
+                                      className="h-7 w-[130px] rounded-[6px] border border-border bg-input-bg px-2 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1 items-center">
+                                    <label className="text-[10px] text-text-muted">Billable</label>
+                                    <button
+                                      type="button" onClick={() => setEditBillable(!editBillable)}
+                                      className={`h-7 w-7 rounded-[6px] border transition-colors flex items-center justify-center ${editBillable ? 'bg-accent border-accent text-white' : 'bg-input-bg border-border text-text-muted'}`}
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className={editBillable ? 'opacity-100' : 'opacity-30'}>
+                                        <path d="M10 3L5 9L2 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                  <button
+                                    type="button" onClick={saveEntryEdit}
+                                    disabled={editSaving || !editHours}
+                                    className="h-7 px-3 rounded-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                                  >
+                                    {editSaving ? 'Saving…' : 'Save'}
+                                  </button>
+                                  <button
+                                    type="button" onClick={() => setEditingEntryId(null)}
+                                    className="h-7 w-7 flex items-center justify-center rounded-[6px] hover:bg-input-bg"
+                                  >
+                                    <X size={11} className="text-text-muted" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-3 py-1 group/entry">
+                                  <span className="text-[10px] text-text-muted w-16 shrink-0">
+                                    {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-text-secondary w-10 shrink-0">{entry.hours}h</span>
+                                  {entry.description && (
+                                    <span className="text-[10px] text-text-muted truncate flex-1">{entry.description}</span>
+                                  )}
+                                  <div className="flex items-center gap-0.5 opacity-0 group-hover/entry:opacity-100 transition-opacity ml-auto">
+                                    <button
+                                      type="button" onClick={() => openEntryEdit(entry)}
+                                      className="p-1 rounded hover:bg-input-bg transition-colors"
+                                    >
+                                      <Pencil size={10} className="text-text-muted" />
+                                    </button>
+                                    <button
+                                      type="button" onClick={() => handleDeleteEntry(entry.id)}
+                                      className="p-1 rounded hover:bg-negative/10 transition-colors"
+                                    >
+                                      <Trash2 size={10} className="text-negative" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
