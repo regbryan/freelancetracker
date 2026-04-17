@@ -517,8 +517,8 @@ export default function Dashboard() {
                     onClick={() => navigate(`/meetings/${note.id}`)}
                     className="flex items-start gap-3 p-3 rounded-xl hover:bg-input-bg/50 transition-all text-left group"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0 group-hover:bg-accent transition-all">
-                      <BookOpen size={13} className="text-accent group-hover:text-white" />
+                    <div className="shrink-0">
+                      <BookOpen size={15} className="text-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-text-primary text-[12px] font-semibold truncate">{note.title}</p>
