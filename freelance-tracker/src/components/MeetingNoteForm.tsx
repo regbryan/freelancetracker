@@ -183,8 +183,10 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
               />
               <button
                 type="button"
+                onMouseDown={e => e.preventDefault()}
                 onClick={addAttendee}
-                className="h-9 px-3 rounded-lg border border-border text-text-muted text-[12px] hover:bg-input-bg hover:text-accent transition-all flex items-center gap-1"
+                disabled={!attendeeInput.trim()}
+                className="h-9 px-3 rounded-lg border border-border text-[12px] transition-all flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-input-bg enabled:hover:text-accent text-text-muted"
               >
                 <Plus size={12} /> Add
               </button>

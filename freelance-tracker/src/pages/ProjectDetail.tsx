@@ -5,7 +5,6 @@ import { useProject, useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
-import { useExpenses, useExpenseCategories } from '../hooks/useExpenses'
 import { useTasks } from '../hooks/useTasks'
 import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
@@ -17,14 +16,9 @@ import { useContracts } from '../hooks/useContracts'
 import ContractForm from '../components/ContractForm'
 import type { ContractFormData } from '../components/ContractForm'
 import { generateContractPDF } from '../components/ContractPDF'
-import type { Expense } from '../hooks/useExpenses'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
 import InvoiceBuilder from '../components/InvoiceBuilder'
-import ExpenseForm from '../components/ExpenseForm'
-import type { ExpenseFormData } from '../components/ExpenseForm'
-import ExpenseList from '../components/ExpenseList'
-import type { ExpenseRow } from '../components/ExpenseList'
 import EmailComposer from '../components/EmailComposer'
 import type { ReplyTarget } from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
@@ -67,14 +61,6 @@ export default function ProjectDetail() {
   const { invoices, loading: invoicesLoading, refetch: invoicesRefetch } = useInvoices(invoiceFilters)
   const { communications, loading: commsLoading, refetch: refetchComms } = useCommunications(id)
   const {
-    expenses,
-    loading: expensesLoading,
-    createExpense,
-    updateExpense,
-    deleteExpense,
-  } = useExpenses(id)
-  const { categories: expenseCategories } = useExpenseCategories()
-  const {
     tasks,
     loading: tasksLoading,
     createTask,
@@ -101,8 +87,6 @@ export default function ProjectDetail() {
   const [copiedContractId, setCopiedContractId] = useState<string | null>(null)
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [copiedPayId, setCopiedPayId] = useState<string | null>(null)
-  const [expenseFormOpen, setExpenseFormOpen] = useState(false)
-  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
   const previewBlobRef = useRef<string | null>(null)
@@ -175,44 +159,6 @@ export default function ProjectDetail() {
 
   const rate = project?.hourly_rate ?? 0
 
-  // Expense stats
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
-  const unbilledExpenses = expenses.filter((e) => !e.invoice_id)
-  const unbilledExpenseAmount = unbilledExpenses.reduce((sum, e) => sum + e.amount, 0)
-
-  // Map expenses to ExpenseRow format
-  const mappedExpenses: ExpenseRow[] = expenses.map((e) => ({
-    id: e.id,
-    projectId: e.project_id,
-    description: e.description,
-    amount: e.amount,
-    date: e.date,
-    category: e.category,
-    receiptUrl: e.receipt_url ?? undefined,
-  }))
-
-  const handleExpenseSave = useCallback(async (data: ExpenseFormData) => {
-    if (editingExpense) {
-      await updateExpense(editingExpense.id, {
-        description: data.description,
-        amount: data.amount,
-        date: data.date,
-        category: data.category,
-        receipt_url: data.receiptUrl ?? null,
-      })
-      setEditingExpense(null)
-    } else {
-      await createExpense({
-        project_id: data.projectId || id!,
-        description: data.description,
-        amount: data.amount,
-        date: data.date,
-        category: data.category,
-        receipt_url: data.receiptUrl ?? null,
-        invoice_id: null,
-      })
-    }
-  }, [editingExpense, createExpense, updateExpense, id])
 
   const handleGetPayLink = useCallback(async (invoice: Invoice) => {
     const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
@@ -322,28 +268,7 @@ export default function ProjectDetail() {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 shrink-0">
-            {project.billing_type === 'monthly'
-              ? project.monthly_rate != null && (
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                    Monthly Rate
-                  </p>
-                  <p className="text-text-primary text-[16px] font-bold">
-                    ${project.monthly_rate.toFixed(2)}/mo
-                  </p>
-                </div>
-              )
-              : project.hourly_rate != null && (
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                    Hourly Rate
-                  </p>
-                  <p className="text-text-primary text-[16px] font-bold">
-                    ${project.hourly_rate.toFixed(2)}/hr
-                  </p>
-                </div>
-              )}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setProjectFormOpen(true)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
@@ -370,10 +295,38 @@ export default function ProjectDetail() {
         </div>
 
         {project.description && (
-          <p className="text-text-secondary text-[13px] mt-3 pt-3 border-t border-border leading-relaxed">
+          <p className="text-text-secondary text-[13px] mt-3 leading-relaxed">
             {project.description}
           </p>
         )}
+
+        {/* Detail fields row */}
+        <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Type</p>
+            <p className="text-text-primary text-[13px] font-medium">{project.type || '—'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Billing</p>
+            <p className="text-text-primary text-[13px] font-medium capitalize">
+              {project.billing_type === 'monthly' ? 'Monthly Flat' : 'Hourly'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Rate</p>
+            <p className="text-text-primary text-[13px] font-medium">
+              {project.billing_type === 'monthly'
+                ? project.monthly_rate != null ? `$${project.monthly_rate.toFixed(2)}/mo` : '—'
+                : project.hourly_rate != null ? `$${project.hourly_rate.toFixed(2)}/hr` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Created</p>
+            <p className="text-text-primary text-[13px] font-medium">
+              {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -384,9 +337,6 @@ export default function ProjectDetail() {
           </TabsTrigger>
           <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">
             Comms
-          </TabsTrigger>
-          <TabsTrigger value="expenses" className="text-[11px] sm:text-[12px] shrink-0">
-            Expenses
           </TabsTrigger>
           <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">
             Contracts
@@ -534,75 +484,6 @@ export default function ProjectDetail() {
                 })
                 composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }}
-            />
-          </div>
-        </TabsContent>
-
-        {/* Expenses Tab */}
-        <TabsContent value="expenses">
-          <div className="flex flex-col gap-4">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Total Expenses</p>
-                <p className="text-text-primary text-[20px] font-bold mt-1">
-                  ${totalExpenses.toFixed(2)}
-                </p>
-              </div>
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Unbilled</p>
-                <p className="text-text-primary text-[20px] font-bold mt-1">
-                  ${unbilledExpenseAmount.toFixed(2)}
-                </p>
-              </div>
-              <div className="bg-surface rounded-[14px] shadow-card p-4">
-                <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Count</p>
-                <p className="text-text-primary text-[20px] font-bold mt-1">
-                  {expenses.length}
-                </p>
-              </div>
-            </div>
-
-            {/* Add Expense Button */}
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Project Expenses
-              </p>
-              <button
-                onClick={() => {
-                  setEditingExpense(null)
-                  setExpenseFormOpen(true)
-                }}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
-              >
-                <Plus size={12} />
-                Add Expense
-              </button>
-            </div>
-
-            {/* Expense List */}
-            <ExpenseList
-              expenses={mappedExpenses}
-              loading={expensesLoading}
-              onEdit={(exp) => {
-                setEditingExpense(exp)
-                setExpenseFormOpen(true)
-              }}
-              onDelete={(expId) => deleteExpense(expId)}
-            />
-
-            {/* Expense Form Dialog */}
-            <ExpenseForm
-              open={expenseFormOpen}
-              onOpenChange={(open) => {
-                setExpenseFormOpen(open)
-                if (!open) setEditingExpense(null)
-              }}
-              expense={editingExpense}
-              projectId={id}
-              categories={expenseCategories}
-              onSave={handleExpenseSave}
             />
           </div>
         </TabsContent>
