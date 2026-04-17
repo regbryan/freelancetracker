@@ -10,12 +10,12 @@ interface StatCardProps {
 
 export default function StatCard({ icon: Icon, label, value }: StatCardProps) {
   return (
-    <div className="bg-surface border border-accent/20 rounded-xl p-4 shadow-card flex items-center gap-3 min-w-0 hover:shadow-card-hover transition-shadow">
+    <div className="bg-surface border border-border-accent rounded-xl p-4 shadow-card flex items-center gap-3 min-w-0 hover:shadow-card-hover transition-shadow">
       <div className="w-9 h-9 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
         <Icon size={16} className="text-accent" />
       </div>
       <div className="min-w-0">
-        <p className="text-text-muted text-[11px] font-medium tracking-wide truncate">{label}</p>
+        <p className="text-text-muted text-[11px] font-medium tracking-wide leading-tight">{label}</p>
         <p className="text-text-primary text-[20px] font-bold leading-tight tracking-[-0.3px]">{value}</p>
       </div>
     </div>

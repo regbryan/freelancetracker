@@ -45,7 +45,7 @@ export default function LineChart({ title, subtitle, data }: LineChartProps) {
   const tooltipIdx = Math.floor(labels.length * 0.6)
 
   return (
-    <div className="bg-surface rounded-[16px] border border-accent/20 shadow-card p-4 flex flex-col">
+    <div className="bg-surface rounded-[16px] border border-border-accent shadow-card p-4 flex flex-col">
       {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <div>
