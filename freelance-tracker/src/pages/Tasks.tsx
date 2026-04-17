@@ -379,15 +379,16 @@ export default function Tasks() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           {task.status !== 'done' && (
                             <button
                               type="button"
                               onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
                               title="Log time"
-                              className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+                              className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
+                              style={{ background: isLogging ? 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' : 'linear-gradient(135deg, #4f80c0 0%, #6b9fd4 100%)' }}
                             >
-                              <Clock size={12} className={isLogging ? 'text-accent' : 'text-text-muted'} />
+                              <Clock size={11} className="text-white" />
                             </button>
                           )}
                           <button
@@ -397,17 +398,19 @@ export default function Tasks() {
                               setTaskFormOpen(true)
                             }}
                             title="Edit task"
-                            className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
+                            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #374151 0%, #64748b 100%)' }}
                           >
-                            <Pencil size={12} className="text-text-muted" />
+                            <Pencil size={11} className="text-white" />
                           </button>
                           <button
                             type="button"
                             onClick={() => { if (confirm('Delete this task?')) deleteTask(task.id) }}
                             title="Delete task"
-                            className="p-1.5 rounded-lg hover:bg-negative/10 transition-colors"
+                            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' }}
                           >
-                            <Trash2 size={12} className="text-negative" />
+                            <Trash2 size={11} className="text-white" />
                           </button>
                         </div>
                       </div>
