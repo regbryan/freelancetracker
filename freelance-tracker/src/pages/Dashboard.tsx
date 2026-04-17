@@ -258,33 +258,46 @@ export default function Dashboard() {
       </div>
 
       {/* Row 3: To-Do Dashboard */}
-      <div className="bg-surface rounded-xl border border-border p-5 flex flex-col">
-        <div className="flex items-center justify-between mb-1">
+      <div className="bg-surface rounded-xl border border-border flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="text-text-primary text-[14px] font-bold flex items-center gap-2">
             <CheckSquare size={15} className="text-accent" />
             To-Do
           </h3>
-          <span className="text-text-muted text-[11px]">
-            {tasks.filter(t => t.status === 'done').length}/{tasks.length} done
-          </span>
+          <div className="flex items-center gap-3">
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
+                      background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
+                    }}
+                  />
+                </div>
+                <span className="text-text-muted text-[11px]">
+                  {tasks.filter(t => t.status === 'done').length}/{tasks.length} done
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Progress bar */}
-        {tasks.length > 0 && (
-          <div className="w-full h-1.5 bg-border rounded-full overflow-hidden mb-4">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
-                background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
-              }}
-            />
-          </div>
-        )}
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_140px_100px_110px_90px] border-b border-border bg-input-bg/50 px-5 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Project</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Assignee</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Due</span>
+        </div>
 
-        <div className="flex flex-col gap-1.5 flex-1 max-h-[320px] overflow-y-auto">
+        {/* Rows */}
+        <div className="flex flex-col max-h-[340px] overflow-y-auto divide-y divide-border/50">
           {tasks.filter(t => t.status !== 'done').length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-2">
+            <div className="flex flex-col items-center justify-center py-10 gap-2">
               <CheckSquare size={24} className="text-text-muted/30" />
               <p className="text-text-muted text-[12px]">
                 {tasks.length === 0 ? 'No tasks yet' : 'All tasks complete!'}
@@ -302,41 +315,60 @@ export default function Dashboard() {
                 if (b.due_date) return 1
                 return 0
               })
-              .slice(0, 10)
+              .slice(0, 15)
               .map(task => {
                 const proj = projectMap.get(task.project_id)
                 const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date + 'T00:00:00') < new Date(new Date().toDateString())
+                const initials = task.assignee && task.assignee !== 'me'
+                  ? task.assignee.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                  : null
                 return (
                   <button
                     key={task.id}
                     onClick={() => proj ? navigate(`/projects/${proj.id}`) : undefined}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-input-bg/50 transition-all text-left group w-full"
+                    className="grid grid-cols-[1fr_140px_100px_110px_90px] items-center px-5 py-3 hover:bg-input-bg/40 transition-colors text-left group w-full"
                   >
-                    <Circle size={14} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-text-primary text-[12px] font-medium truncate">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {proj && (
-                          <span className="text-text-muted text-[10px] truncate max-w-[120px]">{proj.name}</span>
-                        )}
-                        {task.due_date && (
-                          <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue ? 'text-negative font-medium' : 'text-text-muted'}`}>
-                            {isOverdue && <AlertTriangle size={8} />}
-                            <Calendar size={8} />
-                            {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
+                    {/* Task name */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Circle size={13} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
+                      <span className="text-text-primary text-[12px] font-medium truncate">{task.title}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    {/* Project */}
+                    <span className="text-text-muted text-[11px] truncate pr-3">
+                      {proj?.name ?? '—'}
+                    </span>
+
+                    {/* Assignee */}
+                    <div className="flex items-center">
+                      {initials ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent text-white text-[9px] font-bold" title={task.assignee}>
+                          {initials}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted text-[11px]">—</span>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div>
                       {task.status === 'in_progress' && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>
+                        <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>
                       )}
                       {task.status === 'todo' && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-status-completed-bg text-status-completed-text">To Do</span>
+                        <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">To Do</span>
                       )}
-                      {task.assignee && task.assignee !== 'me' && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700">{task.assignee}</span>
+                    </div>
+
+                    {/* Due date */}
+                    <div>
+                      {task.due_date ? (
+                        <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
+                          {isOverdue && <AlertTriangle size={9} />}
+                          {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted text-[11px]">—</span>
                       )}
                     </div>
                   </button>
