@@ -232,7 +232,6 @@ export default function Projects() {
 
       {/* Header Section */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
         <div className="flex gap-3">
           <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
             <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
