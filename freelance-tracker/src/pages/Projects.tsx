@@ -68,6 +68,8 @@ export default function Projects() {
         billing_type: data.billingType,
         hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
         monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
+        start_date: data.startDate ?? null,
+        end_date: data.endDate ?? null,
       })
     } else {
       await createProject({
@@ -79,6 +81,8 @@ export default function Projects() {
         billing_type: data.billingType,
         hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
         monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
+        start_date: data.startDate ?? null,
+        end_date: data.endDate ?? null,
       })
     }
     setEditingProject(null)
@@ -101,6 +105,8 @@ export default function Projects() {
       billingType: project.billing_type ?? 'hourly',
       hourlyRate: project.hourly_rate ?? undefined,
       monthlyRate: project.monthly_rate ?? undefined,
+      startDate: project.start_date ?? undefined,
+      endDate: project.end_date ?? undefined,
     })
     setFormOpen(true)
   }

@@ -989,6 +989,8 @@ export default function ProjectDetail() {
           billingType: project.billing_type ?? 'hourly',
           hourlyRate: project.hourly_rate ?? undefined,
           monthlyRate: project.monthly_rate ?? undefined,
+          startDate: project.start_date ?? undefined,
+          endDate: project.end_date ?? undefined,
         } : null}
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
         onSave={async (data: ProjectFormData) => {
@@ -1001,6 +1003,8 @@ export default function ProjectDetail() {
             billing_type: data.billingType,
             hourly_rate: data.billingType === 'hourly' ? (data.hourlyRate ?? null) : null,
             monthly_rate: data.billingType === 'monthly' ? (data.monthlyRate ?? null) : null,
+            start_date: data.startDate ?? null,
+            end_date: data.endDate ?? null,
           })
         }}
       />

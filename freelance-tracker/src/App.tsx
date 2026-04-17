@@ -18,6 +18,7 @@ import Calendar from './pages/Calendar'
 import MeetingNotes from './pages/MeetingNotes'
 import MeetingNoteDetail from './pages/MeetingNoteDetail'
 import EmailSearch from './pages/EmailSearch'
+import Timeline from './pages/Timeline'
 import { Loader2 } from 'lucide-react'
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/timeline" element={<Timeline />} />
             <Route path="/time" element={<TimeTracker />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/contracts" element={<Contracts />} />

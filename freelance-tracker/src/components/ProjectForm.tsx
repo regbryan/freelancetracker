@@ -28,6 +28,8 @@ export interface Project {
   billingType?: 'hourly' | 'monthly'
   hourlyRate?: number
   monthlyRate?: number
+  startDate?: string
+  endDate?: string
 }
 
 export interface ProjectFormData {
@@ -39,6 +41,8 @@ export interface ProjectFormData {
   billingType: 'hourly' | 'monthly'
   hourlyRate?: number
   monthlyRate?: number
+  startDate?: string
+  endDate?: string
 }
 
 interface ProjectFormProps {
@@ -76,6 +80,8 @@ export default function ProjectForm({
   const [billingType, setBillingType] = useState<'hourly' | 'monthly'>('hourly')
   const [hourlyRate, setHourlyRate] = useState('')
   const [monthlyRate, setMonthlyRate] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
 
   const filteredTypes = projectTypes.filter((t) =>
@@ -92,6 +98,8 @@ export default function ProjectForm({
       setBillingType(project?.billingType ?? 'hourly')
       setHourlyRate(project?.hourlyRate != null ? String(project.hourlyRate) : '')
       setMonthlyRate(project?.monthlyRate != null ? String(project.monthlyRate) : '')
+      setStartDate(project?.startDate ?? '')
+      setEndDate(project?.endDate ?? '')
       setShowTypeDropdown(false)
     }
   }, [open, project])
@@ -109,6 +117,8 @@ export default function ProjectForm({
         billingType,
         hourlyRate: billingType === 'hourly' && hourlyRate ? Number(hourlyRate) : undefined,
         monthlyRate: billingType === 'monthly' && monthlyRate ? Number(monthlyRate) : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       })
       onOpenChange(false)
     } finally {
@@ -239,6 +249,30 @@ export default function ProjectForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Date range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="project-start" className="text-[12px]">Start Date</Label>
+              <Input
+                id="project-start"
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="project-end" className="text-[12px]">End Date</Label>
+              <Input
+                id="project-end"
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Billing Type toggle + Rate */}

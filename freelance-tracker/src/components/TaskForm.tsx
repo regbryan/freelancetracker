@@ -109,7 +109,7 @@ export default function TaskForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Task' : 'Add Task'}</DialogTitle>
           <DialogDescription>
@@ -152,21 +152,6 @@ export default function TaskForm({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Design homepage mockup"
               required
-            />
-          </div>
-
-          {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-desc" className="text-[12px]">
-              Description
-            </Label>
-            <textarea
-              id="task-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional task details..."
-              rows={3}
-              className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
             />
           </div>
 
@@ -237,6 +222,21 @@ export default function TaskForm({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Description */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-desc" className="text-[12px]">
+              Description
+            </Label>
+            <textarea
+              id="task-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional task details..."
+              rows={3}
+              className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
+            />
           </div>
 
           <DialogFooter className="pt-2">
