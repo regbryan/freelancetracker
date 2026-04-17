@@ -61,6 +61,12 @@
   --radius-pill: 9999px;
 }
 
+@layer utilities {
+  .border-border-accent {
+    border-width: 0.5px;
+  }
+}
+
 @layer base {
   body {
     font-family: var(--font-sans);
