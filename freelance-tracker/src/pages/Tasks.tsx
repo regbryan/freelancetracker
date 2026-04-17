@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, AlertTriangle } from 'lucide-react'
+import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -39,6 +39,21 @@ export default function Tasks() {
     }
     return map
   }, [timeEntries])
+
+  const entriesByTaskId = useMemo(() => {
+    const map: Record<string, { date: string; hours: number }[]> = {}
+    for (const e of timeEntries) {
+      if (!e.task_id) continue
+      if (!map[e.task_id]) map[e.task_id] = []
+      const existing = map[e.task_id].find(d => d.date === e.date)
+      if (existing) existing.hours += e.hours
+      else map[e.task_id].push({ date: e.date, hours: e.hours })
+    }
+    for (const arr of Object.values(map)) arr.sort((a, b) => b.date.localeCompare(a.date))
+    return map
+  }, [timeEntries])
+
+  const [expandedTimeTaskId, setExpandedTimeTaskId] = useState<string | null>(null)
 
   const doneCount = tasks.filter((t) => t.status === 'done').length
   const todoCount = tasks.filter((t) => t.status === 'todo').length
@@ -245,9 +260,14 @@ export default function Tasks() {
                               {task.title}
                             </p>
                             {hoursLogged > 0 && (
-                              <span className="text-[10px] text-text-muted flex items-center gap-0.5 mt-0.5">
-                                <Clock size={8} />{hoursLogged}h logged
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTimeTaskId(expandedTimeTaskId === task.id ? null : task.id)}
+                                className="text-[10px] text-text-muted flex items-center gap-0.5 mt-0.5 hover:text-accent transition-colors"
+                              >
+                                {expandedTimeTaskId === task.id ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+                                <Clock size={8} className="ml-0.5" />{hoursLogged}h logged
+                              </button>
                             )}
                           </div>
                         </div>
@@ -339,6 +359,20 @@ export default function Tasks() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Per-day time breakdown */}
+                      {expandedTimeTaskId === task.id && entriesByTaskId[task.id] && (
+                        <div className="px-5 pb-2 pt-1 border-t border-border/40 bg-input-bg/20">
+                          {entriesByTaskId[task.id].map(entry => (
+                            <div key={entry.date} className="flex items-center gap-3 py-0.5">
+                              <span className="text-[10px] text-text-muted w-20 shrink-0">
+                                {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                              <span className="text-[10px] font-semibold text-text-secondary">{entry.hours}h</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Inline log time form */}
                       {isLogging && (
