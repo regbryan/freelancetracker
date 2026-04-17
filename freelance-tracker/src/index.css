@@ -35,8 +35,10 @@
 
   --color-status-active-bg: #ecfdf5;
   --color-status-active-text: #059669;
-  --color-status-scheduled-bg: #eef2ff;
-  --color-status-scheduled-text: #4f46e5;
+  --color-status-scheduled-bg: #dbeafe;
+  --color-status-scheduled-text: #1d4ed8;
+  --color-status-medium-bg: #fef3c7;
+  --color-status-medium-text: #d97706;
   --color-status-completed-bg: #f3f4f6;
   --color-status-completed-text: #6b7280;
   --color-status-hold-bg: #fff7ed;

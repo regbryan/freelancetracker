@@ -503,7 +503,7 @@ export default function ProjectDetail() {
                             </div>
                             <div>
                               {task.priority === 'high' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-negative/10 text-negative">High</span>}
-                              {task.priority === 'medium' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">Medium</span>}
+                              {task.priority === 'medium' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-medium-bg text-status-medium-text">Medium</span>}
                               {task.priority === 'low' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">Low</span>}
                             </div>
                             <div>
