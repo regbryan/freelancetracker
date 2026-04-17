@@ -444,11 +444,11 @@ export default function ProjectDetail() {
                 </div>
 
                 {/* Column headers */}
-                <div className="grid grid-cols-[1fr_110px_100px_80px] border-b border-border bg-input-bg/50 px-5 py-2">
+                <div className="grid grid-cols-[1fr_110px_100px_130px] border-b border-border bg-input-bg/50 px-5 py-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Due</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Dates</span>
                 </div>
 
                 {/* Rows */}
@@ -480,7 +480,7 @@ export default function ProjectDetail() {
                           return (
                           <div
                             key={task.id}
-                            className="grid grid-cols-[1fr_110px_100px_80px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors border-b border-border/40 last:border-0 group"
+                            className="grid grid-cols-[1fr_110px_100px_130px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors border-b border-border/40 last:border-0 group"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <button

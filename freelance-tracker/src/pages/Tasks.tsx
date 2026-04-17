@@ -183,12 +183,12 @@ export default function Tasks() {
       {/* Table */}
       <div className="bg-surface rounded-[14px] shadow-card border border-border-accent overflow-hidden">
         {/* Column headers */}
-        <div className="grid grid-cols-[1fr_160px_110px_110px_90px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
+        <div className="grid grid-cols-[1fr_160px_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Project</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Due</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Dates</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Actions</span>
         </div>
 
@@ -218,11 +218,18 @@ export default function Tasks() {
                   const project = projectMap.get(task.project_id)
                   const isLogging = loggingTaskId === task.id
                   const hoursLogged = timeByTaskId[task.id] ?? 0
+                  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+                  const due = task.due_date ? new Date(task.due_date + 'T00:00:00') : null
+                  const diffDays = due ? Math.ceil((due.getTime() - todayStart.getTime()) / 86400000) : null
+                  const isPastDue = diffDays !== null && diffDays < 0 && task.status !== 'done'
+                  const isDueSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && task.status !== 'done'
+                  const isUpcoming = diffDays !== null && diffDays > 3 && task.status !== 'done'
+                  const dueDateColor = task.status === 'done' ? 'text-text-muted' : isPastDue ? 'text-negative font-semibold' : isDueSoon ? 'text-amber-500 font-semibold' : isUpcoming ? 'text-emerald-600' : 'text-text-muted'
 
                   return (
                     <div key={task.id} className="border-b border-border/50 last:border-0">
                       {/* Main row */}
-                      <div className="grid grid-cols-[1fr_160px_110px_110px_90px_88px] items-center px-5 py-3 hover:bg-input-bg/30 transition-colors group">
+                      <div className="grid grid-cols-[1fr_160px_110px_110px_130px_88px] items-center px-5 py-3 hover:bg-input-bg/30 transition-colors group">
                         {/* Task title */}
                         <div className="flex items-center gap-2.5 min-w-0">
                           <button
@@ -234,7 +241,7 @@ export default function Tasks() {
                             {task.status === 'done' && <Check size={9} className="text-white" />}
                           </button>
                           <div className="min-w-0">
-                            <p className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : group.isOverdue ? 'text-negative' : 'text-text-primary'}`}>
+                            <p className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : isPastDue ? 'text-negative' : 'text-text-primary'}`}>
                               {task.title}
                             </p>
                             {hoursLogged > 0 && (
@@ -286,10 +293,10 @@ export default function Tasks() {
                           )}
                         </div>
 
-                        {/* Due date / range */}
+                        {/* Date range */}
                         <div>
                           {task.due_date ? (
-                            <span className={`text-[11px] ${group.isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
+                            <span className={`text-[11px] ${dueDateColor}`}>
                               {task.start_date && task.start_date !== task.due_date
                                 ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                                 : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
