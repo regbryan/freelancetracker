@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Pencil, Plus, Mail, Phone, DollarSign, Loader2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Mail, Phone, DollarSign, Loader2, Trash2, BookOpen, Calendar } from 'lucide-react'
 import { useClient, useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useInvoices } from '../hooks/useInvoices'
+import { useMeetingNotes } from '../hooks/useMeetingNotes'
 import ClientForm from '../components/ClientForm'
 import type { ClientFormData } from '../components/ClientForm'
 import ProjectForm from '../components/ProjectForm'
@@ -41,6 +42,8 @@ export default function ClientDetail() {
   )
   const invoiceFilters = useMemo(() => ({ clientId: id }), [id])
   const { invoices, loading: invoicesLoading } = useInvoices(invoiceFilters)
+  const meetingFilters = useMemo(() => ({ clientId: id }), [id])
+  const { meetingNotes, loading: meetingsLoading } = useMeetingNotes(meetingFilters)
 
   const [clientFormOpen, setClientFormOpen] = useState(false)
   const [projectFormOpen, setProjectFormOpen] = useState(false)
@@ -218,6 +221,7 @@ export default function ClientDetail() {
       <Tabs defaultValue="projects">
         <TabsList>
           <TabsTrigger value="projects" className="text-[12px]">Projects</TabsTrigger>
+          <TabsTrigger value="meetings" className="text-[12px]">Meetings</TabsTrigger>
           <TabsTrigger value="notes" className="text-[12px]">Notes</TabsTrigger>
           <TabsTrigger value="invoices" className="text-[12px]">Invoices</TabsTrigger>
         </TabsList>
@@ -279,6 +283,59 @@ export default function ClientDetail() {
                           </p>
                         )}
                     </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Meetings Tab */}
+        <TabsContent value="meetings">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Meeting Notes</p>
+              <button
+                onClick={() => navigate('/meetings')}
+                className="text-accent text-[11px] font-semibold hover:underline"
+              >
+                View All
+              </button>
+            </div>
+
+            {meetingsLoading ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-accent" />
+              </div>
+            ) : meetingNotes.length === 0 ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex flex-col items-center justify-center gap-2">
+                <BookOpen size={20} className="text-text-muted/40" />
+                <p className="text-text-muted text-[13px]">No meeting notes for this client yet.</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
+                {meetingNotes.map((note, i) => {
+                  const meetDate = new Date(note.meeting_date + 'T00:00:00')
+                  return (
+                    <button
+                      key={note.id}
+                      onClick={() => navigate(`/meetings/${note.id}`)}
+                      className={`w-full flex items-center gap-4 px-5 py-3.5 hover:bg-input-bg/50 transition-colors text-left ${i < meetingNotes.length - 1 ? 'border-b border-border/50' : ''}`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
+                        <BookOpen size={13} className="text-accent" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary text-[13px] font-semibold truncate">{note.title}</p>
+                        {note.summary && (
+                          <p className="text-text-muted text-[11px] truncate mt-0.5">{note.summary}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-text-muted text-[11px] shrink-0">
+                        <Calendar size={10} />
+                        {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </button>
                   )
                 })}
               </div>

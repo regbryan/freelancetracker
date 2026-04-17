@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil, BookOpen, Calendar } from 'lucide-react'
 import { useProject, useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -18,6 +18,7 @@ import type { ContractFormData } from '../components/ContractForm'
 import { generateContractPDF } from '../components/ContractPDF'
 import { supabase } from '../lib/supabase'
 import { useCommunications } from '../hooks/useCommunications'
+import { useMeetingNotes } from '../hooks/useMeetingNotes'
 import InvoiceBuilder from '../components/InvoiceBuilder'
 import EmailComposer from '../components/EmailComposer'
 import type { ReplyTarget } from '../components/EmailComposer'
@@ -59,6 +60,8 @@ export default function ProjectDetail() {
   } = useTimeEntries(id)
   const invoiceFilters = useMemo(() => ({ projectId: id }), [id])
   const { invoices, loading: invoicesLoading, refetch: invoicesRefetch } = useInvoices(invoiceFilters)
+  const meetingFilters = useMemo(() => ({ projectId: id }), [id])
+  const { meetingNotes, loading: meetingsLoading } = useMeetingNotes(meetingFilters)
   const { communications, loading: commsLoading, refetch: refetchComms } = useCommunications(id)
   const {
     tasks,
@@ -72,6 +75,8 @@ export default function ProjectDetail() {
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [notesText, setNotesText] = useState<string | null>(null)
   const [notesSaving, setNotesSaving] = useState(false)
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'todo' | 'in_progress' | 'done'>('all')
+  const [taskSortBy, setTaskSortBy] = useState<'due_date' | 'priority' | 'status'>('due_date')
 
   const contractFilters = useMemo(() => ({ projectId: id }), [id])
 
@@ -346,6 +351,7 @@ export default function ProjectDetail() {
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
           <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">Tasks</TabsTrigger>
+          <TabsTrigger value="meetings" className="text-[11px] sm:text-[12px] shrink-0">Meetings</TabsTrigger>
           <TabsTrigger value="notes" className="text-[11px] sm:text-[12px] shrink-0">Notes</TabsTrigger>
           <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">Comms</TabsTrigger>
           <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">Contracts</TabsTrigger>
@@ -354,93 +360,225 @@ export default function ProjectDetail() {
 
         {/* Tasks Tab */}
         <TabsContent value="tasks">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Project Tasks
-              </p>
-              <button
-                onClick={() => {
-                  setEditingTask(null)
-                  setTaskFormOpen(true)
-                }}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
-              >
-                <Plus size={12} />
-                Add Task
-              </button>
-            </div>
+          {(() => {
+            const today = new Date().toDateString()
+            const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
+            const STATUS_ORDER: Record<string, number> = { in_progress: 0, todo: 1, done: 2 }
 
-            <TaskList
-              tasks={tasks.map((t) => ({
-                id: t.id,
-                title: t.title,
-                description: t.description ?? undefined,
-                status: t.status,
-                priority: t.priority,
-                dueDate: t.due_date ?? undefined,
-              }))}
-              loading={tasksLoading}
-              onToggle={(taskId, currentStatus) => {
-                const newStatus = currentStatus === 'done' ? 'todo' : 'done'
-                updateTask(taskId, { status: newStatus })
-              }}
-              onEdit={(task) => {
-                setEditingTask(task)
-                setTaskFormOpen(true)
-              }}
-              onDelete={(taskId) => deleteTask(taskId)}
-              onTimerSave={async (taskId, hours, description) => {
-                await createEntry({
-                  project_id: id!,
-                  description,
-                  hours,
-                  date: new Date().toISOString().split('T')[0],
-                  billable: true,
-                  invoice_id: null,
-                  task_id: taskId,
-                })
-              }}
-              onLogTime={handleTaskLogTime}
-              timeByTaskId={timeByTaskId}
-            />
-
-            <TaskForm
-              open={taskFormOpen}
-              onOpenChange={(open) => {
-                setTaskFormOpen(open)
-                if (!open) setEditingTask(null)
-              }}
-              task={editingTask}
-              onSave={async (data: TaskFormData) => {
-                if (editingTask) {
-                  await updateTask(editingTask.id, {
-                    title: data.title,
-                    description: data.description ?? null,
-                    status: data.status,
-                    priority: data.priority,
-                    due_date: data.dueDate ?? null,
-                  })
-                  setEditingTask(null)
-                } else {
-                  await createTask({
-                    project_id: id!,
-                    title: data.title,
-                    description: data.description ?? null,
-                    status: data.status,
-                    priority: data.priority,
-                    due_date: data.dueDate ?? null,
-                    meeting_note_id: null,
-                    assignee: 'me',
-                  })
+            const filtered = tasks
+              .filter(t => taskStatusFilter === 'all' || t.status === taskStatusFilter)
+              .sort((a, b) => {
+                if (taskSortBy === 'due_date') {
+                  if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+                  if (a.due_date) return -1
+                  if (b.due_date) return 1
+                  return 0
                 }
-              }}
-            />
-          </div>
+                if (taskSortBy === 'priority') {
+                  return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3)
+                }
+                return (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
+              })
+
+            const groups: { key: string; label: string; isOverdue: boolean; tasks: typeof filtered }[] = []
+            const seen = new Set<string>()
+            for (const t of filtered) {
+              const key = taskSortBy === 'due_date' ? (t.due_date ?? 'none') : t.status
+              if (!seen.has(key)) {
+                seen.add(key)
+                let label = key
+                let isOverdue = false
+                if (taskSortBy === 'due_date') {
+                  if (t.due_date) {
+                    const d = new Date(t.due_date + 'T00:00:00')
+                    const isToday = d.toDateString() === today
+                    const isPast = d < new Date(today)
+                    isOverdue = isPast && !isToday
+                    label = isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                  } else {
+                    label = 'No Due Date'
+                  }
+                } else if (taskSortBy === 'priority') {
+                  label = key === 'high' ? 'High Priority' : key === 'medium' ? 'Medium Priority' : 'Low Priority'
+                } else {
+                  label = key === 'in_progress' ? 'In Progress' : key === 'todo' ? 'To Do' : 'Done'
+                }
+                groups.push({ key, label, isOverdue, tasks: [] })
+              }
+              groups.find(g => g.key === key)!.tasks.push(t)
+            }
+
+            return (
+              <div className="bg-surface rounded-[14px] shadow-card border border-border-accent overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(['all', 'todo', 'in_progress', 'done'] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setTaskStatusFilter(s)}
+                        className={`h-6 px-2.5 rounded-full text-[11px] font-semibold transition-colors ${taskStatusFilter === s ? 'bg-accent text-white' : 'bg-input-bg text-text-muted hover:text-text-secondary'}`}
+                      >
+                        {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : s === 'in_progress' ? 'In Progress' : 'Done'}
+                      </button>
+                    ))}
+                    <div className="w-px h-4 bg-border mx-1" />
+                    <select
+                      value={taskSortBy}
+                      onChange={e => setTaskSortBy(e.target.value as typeof taskSortBy)}
+                      className="h-6 px-2 rounded-lg bg-input-bg text-text-muted text-[11px] border border-border focus:outline-none cursor-pointer"
+                    >
+                      <option value="due_date">Sort: Due Date</option>
+                      <option value="priority">Sort: Priority</option>
+                      <option value="status">Sort: Status</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
+                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all active:scale-[0.98] shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  >
+                    <Plus size={11} />
+                    Add Task
+                  </button>
+                </div>
+
+                {/* Column headers */}
+                <div className="grid grid-cols-[1fr_110px_100px_80px] border-b border-border bg-input-bg/50 px-5 py-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Due</span>
+                </div>
+
+                {/* Rows */}
+                <div className="flex flex-col max-h-[480px] overflow-y-auto">
+                  {tasksLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 size={20} className="animate-spin text-accent" />
+                    </div>
+                  ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <p className="text-text-muted text-[12px]">{tasks.length === 0 ? 'No tasks yet' : 'No tasks match this filter'}</p>
+                    </div>
+                  ) : (
+                    groups.map(group => (
+                      <div key={group.key}>
+                        <div className={`flex items-center gap-2 px-5 py-1.5 border-b border-border ${group.isOverdue ? 'bg-negative/5' : 'bg-input-bg/30'}`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${group.isOverdue ? 'bg-negative' : group.key === 'none' || group.key === 'done' ? 'bg-border' : 'bg-accent'}`} />
+                          <span className={`text-[11px] font-semibold ${group.isOverdue ? 'text-negative' : 'text-text-secondary'}`}>{group.label}</span>
+                          <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
+                        </div>
+                        {group.tasks.map(task => (
+                          <div
+                            key={task.id}
+                            className="grid grid-cols-[1fr_110px_100px_80px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors border-b border-border/40 last:border-0 group"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <button
+                                onClick={() => updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' })}
+                                className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${task.status === 'done' ? 'border-accent bg-accent' : 'border-border hover:border-accent'}`}
+                              >
+                                {task.status === 'done' && <Check size={9} className="text-white" />}
+                              </button>
+                              <span className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : group.isOverdue ? 'text-negative' : 'text-text-primary'}`}>{task.title}</span>
+                              <div className="hidden group-hover:flex items-center gap-1 ml-1 shrink-0">
+                                <button onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, dueDate: task.due_date ?? undefined }); setTaskFormOpen(true) }} className="p-0.5 rounded hover:bg-border text-text-muted hover:text-text-primary transition-colors">
+                                  <Pencil size={10} />
+                                </button>
+                                <button onClick={() => deleteTask(task.id)} className="p-0.5 rounded hover:bg-negative/10 text-text-muted hover:text-negative transition-colors">
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              {task.priority === 'high' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-negative/10 text-negative">High</span>}
+                              {task.priority === 'medium' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">Medium</span>}
+                              {task.priority === 'low' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">Low</span>}
+                            </div>
+                            <div>
+                              {task.status === 'in_progress' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>}
+                              {task.status === 'todo' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">To Do</span>}
+                              {task.status === 'done' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-active-bg text-status-active-text">Done</span>}
+                            </div>
+                            <div>
+                              {task.due_date ? (
+                                <span className={`text-[11px] ${group.isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
+                                  {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                              ) : <span className="text-text-muted text-[11px]">—</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+
+          <TaskForm
+            open={taskFormOpen}
+            onOpenChange={(open) => { setTaskFormOpen(open); if (!open) setEditingTask(null) }}
+            task={editingTask}
+            onSave={async (data: TaskFormData) => {
+              if (editingTask) {
+                await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null })
+                setEditingTask(null)
+              } else {
+                await createTask({ project_id: id!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
+              }
+            }}
+          />
         </TabsContent>
 
 
+
+        {/* Meetings Tab */}
+        <TabsContent value="meetings">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Meeting Notes</p>
+              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
+            </div>
+            {meetingsLoading ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-accent" />
+              </div>
+            ) : meetingNotes.length === 0 ? (
+              <div className="bg-surface rounded-[14px] shadow-card p-8 flex flex-col items-center justify-center gap-2">
+                <BookOpen size={20} className="text-text-muted/40" />
+                <p className="text-text-muted text-[13px]">No meeting notes for this project yet.</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
+                {meetingNotes.map((note, i) => {
+                  const meetDate = new Date(note.meeting_date + 'T00:00:00')
+                  return (
+                    <button
+                      key={note.id}
+                      onClick={() => navigate(`/meetings/${note.id}`)}
+                      className={`w-full flex items-center gap-4 px-5 py-3.5 hover:bg-input-bg/50 transition-colors text-left ${i < meetingNotes.length - 1 ? 'border-b border-border/50' : ''}`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
+                        <BookOpen size={13} className="text-accent" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary text-[13px] font-semibold truncate">{note.title}</p>
+                        {note.summary && <p className="text-text-muted text-[11px] truncate mt-0.5">{note.summary}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 text-text-muted text-[11px] shrink-0">
+                        <Calendar size={10} />
+                        {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
         {/* Notes Tab */}
         <TabsContent value="notes">
