@@ -23,10 +23,12 @@ export interface Project {
   };
 }
 
-export type ProjectInsert = Omit<Project, 'id' | 'created_at' | 'updated_at' | 'clients' | 'billing_type' | 'monthly_rate'> & {
+export type ProjectInsert = Omit<Project, 'id' | 'created_at' | 'updated_at' | 'clients' | 'billing_type' | 'monthly_rate' | 'start_date' | 'end_date'> & {
   /** Defaults to 'hourly' at the database level if omitted. */
   billing_type?: 'hourly' | 'monthly';
   monthly_rate?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
 };
 export type ProjectUpdate = Partial<ProjectInsert>;
 

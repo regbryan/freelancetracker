@@ -16,7 +16,9 @@ export interface Task {
   updated_at: string;
 }
 
-export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at'>;
+export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'start_date'> & {
+  start_date?: string | null;
+};
 export type TaskUpdate = Partial<TaskInsert>;
 
 export function useTasks(projectId?: string, meetingNoteId?: string) {

@@ -46,6 +46,8 @@ export default function Projects() {
     billingType?: 'hourly' | 'monthly'
     hourlyRate?: number
     monthlyRate?: number
+    startDate?: string
+    endDate?: string
   }>(null)
 
   // Derive unique project types for the picklist
