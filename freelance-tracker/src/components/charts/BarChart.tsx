@@ -67,7 +67,7 @@ export default function BarChart({ title, data }: BarChartProps) {
                 width={barW}
                 height={barH}
                 rx={barW / 4}
-                fill={isLast ? '#0058be' : '#c7dcf5'}
+                fill={isLast ? '#3e6b5a' : '#b5d5c8'}
                 className="transition-opacity hover:opacity-80"
                 style={{ cursor: 'pointer' }}
               />

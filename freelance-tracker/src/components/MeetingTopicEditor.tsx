@@ -137,7 +137,7 @@ export default function MeetingTopicEditor({
             type="button"
             onClick={handleAddTopic}
             className="h-9 px-3 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             Add
           </button>

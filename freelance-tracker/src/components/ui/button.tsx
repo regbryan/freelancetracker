@@ -34,10 +34,10 @@ const buttonVariants = cva(
 /* Subtle gradient backgrounds per variant */
 const gradientStyles: Record<string, React.CSSProperties> = {
   default: {
-    background: "linear-gradient(135deg, #0058be 0%, #2170e4 60%, #3b82f6 100%)",
+    background: "linear-gradient(135deg, #305445 0%, #3e6b5a 60%, #5a8f7b 100%)",
   },
   gradient: {
-    background: "linear-gradient(135deg, #0058be 0%, #2170e4 60%, #3b82f6 100%)",
+    background: "linear-gradient(135deg, #305445 0%, #3e6b5a 60%, #5a8f7b 100%)",
   },
   destructive: {
     background: "linear-gradient(135deg, #ba1a1a 0%, #dc2626 60%, #ef4444 100%)",

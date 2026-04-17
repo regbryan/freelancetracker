@@ -185,7 +185,7 @@ export default function Clients() {
                   ? 'text-white shadow-sm'
                   : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
               }`}
-              style={statusFilter === f ? { background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' } : undefined}
+              style={statusFilter === f ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               {f === 'all' ? 'All' : f === 'active' ? 'Retained' : 'Inactive'}
             </button>
@@ -220,7 +220,7 @@ export default function Clients() {
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-text-muted">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #0058be20 0%, #2170e420 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #3e6b5a20 0%, #5a8f7b20 100%)' }}
               >
                 <Users size={20} className="text-accent" />
               </div>
@@ -269,7 +269,7 @@ export default function Clients() {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                            style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                           >
                             {getInitials(client.name)}
                           </div>
@@ -342,7 +342,7 @@ export default function Clients() {
               <div className="flex flex-col items-center text-center mb-5">
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center text-white text-[18px] font-bold mb-3"
-                  style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                 >
                   {getInitials(selectedClient.name)}
                 </div>

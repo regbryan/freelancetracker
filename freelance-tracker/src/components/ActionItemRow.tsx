@@ -53,7 +53,7 @@ export default function ActionItemRow({
         type="button"
         onClick={() => onToggle(id, status)}
         className="flex-shrink-0 w-5 h-5 rounded-md border-2 border-border flex items-center justify-center transition-colors hover:border-accent"
-        style={done ? { backgroundColor: '#6366f1', borderColor: '#6366f1' } : undefined}
+        style={done ? { backgroundColor: '#3e6b5a', borderColor: '#3e6b5a' } : undefined}
         aria-label={done ? 'Mark as todo' : 'Mark as done'}
       >
         {done && (

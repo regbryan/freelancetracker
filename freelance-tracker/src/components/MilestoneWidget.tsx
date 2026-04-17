@@ -84,7 +84,7 @@ export default function MilestoneWidget({ projects, tasks, entries = [] }: Miles
     return (
       <div
         className="rounded-xl p-5 h-full w-full min-w-0 flex flex-col justify-between text-white overflow-hidden relative shadow-card min-h-[260px]"
-        style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #6e7a81 0%, #8a969d 55%, #a4afb5 100%)' }}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -106,7 +106,7 @@ export default function MilestoneWidget({ projects, tasks, entries = [] }: Miles
     <button
       onClick={() => navigate(`/projects/${project.id}`)}
       className="rounded-xl p-5 h-full w-full min-w-0 flex flex-col text-white overflow-hidden relative shadow-card text-left hover:shadow-card-hover transition-all active:scale-[0.995] min-h-[260px]"
-      style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #6e7a81 0%, #8a969d 55%, #a4afb5 100%)' }}
     >
       {/* Decorative glow */}
       <div

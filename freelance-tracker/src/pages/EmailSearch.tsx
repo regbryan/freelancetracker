@@ -179,7 +179,7 @@ export default function EmailSearch() {
           type="button"
           onClick={() => setComposeOpen(true)}
           className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white shrink-0 shadow-[0px_4px_12px_rgba(0,88,190,0.30)] hover:opacity-90 transition-all active:scale-95"
-          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <PenSquare size={13} />
           Compose

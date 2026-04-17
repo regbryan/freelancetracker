@@ -161,7 +161,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${pct}%`,
-              background: 'linear-gradient(90deg, #3b82f6, #6366f1)',
+              background: 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
             }}
           />
         </div>
@@ -184,7 +184,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                 type="button"
                 onClick={() => onToggle(task.id, task.status)}
                 className="flex-shrink-0 w-5 h-5 rounded-md border-2 border-border flex items-center justify-center transition-colors hover:border-accent"
-                style={done ? { backgroundColor: '#6366f1', borderColor: '#6366f1' } : undefined}
+                style={done ? { backgroundColor: '#3e6b5a', borderColor: '#3e6b5a' } : undefined}
                 aria-label={done ? 'Mark as todo' : 'Mark as done'}
               >
                 {done && (
@@ -364,7 +364,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                     onClick={() => submitLogTime(task.id)}
                     disabled={logSaving || !logHours}
                     className="h-8 px-3 rounded-[8px] text-[12px] font-semibold text-white disabled:opacity-50 transition-all"
-                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
                     {logSaving ? 'Saving...' : 'Save'}
                   </button>

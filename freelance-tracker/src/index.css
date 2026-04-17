@@ -35,8 +35,8 @@
 
   --color-status-active-bg: #ecfdf5;
   --color-status-active-text: #059669;
-  --color-status-scheduled-bg: #dbeafe;
-  --color-status-scheduled-text: #1d4ed8;
+  --color-status-scheduled-bg: #d5dce4;
+  --color-status-scheduled-text: #15263a;
   --color-status-medium-bg: #fef3c7;
   --color-status-medium-text: #d97706;
   --color-status-completed-bg: #f3f4f6;
@@ -45,7 +45,7 @@
   --color-status-hold-text: #ea580c;
   --color-status-danger: #dc2626;
 
-  --color-chart-1: #2563eb;
+  --color-chart-1: #15263a;
   --color-chart-2: #10b981;
   --color-chart-3: #f59e0b;
   --color-chart-4: #8b5cf6;

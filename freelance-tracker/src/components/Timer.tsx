@@ -161,7 +161,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
               style={{
                 background: isRunning
                   ? '#ef4444'
-                  : 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)',
+                  : 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
               }}
               aria-label={isRunning ? 'Pause timer' : 'Start timer'}
             >
@@ -178,7 +178,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
               disabled={elapsedSeconds === 0 || isSaving}
               className="w-10 h-10 rounded-full flex items-center justify-center text-white transition-all active:scale-95 disabled:opacity-40"
               style={{
-                background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)',
+                background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
               }}
               aria-label="Stop timer and save entry"
             >

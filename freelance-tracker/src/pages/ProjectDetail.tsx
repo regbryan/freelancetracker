@@ -436,7 +436,7 @@ export default function ProjectDetail() {
                   <button
                     onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
                     className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all active:scale-[0.98] shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
                     <Plus size={11} />
                     Add Task
@@ -610,7 +610,7 @@ export default function ProjectDetail() {
                     onClick={handleNotesSave}
                     disabled={notesSaving}
                     className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
                     {notesSaving ? 'Saving…' : 'Save'}
                   </button>
@@ -707,7 +707,7 @@ export default function ProjectDetail() {
               <button
                 onClick={() => setContractFormOpen(true)}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
                 New Contract
@@ -822,7 +822,7 @@ export default function ProjectDetail() {
               <button
                 onClick={() => setInvoiceBuilderOpen(true)}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
                 Generate Invoice
@@ -905,7 +905,7 @@ export default function ProjectDetail() {
                                     onClick={() => handleGetPayLink(invoice)}
                                     disabled={paymentLoading === invoice.id}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-colors"
-                                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                                     title={copiedPayId === invoice.id ? 'Link copied!' : 'Get pay link'}
                                   >
                                     {paymentLoading === invoice.id ? (
@@ -951,7 +951,7 @@ export default function ProjectDetail() {
                 <button
                   onClick={() => handleDownloadPDF(previewInvoice)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-colors"
-                  style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                 >
                   <Download size={12} />
                   Download PDF

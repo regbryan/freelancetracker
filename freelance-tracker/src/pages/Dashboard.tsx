@@ -26,7 +26,7 @@ import { useInvoices } from '../hooks/useInvoices'
 import { useTasks } from '../hooks/useTasks'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
 
-const CHART_COLORS = ['#0058be', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+const CHART_COLORS = ['#3e6b5a', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -141,7 +141,7 @@ export default function Dashboard() {
     return {
       labels,
       series: [
-        { name: 'Billable', color: '#0058be', values: billable },
+        { name: 'Billable', color: '#3e6b5a', values: billable },
         { name: 'Non-billable', color: '#10b981', values: nonBillable },
         { name: 'Total', color: '#f59e0b', values: totals },
       ],
@@ -243,7 +243,7 @@ export default function Dashboard() {
           <button
             onClick={() => navigate('/time')}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             <Timer size={12} />
             Log Time
@@ -301,7 +301,7 @@ export default function Dashboard() {
                       className="h-full rounded-full transition-all duration-300"
                       style={{
                         width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
-                        background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
+                        background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
                       }}
                     />
                   </div>
@@ -443,7 +443,7 @@ export default function Dashboard() {
                         className="h-full rounded-full"
                         style={{
                           width: `${pct}%`,
-                          background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)',
+                          background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
                         }}
                       />
                     </div>

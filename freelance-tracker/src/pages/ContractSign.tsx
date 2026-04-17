@@ -253,7 +253,7 @@ export default function ContractSign() {
                   onClick={handleSign}
                   disabled={signing || !signerName.trim()}
                   className="flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                 >
                   {signing ? (
                     <>

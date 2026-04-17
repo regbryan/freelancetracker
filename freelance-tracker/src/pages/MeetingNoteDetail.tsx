@@ -243,7 +243,7 @@ export default function MeetingNoteDetail() {
             />
             <div className="flex items-center gap-2 justify-end">
               <button onClick={() => setEditingSummary(false)} className="h-8 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all">Cancel</button>
-              <button onClick={handleSaveSummary} className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}>Save</button>
+              <button onClick={handleSaveSummary} className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}>Save</button>
             </div>
           </div>
         ) : (
@@ -282,7 +282,7 @@ export default function MeetingNoteDetail() {
               className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0}%`,
-                background: doneCount === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
+                background: doneCount === tasks.length ? '#10b981' : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
               }}
             />
           </div>
@@ -349,7 +349,7 @@ export default function MeetingNoteDetail() {
               <button
                 onClick={handleAddActionItem}
                 className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 Add
               </button>

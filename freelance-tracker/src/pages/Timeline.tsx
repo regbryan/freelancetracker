@@ -5,7 +5,7 @@ import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 
 const STATUS_COLORS: Record<string, string> = {
-  active: '#2170e4',
+  active: '#3e6b5a',
   completed: '#16a34a',
   on_hold: '#d97706',
   cancelled: '#6b7280',
@@ -13,7 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TASK_STATUS_COLORS: Record<string, { bg: string; border: string }> = {
   done: { bg: '#bbf7d0', border: '#16a34a' },
-  in_progress: { bg: '#bfdbfe', border: '#2170e4' },
+  in_progress: { bg: '#c8dcd1', border: '#3e6b5a' },
   todo: { bg: '#e5e7eb', border: '#9ca3af' },
 }
 
@@ -171,7 +171,7 @@ export default function Timeline() {
             {datedProjects.map((project) => {
               const projectTasks = tasks.filter((t) => t.project_id === project.id && (t.start_date || t.due_date))
               const projectBar = barProps(project.start_date, project.end_date, null)
-              const color = STATUS_COLORS[project.status] ?? '#2170e4'
+              const color = STATUS_COLORS[project.status] ?? '#3e6b5a'
 
               return (
                 <div key={project.id} className="border-b border-border last:border-0">

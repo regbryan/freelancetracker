@@ -220,7 +220,7 @@ export default function Tasks() {
                   className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${Math.round((doneCount / tasks.length) * 100)}%`,
-                    background: doneCount === tasks.length ? '#10b981' : 'linear-gradient(90deg, #0058be, #2170e4)',
+                    background: doneCount === tasks.length ? '#10b981' : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
                   }}
                 />
               </div>
@@ -247,7 +247,7 @@ export default function Tasks() {
           <button
             onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             <Plus size={12} />
             Add Task
@@ -394,7 +394,7 @@ export default function Tasks() {
                               onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
                               title="Log time"
                               className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
-                              style={{ background: isLogging ? 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' : 'linear-gradient(135deg, #4f80c0 0%, #6b9fd4 100%)' }}
+                              style={{ background: isLogging ? 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' : 'linear-gradient(135deg, #8a9690 0%, #a4afb5 100%)' }}
                             >
                               <Clock size={11} className="text-white" />
                             </button>
@@ -470,7 +470,7 @@ export default function Tasks() {
                                     type="button" onClick={saveEntryEdit}
                                     disabled={editSaving || !editHours}
                                     className="h-7 px-3 rounded-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
-                                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                                   >
                                     {editSaving ? 'Saving…' : 'Save'}
                                   </button>
@@ -558,7 +558,7 @@ export default function Tasks() {
                               type="button" onClick={() => submitLogTime(task)}
                               disabled={logSaving || !logHours}
                               className="h-8 px-3 rounded-[8px] text-[12px] font-semibold text-white disabled:opacity-50 transition-all"
-                              style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                              style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                             >
                               {logSaving ? 'Saving...' : 'Save'}
                             </button>

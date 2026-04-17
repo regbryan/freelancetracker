@@ -12,13 +12,13 @@ interface VariantStyle {
 }
 
 const VARIANTS: Record<InsightVariant, VariantStyle> = {
-  // Dashboard — blue / "Smart Insight"
+  // Dashboard — forest / "Smart Insight"
   smart: {
-    background: 'linear-gradient(135deg, #f5f8ff 0%, #eff6ff 100%)',
-    borderColor: '#c7dafd',
-    iconBg: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)',
+    background: 'linear-gradient(135deg, #eef5f2 0%, #e3eee9 100%)',
+    borderColor: '#b5d5c8',
+    iconBg: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
     labelColor: 'text-accent',
-    ctaBg: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)',
+    ctaBg: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
   },
   // Projects — violet / "AI Forecast"
   forecast: {

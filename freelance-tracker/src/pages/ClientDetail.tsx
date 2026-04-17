@@ -162,7 +162,7 @@ export default function ClientDetail() {
             {/* Avatar */}
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center text-white text-[16px] font-bold shrink-0"
-              style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
             >
               {client.name.charAt(0).toUpperCase()}
             </div>
@@ -236,7 +236,7 @@ export default function ClientDetail() {
               <button
                 onClick={() => setProjectFormOpen(true)}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
                 Add Project
@@ -360,7 +360,7 @@ export default function ClientDetail() {
                     onClick={handleNotesSave}
                     disabled={notesSaving}
                     className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
                     {notesSaving ? 'Saving…' : 'Save'}
                   </button>

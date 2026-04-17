@@ -123,7 +123,7 @@ export default function Contracts() {
         <button
           onClick={() => setFormOpen(true)}
           className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <Plus size={12} />
           New Contract

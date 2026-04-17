@@ -134,7 +134,7 @@ export default function MeetingNotes() {
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <Plus size={14} /> New Meeting Note
         </button>
@@ -257,7 +257,7 @@ export default function MeetingNotes() {
                                 width: `${Math.round((counts.done / counts.total) * 100)}%`,
                                 background: counts.done === counts.total
                                   ? '#10b981'
-                                  : 'linear-gradient(90deg, #0058be, #2170e4)',
+                                  : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
                               }}
                             />
                           </div>

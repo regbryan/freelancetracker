@@ -181,7 +181,7 @@ export default function Settings() {
           <div className="relative group">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center text-white text-[20px] font-bold overflow-hidden"
-              style={!profilePhoto ? { background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' } : undefined}
+              style={!profilePhoto ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               {profilePhoto ? (
                 <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />

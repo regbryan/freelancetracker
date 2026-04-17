@@ -191,7 +191,7 @@ export default function Projects() {
           <button
             onClick={openNewForm}
             className="mt-2 px-5 py-2.5 rounded-[12px] text-white text-[13px] font-semibold shadow-[0px_8px_24px_rgba(0,88,190,0.35)] hover:shadow-[0px_12px_32px_rgba(0,88,190,0.45)] transition-shadow active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             Create Project
           </button>
@@ -498,7 +498,7 @@ export default function Projects() {
         <button
           onClick={openNewForm}
           className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-[0px_8px_24px_rgba(0,88,190,0.35)] hover:shadow-[0px_12px_32px_rgba(0,88,190,0.45)] transition-shadow active:scale-95"
-          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <Plus size={18} />
         </button>

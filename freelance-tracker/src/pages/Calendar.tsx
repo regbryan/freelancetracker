@@ -399,7 +399,7 @@ export default function Calendar() {
                 type="submit"
                 disabled={creating}
                 className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 {creating ? 'Creating...' : 'Create Event'}
               </button>
@@ -824,7 +824,7 @@ export default function Calendar() {
               <button
                 onClick={openCreateModal}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all shrink-0"
-                style={{ background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #3e6b5a 0%, #5a8f7b 100%)' }}
               >
                 <Plus size={11} />
                 <span className="hidden sm:inline">New Event</span>
