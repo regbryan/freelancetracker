@@ -227,6 +227,14 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Smart Insight - top priority nudge */}
+      <SmartInsight
+        projects={projects}
+        tasks={tasks}
+        entries={entries}
+        invoices={invoices}
+      />
+
       {/* Row 1: Welcome */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
@@ -263,14 +271,6 @@ export default function Dashboard() {
           <MilestoneWidget projects={projects} tasks={tasks} />
         </div>
       </div>
-
-      {/* Smart Insight */}
-      <SmartInsight
-        projects={projects}
-        tasks={tasks}
-        entries={entries}
-        invoices={invoices}
-      />
 
       {/* Row 3: To-Do Dashboard */}
       {(() => {

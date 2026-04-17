@@ -61,7 +61,7 @@ export default function MilestoneWidget({ projects, tasks }: MilestoneWidgetProp
   if (!milestone) {
     return (
       <div
-        className="rounded-xl p-5 h-full flex flex-col justify-between text-white overflow-hidden relative shadow-card"
+        className="rounded-xl p-5 h-full w-full min-w-0 flex flex-col justify-between text-white overflow-hidden relative shadow-card"
         style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -83,7 +83,7 @@ export default function MilestoneWidget({ projects, tasks }: MilestoneWidgetProp
   return (
     <button
       onClick={() => navigate(`/projects/${project.id}`)}
-      className="rounded-xl p-5 h-full flex flex-col justify-between text-white overflow-hidden relative shadow-card text-left hover:shadow-card-hover transition-all active:scale-[0.995]"
+      className="rounded-xl p-5 h-full w-full min-w-0 flex flex-col justify-between text-white overflow-hidden relative shadow-card text-left hover:shadow-card-hover transition-all active:scale-[0.995]"
       style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
     >
       {/* Decorative glow */}
