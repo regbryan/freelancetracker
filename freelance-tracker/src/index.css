@@ -4,16 +4,17 @@
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  --color-bg: #f9fafb;
+  --color-bg: #f0f2f5;
   --color-surface: #ffffff;
-  --color-sidebar: #fafbfc;
-  --color-sidebar-border: #e5e7eb;
+  --color-sidebar: #1e2a3b;
+  --color-sidebar-border: #2d3f56;
+  --color-sidebar-accent-bg: #2d4a7a;
 
   --color-text-primary: #111827;
   --color-text-secondary: #4b5563;
   --color-text-muted: #9ca3af;
-  --color-text-nav: #6b7280;
-  --color-text-nav-active: #111827;
+  --color-text-nav: #94a3b8;
+  --color-text-nav-active: #ffffff;
 
   --color-accent: #2563eb;
   --color-accent-dark: #1d4ed8;
@@ -22,10 +23,10 @@
   --color-accent-bg: #eff6ff;
   --color-accent-bg-subtle: #f5f8ff;
 
-  --color-border: #e5e7eb;
-  --color-border-light: #f3f4f6;
+  --color-border: #dde1e8;
+  --color-border-light: #eaecf0;
   --color-border-accent: #bfdbfe;
-  --color-input-bg: #f9fafb;
+  --color-input-bg: #ffffff;
 
   --color-positive: #10b981;
   --color-positive-bg: #ecfdf5;
@@ -48,9 +49,9 @@
   --color-chart-4: #8b5cf6;
   --color-chart-5: #ec4899;
 
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-card-hover: 0 6px 18px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
-  --shadow-topbar: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-card-hover: 0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07);
+  --shadow-topbar: 0 1px 0 #dde1e8;
   --shadow-nav-active: none;
   --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.05);
 
