@@ -469,7 +469,15 @@ export default function ProjectDetail() {
                           <span className={`text-[11px] font-semibold ${group.isOverdue ? 'text-negative' : 'text-text-secondary'}`}>{group.label}</span>
                           <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
                         </div>
-                        {group.tasks.map(task => (
+                        {group.tasks.map(task => {
+                          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+                          const due = task.due_date ? new Date(task.due_date + 'T00:00:00') : null
+                          const diffDays = due ? Math.ceil((due.getTime() - todayStart.getTime()) / 86400000) : null
+                          const isPastDue = diffDays !== null && diffDays < 0 && task.status !== 'done'
+                          const isDueSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && task.status !== 'done'
+                          const isUpcoming = diffDays !== null && diffDays > 3 && task.status !== 'done'
+                          const dueDateColor = task.status === 'done' ? 'text-text-muted' : isPastDue ? 'text-negative font-semibold' : isDueSoon ? 'text-amber-500 font-semibold' : isUpcoming ? 'text-emerald-600' : 'text-text-muted'
+                          return (
                           <div
                             key={task.id}
                             className="grid grid-cols-[1fr_110px_100px_80px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors border-b border-border/40 last:border-0 group"
@@ -481,11 +489,13 @@ export default function ProjectDetail() {
                               >
                                 {task.status === 'done' && <Check size={9} className="text-white" />}
                               </button>
-                              <span className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : group.isOverdue ? 'text-negative' : 'text-text-primary'}`}>{task.title}</span>
+                              <button
+                                onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined }); setTaskFormOpen(true) }}
+                                className={`text-[12px] font-medium truncate text-left hover:underline ${task.status === 'done' ? 'line-through text-text-muted' : isPastDue ? 'text-negative' : 'text-text-primary'}`}
+                              >
+                                {task.title}
+                              </button>
                               <div className="hidden group-hover:flex items-center gap-1 ml-1 shrink-0">
-                                <button onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, dueDate: task.due_date ?? undefined }); setTaskFormOpen(true) }} className="p-0.5 rounded hover:bg-border text-text-muted hover:text-text-primary transition-colors">
-                                  <Pencil size={10} />
-                                </button>
                                 <button onClick={() => deleteTask(task.id)} className="p-0.5 rounded hover:bg-negative/10 text-text-muted hover:text-negative transition-colors">
                                   <Trash2 size={10} />
                                 </button>
@@ -503,13 +513,16 @@ export default function ProjectDetail() {
                             </div>
                             <div>
                               {task.due_date ? (
-                                <span className={`text-[11px] ${group.isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
-                                  {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                <span className={`text-[11px] ${dueDateColor}`}>
+                                  {task.start_date && task.start_date !== task.due_date
+                                    ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                    : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                               ) : <span className="text-text-muted text-[11px]">—</span>}
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     ))
                   )}
@@ -524,10 +537,10 @@ export default function ProjectDetail() {
             task={editingTask}
             onSave={async (data: TaskFormData) => {
               if (editingTask) {
-                await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null })
+                await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
                 setEditingTask(null)
               } else {
-                await createTask({ project_id: id!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
+                await createTask({ project_id: id!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
               }
             }}
           />

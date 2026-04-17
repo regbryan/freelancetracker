@@ -286,11 +286,13 @@ export default function Tasks() {
                           )}
                         </div>
 
-                        {/* Due date */}
+                        {/* Due date / range */}
                         <div>
                           {task.due_date ? (
                             <span className={`text-[11px] ${group.isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
-                              {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {task.start_date && task.start_date !== task.due_date
+                                ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
                           ) : (
                             <span className="text-text-muted text-[11px]">—</span>
@@ -312,7 +314,7 @@ export default function Tasks() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, dueDate: task.due_date ?? undefined })
+                              setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined })
                               setTaskFormOpen(true)
                             }}
                             title="Edit task"
@@ -398,10 +400,10 @@ export default function Tasks() {
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
         onSave={async (data: TaskFormData) => {
           if (editingTask) {
-            await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null })
+            await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
             setEditingTask(null)
           } else {
-            await createTask({ project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
+            await createTask({ project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
           }
         }}
       />

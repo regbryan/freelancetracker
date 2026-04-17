@@ -8,6 +8,7 @@ export interface Task {
   description: string | null;
   status: 'todo' | 'in_progress' | 'done';
   priority: 'low' | 'medium' | 'high';
+  start_date: string | null;
   due_date: string | null;
   meeting_note_id: string | null;
   assignee: string;

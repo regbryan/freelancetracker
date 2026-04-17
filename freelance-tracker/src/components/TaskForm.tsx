@@ -23,6 +23,7 @@ export interface TaskFormData {
   description?: string
   status: 'todo' | 'in_progress' | 'done'
   priority: 'low' | 'medium' | 'high'
+  startDate?: string
   dueDate?: string
   projectId?: string
 }
@@ -36,6 +37,7 @@ interface TaskFormProps {
     description?: string
     status: string
     priority: string
+    startDate?: string
     dueDate?: string
   } | null
   /** When provided, a project selector is shown (for creating tasks outside a project context). */
@@ -68,6 +70,7 @@ export default function TaskForm({
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<TaskFormData['status']>('todo')
   const [priority, setPriority] = useState<TaskFormData['priority']>('medium')
+  const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [projectId, setProjectId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -78,6 +81,7 @@ export default function TaskForm({
       setDescription(task?.description ?? '')
       setStatus((task?.status as TaskFormData['status']) ?? 'todo')
       setPriority((task?.priority as TaskFormData['priority']) ?? 'medium')
+      setStartDate(task?.startDate ?? '')
       setDueDate(task?.dueDate ?? '')
       setProjectId('')
     }
@@ -93,6 +97,7 @@ export default function TaskForm({
         description: description || undefined,
         status,
         priority,
+        startDate: startDate || undefined,
         dueDate: dueDate || undefined,
         projectId: projectId || undefined,
       })
@@ -210,17 +215,28 @@ export default function TaskForm({
             </div>
           </div>
 
-          {/* Due Date */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-due" className="text-[12px]">
-              Due Date
-            </Label>
-            <Input
-              id="task-due"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
+          {/* Date range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-start" className="text-[12px]">Start Date</Label>
+              <Input
+                id="task-start"
+                type="date"
+                value={startDate}
+                max={dueDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-due" className="text-[12px]">End Date</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDate}
+                min={startDate || undefined}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <DialogFooter className="pt-2">
