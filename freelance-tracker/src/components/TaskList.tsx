@@ -226,26 +226,17 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {/* Priority badge */}
                 {task.priority === 'high' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-negative-bg text-negative">
-                    High
-                  </span>
+                  <span className="text-[10px] font-semibold text-negative">High</span>
                 )}
                 {task.priority === 'medium' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-status-hold-bg text-status-hold-text">
-                    Medium
-                  </span>
+                  <span className="text-[10px] font-semibold text-status-medium-text">Medium</span>
                 )}
                 {task.priority === 'low' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-status-completed-bg text-status-completed-text">
-                    Low
-                  </span>
+                  <span className="text-[10px] font-semibold text-text-muted">Low</span>
                 )}
 
-                {/* In progress badge */}
                 {task.status === 'in_progress' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-status-scheduled-bg text-status-scheduled-text">
-                    In Progress
-                  </span>
+                  <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>
                 )}
 
                 {/* Due date */}

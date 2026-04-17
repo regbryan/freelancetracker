@@ -502,14 +502,14 @@ export default function ProjectDetail() {
                               </div>
                             </div>
                             <div>
-                              {task.priority === 'high' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-negative/10 text-negative">High</span>}
-                              {task.priority === 'medium' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-medium-bg text-status-medium-text">Medium</span>}
-                              {task.priority === 'low' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">Low</span>}
+                              {task.priority === 'high' && <span className="text-[10px] font-semibold text-negative">High</span>}
+                              {task.priority === 'medium' && <span className="text-[10px] font-semibold text-status-medium-text">Medium</span>}
+                              {task.priority === 'low' && <span className="text-[10px] font-semibold text-text-muted">Low</span>}
                             </div>
                             <div>
-                              {task.status === 'in_progress' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>}
-                              {task.status === 'todo' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">To Do</span>}
-                              {task.status === 'done' && <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-active-bg text-status-active-text">Done</span>}
+                              {task.status === 'in_progress' && <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>}
+                              {task.status === 'todo' && <span className="text-[10px] font-semibold text-text-muted">To Do</span>}
+                              {task.status === 'done' && <span className="text-[10px] font-semibold text-positive">Done</span>}
                             </div>
                             <div>
                               {task.due_date ? (

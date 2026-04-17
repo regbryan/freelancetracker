@@ -364,10 +364,10 @@ export default function Dashboard() {
                           <span className="text-text-muted text-[11px] truncate pr-3">{proj?.name ?? '—'}</span>
                           <div>
                             {task.status === 'in_progress' && (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-status-scheduled-bg text-status-scheduled-text">In Progress</span>
+                              <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>
                             )}
                             {task.status === 'todo' && (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-input-bg text-text-muted border border-border">To Do</span>
+                              <span className="text-[10px] font-semibold text-text-muted">To Do</span>
                             )}
                           </div>
                           <div>
