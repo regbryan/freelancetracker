@@ -448,13 +448,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Revenue Growth */}
-      <div>
-        <BarChart title="Revenue Growth" data={barChartData} />
-      </div>
-
-      {/* Row 5: Recent entries + Meetings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Row 5: Recent entries + Meetings + Revenue Growth */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Recent Time Entries */}
         <div>
           <div className="bg-surface rounded-xl border border-accent/20 shadow-card p-5">
@@ -547,6 +542,11 @@ export default function Dashboard() {
               })}
             </div>
           </div>
+        </div>
+
+        {/* Revenue Growth */}
+        <div>
+          <BarChart title="Revenue Growth" data={barChartData} />
         </div>
       </div>
     </div>

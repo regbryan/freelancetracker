@@ -9,11 +9,11 @@ interface BarChartProps {
 export default function BarChart({ title, data }: BarChartProps) {
   const maxVal = Math.max(...data.map(d => d.value), 1)
   const chartW = 360
-  const chartH = 200
-  const padL = 48
-  const padR = 12
-  const padT = 12
-  const padB = 28
+  const chartH = 110
+  const padL = 44
+  const padR = 8
+  const padT = 8
+  const padB = 22
   const innerW = chartW - padL - padR
   const innerH = chartH - padT - padB
 
