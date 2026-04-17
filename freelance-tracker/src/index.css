@@ -25,7 +25,7 @@
 
   --color-border: #dde1e8;
   --color-border-light: #eaecf0;
-  --color-border-accent: #2d4a7a;
+  --color-border-accent: #1e2a3b;
   --color-input-bg: #ffffff;
 
   --color-positive: #10b981;
@@ -51,8 +51,8 @@
   --color-chart-4: #8b5cf6;
   --color-chart-5: #ec4899;
 
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.09);
+  --shadow-card: 0 1px 1px rgba(0,0,0,0.03);
+  --shadow-card-hover: 0 1px 3px rgba(0,0,0,0.06);
   --shadow-topbar: 0 1px 0 #dde1e8;
   --shadow-nav-active: none;
   --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.05);
