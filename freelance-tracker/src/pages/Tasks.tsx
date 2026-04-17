@@ -180,12 +180,28 @@ export default function Tasks() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-text-primary text-[20px] font-bold tracking-[-0.3px]">Tasks</h1>
-          <p className="text-text-muted text-[12px] mt-0.5">{tasks.length} total · {doneCount} done</p>
+      {/* Hero Banner */}
+      <div
+        className="rounded-[16px] text-white relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/tasks-hero.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 30%',
+          minHeight: '160px',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.80) 0%, rgba(10,18,35,0.50) 60%, rgba(10,18,35,0.15) 100%)' }}
+        />
+        <div className="relative z-10 px-7 py-6">
+          <h1 className="text-[22px] font-bold tracking-[-0.4px] text-white">Tasks</h1>
+          <p className="text-white/70 text-[13px] mt-1">{tasks.length} total · {doneCount} done · {inProgressCount} in progress</p>
         </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Progress bar */}
           {tasks.length > 0 && (
