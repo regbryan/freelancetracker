@@ -257,22 +257,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Row 2: Stat Cards + Next Milestone */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-3">
-        <div className="xl:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
-          <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
-          <StatCard icon={TrendingUp} label="Revenue" value={`$${totalRevenue.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={Receipt} label="Expenses" value={`$${totalExpenses.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={CheckSquare} label="Pending Tasks" value={String(pendingTasks)} trend={0} trendLabel="" />
-        </div>
-        <div className="xl:col-span-1">
-          <MilestoneWidget projects={projects} tasks={tasks} />
-        </div>
-      </div>
-
-      {/* Row 3: To-Do Dashboard */}
+      {/* Row 2: To-Do Dashboard */}
       {(() => {
         const today = new Date().toDateString()
         const activeTasks = tasks
@@ -405,6 +390,21 @@ export default function Dashboard() {
           </div>
         )
       })()}
+
+      {/* Row 3: Stat Cards + Next Milestone */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-3">
+        <div className="xl:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
+          <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
+          <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
+          <StatCard icon={TrendingUp} label="Revenue" value={`$${totalRevenue.toLocaleString()}`} trend={0} trendLabel="" />
+          <StatCard icon={Receipt} label="Expenses" value={`$${totalExpenses.toLocaleString()}`} trend={0} trendLabel="" />
+          <StatCard icon={CheckSquare} label="Pending Tasks" value={String(pendingTasks)} trend={0} trendLabel="" />
+        </div>
+        <div className="xl:col-span-1">
+          <MilestoneWidget projects={projects} tasks={tasks} />
+        </div>
+      </div>
 
       {/* Row 4: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
