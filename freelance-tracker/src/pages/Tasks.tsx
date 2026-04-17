@@ -248,7 +248,7 @@ export default function Tasks() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface rounded-[14px] shadow-card border border-border-accent overflow-hidden">
+      <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
         {/* Column headers */}
         <div className="grid grid-cols-[1fr_160px_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
