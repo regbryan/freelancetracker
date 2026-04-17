@@ -5,6 +5,7 @@ import type { Invoice, InvoiceItem } from '../hooks/useInvoices'
 import { supabase } from '../lib/supabase'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import InvoiceEditDialog from '../components/InvoiceEditDialog'
+import InvoiceInsight from '../components/InvoiceInsight'
 
 const STATUS_FLOW: Record<string, Invoice['status'] | null> = {
   draft: 'sent',
@@ -247,6 +248,9 @@ export default function Invoices() {
           )}
         </div>
       </div>
+
+      {/* Collection Insight */}
+      {!loading && <InvoiceInsight invoices={invoices} />}
 
       {/* Error state */}
       {error && (

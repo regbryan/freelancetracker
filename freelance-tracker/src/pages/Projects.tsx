@@ -12,7 +12,10 @@ import {
 } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
+import { useTasks } from '../hooks/useTasks'
+import { useTimeEntries } from '../hooks/useTimeEntries'
 import ProjectForm, { type ProjectFormData } from '../components/ProjectForm'
+import AIForecast from '../components/AIForecast'
 
 const STATUS_CONFIG: Record<string, { label: string; dotColor: string; textColor: string }> = {
   active: { label: 'Active', dotColor: 'bg-accent', textColor: 'text-accent' },
@@ -26,6 +29,8 @@ export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { projects, loading, error, createProject, updateProject } = useProjects()
   const { clients } = useClients()
+  const { tasks } = useTasks()
+  const { entries } = useTimeEntries()
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'on_hold'>('all')
   const [formOpen, setFormOpen] = useState(false)
 
@@ -224,11 +229,18 @@ export default function Projects() {
           className="absolute inset-0"
           style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
         />
-        <div className="relative z-10 px-7 py-6">
-          <h1 className="text-[22px] font-bold tracking-[-0.4px] text-white">Projects</h1>
-          <p className="text-white/70 text-[13px] mt-1">{projects.length} total · {activeCount} active</p>
+        <div className="relative z-10 px-7 py-7 max-w-2xl">
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Projects</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Projects</h1>
+          <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+            "Curation is the bridge between project and partnership — design intent into deliverable."
+          </p>
+          <p className="text-white/60 text-[12px] mt-3">{projects.length} total · {activeCount} active</p>
         </div>
       </div>
+
+      {/* AI Forecast insight */}
+      <AIForecast projects={projects} tasks={tasks} entries={entries} />
 
       {/* Header Section */}
       <div className="flex items-end justify-between gap-4 flex-wrap">

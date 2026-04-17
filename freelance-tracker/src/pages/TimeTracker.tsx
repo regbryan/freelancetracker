@@ -5,6 +5,7 @@ import Timer from '../components/Timer'
 import TimeEntryForm from '../components/TimeEntryForm'
 import TimeEntryList from '../components/TimeEntryList'
 import TimeEntryEditDialog from '../components/TimeEntryEditDialog'
+import CuratorInsight from '../components/CuratorInsight'
 import type { TimeEntry as ListTimeEntry } from '../components/TimeEntryList'
 
 export default function TimeTracker() {
@@ -111,6 +112,9 @@ export default function TimeTracker() {
         <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">Tracking</p>
         <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">Time Tracker</h2>
       </div>
+
+      {/* Curator's Insight */}
+      <CuratorInsight projects={projects} entries={entries} />
 
       {/* Timer Widget */}
       <Timer projects={projectList} onSave={handleTimerSave} />

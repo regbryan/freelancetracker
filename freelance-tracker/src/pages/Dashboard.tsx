@@ -9,7 +9,6 @@ import {
   BookOpen,
   Calendar,
   Loader2,
-  Receipt,
   CheckSquare,
   Circle,
   AlertTriangle,
@@ -24,7 +23,6 @@ import { useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices } from '../hooks/useInvoices'
-import { useExpenses } from '../hooks/useExpenses'
 import { useTasks } from '../hooks/useTasks'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
 
@@ -44,7 +42,6 @@ export default function Dashboard() {
   const { projects, loading: pLoading } = useProjects()
   const { entries, loading: tLoading } = useTimeEntries()
   const { invoices, loading: iLoading } = useInvoices()
-  const { expenses, loading: expLoading } = useExpenses()
   const { tasks, loading: taskLoading } = useTasks()
   const { meetingNotes, loading: mnLoading } = useMeetingNotes()
 
@@ -60,10 +57,7 @@ export default function Dashboard() {
   })
   const { clients, loading: cLoading } = useClients()
 
-  const loading = pLoading || tLoading || iLoading || cLoading || expLoading || taskLoading || mnLoading
-
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
-  const pendingTasks = tasks.filter((t) => t.status !== 'done').length
+  const loading = pLoading || tLoading || iLoading || cLoading || taskLoading || mnLoading
 
   // Compute stats from real data
   const unbilledHours = entries
@@ -392,17 +386,15 @@ export default function Dashboard() {
       })()}
 
       {/* Row 3: Stat Cards + Next Milestone */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-3">
-        <div className="xl:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+        <div className="xl:col-span-2 grid grid-cols-2 gap-3">
           <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
           <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
           <StatCard icon={TrendingUp} label="Revenue" value={`$${totalRevenue.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={Receipt} label="Expenses" value={`$${totalExpenses.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={CheckSquare} label="Pending Tasks" value={String(pendingTasks)} trend={0} trendLabel="" />
+          <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
         </div>
         <div className="xl:col-span-1">
-          <MilestoneWidget projects={projects} tasks={tasks} />
+          <MilestoneWidget projects={projects} tasks={tasks} entries={entries} />
         </div>
       </div>
 

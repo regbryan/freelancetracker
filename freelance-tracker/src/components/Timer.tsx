@@ -94,6 +94,31 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
   return (
     <div className="bg-surface rounded-[14px] shadow-card p-5">
       <div className="flex flex-col gap-3">
+        {/* Status pill */}
+        <div className="flex items-center justify-between">
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[1.2px] transition-colors ${
+              isRunning
+                ? 'bg-negative-bg text-negative'
+                : elapsedSeconds > 0
+                  ? 'bg-status-medium-bg text-status-medium-text'
+                  : 'bg-input-bg text-text-muted'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isRunning ? 'bg-negative animate-pulse' : elapsedSeconds > 0 ? 'bg-status-medium-text' : 'bg-text-muted'
+              }`}
+            />
+            {isRunning ? 'Active Session' : elapsedSeconds > 0 ? 'Paused' : 'Ready'}
+          </div>
+          {elapsedSeconds > 0 && (
+            <span className="text-text-muted text-[10px] font-medium">
+              Auto-rounded to 15-min increment on save
+            </span>
+          )}
+        </div>
+
         {/* Input row: description + optional project selector */}
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">

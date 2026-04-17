@@ -1,10 +1,9 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Sparkles, X } from 'lucide-react'
 import type { Project } from '../hooks/useProjects'
 import type { Task } from '../hooks/useTasks'
 import type { TimeEntry } from '../hooks/useTimeEntries'
 import type { Invoice } from '../hooks/useInvoices'
+import InsightBanner from './InsightBanner'
 
 interface SmartInsightProps {
   projects: Project[]
@@ -42,7 +41,6 @@ function saveDismissed(dismissed: Record<string, number>) {
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export default function SmartInsight({ projects, tasks, entries, invoices }: SmartInsightProps) {
-  const navigate = useNavigate()
   const [dismissed, setDismissed] = useState<Record<string, number>>(() => loadDismissed())
 
   // Clean up stale dismissals on mount
@@ -165,48 +163,12 @@ export default function SmartInsight({ projects, tasks, entries, invoices }: Sma
   }
 
   return (
-    <div
-      className="relative rounded-xl overflow-hidden border shadow-card"
-      style={{
-        background: 'linear-gradient(135deg, #f5f8ff 0%, #eff6ff 100%)',
-        borderColor: '#c7dafd',
-      }}
-    >
-      <div className="flex items-start gap-4 p-5 flex-wrap md:flex-nowrap">
-        {/* Icon */}
-        <div
-          className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center text-white shadow-button"
-          style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
-        >
-          <Sparkles size={18} />
-        </div>
-
-        {/* Message */}
-        <div className="flex-1 min-w-0">
-          <p className="text-accent text-[10px] font-bold uppercase tracking-wider">Smart Insight</p>
-          <p className="text-text-primary text-[13px] mt-1 leading-relaxed">
-            {insight.message}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0 mt-1 md:mt-0">
-          <button
-            onClick={handleDismiss}
-            className="h-8 px-3 rounded-lg text-text-secondary text-[12px] font-semibold hover:bg-white/70 transition-colors flex items-center gap-1"
-          >
-            <X size={12} />
-            Dismiss
-          </button>
-          <button
-            onClick={() => navigate(insight.ctaTo)}
-            className="h-8 px-3.5 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-opacity active:scale-[0.98] shadow-button"
-            style={{ background: 'linear-gradient(135deg, #0058be 0%, #2170e4 100%)' }}
-          >
-            {insight.ctaLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <InsightBanner
+      label="Smart Insight"
+      variant="smart"
+      message={insight.message}
+      cta={{ label: insight.ctaLabel, to: insight.ctaTo }}
+      onDismiss={handleDismiss}
+    />
   )
 }
