@@ -321,7 +321,7 @@ export default function Dashboard() {
             </div>
 
             {/* Grouped rows */}
-            <div className="flex flex-col max-h-[400px] overflow-y-auto">
+            <div className="flex flex-col max-h-[320px] overflow-y-auto">
               {activeTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2">
                   <CheckSquare size={24} className="text-text-muted/30" />
@@ -333,9 +333,9 @@ export default function Dashboard() {
                 groups.map(group => (
                   <div key={group.key}>
                     {/* Group header */}
-                    <div className={`flex items-center gap-2 px-5 py-1.5 border-b border-border ${group.isOverdueGroup ? 'bg-negative/5' : 'bg-input-bg/30'}`}>
+                    <div className="flex items-center gap-2 px-5 py-1.5 border-b border-border bg-input-bg/30">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${group.isOverdueGroup ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
-                      <span className={`text-[11px] font-semibold ${group.isOverdueGroup ? 'text-negative' : 'text-text-secondary'}`}>
+                      <span className="text-[11px] font-semibold text-text-secondary">
                         {group.label}
                       </span>
                       <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
@@ -386,17 +386,45 @@ export default function Dashboard() {
       })()}
 
       {/* Row 3: Stat Cards + Next Milestone */}
+      {(() => {
+        const unbilledEntryCount = entries.filter(e => e.billable && !e.invoice_id).length
+        const pendingInvoiceCount = invoices.filter(i => i.status === 'draft' || i.status === 'sent').length
+        const paidInvoiceCount = invoices.filter(i => i.status === 'paid').length
+        const activeClientCount = new Set(projects.filter(p => p.status === 'active').map(p => p.client_id)).size
+        return (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div className="xl:col-span-2 grid grid-cols-2 gap-3">
-          <StatCard icon={Clock} label="Unbilled Hours" value={unbilledHours.toFixed(2)} trend={0} trendLabel="" />
-          <StatCard icon={DollarSign} label="Pending Invoices" value={`$${pendingInvoiceAmount.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={TrendingUp} label="Revenue" value={`$${totalRevenue.toLocaleString()}`} trend={0} trendLabel="" />
-          <StatCard icon={FolderKanban} label="Active Projects" value={String(activeProjectCount)} trend={0} trendLabel="" />
+          <StatCard
+            icon={Clock}
+            label="Unbilled Hours"
+            value={unbilledHours.toFixed(2)}
+            sublabel={unbilledEntryCount === 0 ? 'Nothing waiting to bill' : `across ${unbilledEntryCount} ${unbilledEntryCount === 1 ? 'entry' : 'entries'}`}
+          />
+          <StatCard
+            icon={DollarSign}
+            label="Pending Invoices"
+            value={`$${pendingInvoiceAmount.toLocaleString()}`}
+            sublabel={pendingInvoiceCount === 0 ? 'No invoices out' : `${pendingInvoiceCount} awaiting payment`}
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="Revenue"
+            value={`$${totalRevenue.toLocaleString()}`}
+            sublabel={paidInvoiceCount === 0 ? 'No paid invoices yet' : `${paidInvoiceCount} paid ${paidInvoiceCount === 1 ? 'invoice' : 'invoices'}`}
+          />
+          <StatCard
+            icon={FolderKanban}
+            label="Active Projects"
+            value={String(activeProjectCount)}
+            sublabel={activeProjectCount === 0 ? 'No active work' : `for ${activeClientCount} ${activeClientCount === 1 ? 'client' : 'clients'}`}
+          />
         </div>
         <div className="xl:col-span-1">
           <MilestoneWidget projects={projects} tasks={tasks} entries={entries} />
         </div>
       </div>
+        )
+      })()}
 
       {/* Row 4: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
