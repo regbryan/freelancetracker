@@ -35,7 +35,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     : 'JD'
 
   return (
-    <header className="h-12 bg-surface border-b border-border flex items-center justify-between px-5 shrink-0 gap-4">
+    <header className="h-12 bg-bg flex items-center justify-between px-5 shrink-0 gap-4">
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={onToggleSidebar}
