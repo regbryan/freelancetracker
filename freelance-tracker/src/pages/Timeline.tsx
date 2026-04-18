@@ -10,18 +10,16 @@ function TimelineHero({ activeCount, endingSoon }: { activeCount: number; ending
     <div
       className="rounded-[16px] text-white relative overflow-hidden"
       style={{
-        background:
-          'linear-gradient(135deg, #15263a 0%, #24354d 45%, #2a4540 100%)',
-        minHeight: '150px',
+        backgroundColor: '#0a1223',
+        backgroundImage: 'url(/timeline-hero.webp)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center 35%',
+        minHeight: '160px',
       }}
     >
       <div
-        className="absolute -top-24 -right-20 w-72 h-72 rounded-full opacity-20 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(90,143,123,0.5) 0%, transparent 70%)' }}
-      />
-      <div
-        className="absolute -bottom-20 -left-16 w-64 h-64 rounded-full opacity-15 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(239,234,224,0.4) 0%, transparent 70%)' }}
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
       />
       <div className="relative z-10 px-7 py-7 max-w-2xl">
         <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Runway</p>
