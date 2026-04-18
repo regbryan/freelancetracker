@@ -45,7 +45,7 @@ export default function Login() {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-surface rounded-xl border border-border p-8 text-center">
-          <img src="/favicon.svg" alt="Bough" className="w-14 h-14 mx-auto mb-4" />
+          <img src="/bough-logo.png" alt="Bough" className="w-20 h-20 mx-auto mb-4 object-contain" />
           <h2 className="text-text-primary text-[18px] font-bold mb-2">Check your email</h2>
           <p className="text-text-muted text-[13px] leading-relaxed">
             We sent a confirmation link to <span className="font-semibold text-text-primary">{email}</span>.
@@ -67,7 +67,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center justify-center gap-1 mb-8">
-          <img src="/favicon.svg" alt="Bough" className="w-12 h-12" />
+          <img src="/bough-logo.png" alt="Bough" className="w-20 h-20 object-contain" />
           <span
             className="text-text-primary text-[28px] tracking-[-0.5px] leading-none"
             style={{ fontFamily: "'EB Garamond', Georgia, serif", fontWeight: 600 }}

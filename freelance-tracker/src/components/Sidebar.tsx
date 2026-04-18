@@ -47,7 +47,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 h-14 shrink-0 border-b border-sidebar-border">
-        <img src="/bough-mark-light.svg" alt="Bough" className="w-8 h-8 shrink-0" />
+        <img src="/bough-logo.png" alt="Bough" className="w-9 h-9 shrink-0 object-contain" />
         <div className="min-w-0 flex flex-col leading-tight">
           <span
             className="text-white text-[18px] tracking-[-0.3px]"
