@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -228,21 +228,25 @@ export default function Tasks() {
             </div>
           )}
           {/* Status filters */}
-          <div className="flex items-center gap-1">
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
-                className={`h-7 px-3 rounded-lg text-[11px] font-semibold transition-colors ${
-                  statusFilter === f.value
-                    ? 'bg-accent text-white'
-                    : 'bg-surface text-text-muted hover:text-text-primary shadow-card'
-                }`}
-              >
-                {f.label}
-                <span className={`ml-1.5 ${statusFilter === f.value ? 'opacity-70' : 'opacity-50'}`}>{f.count}</span>
-              </button>
-            ))}
+          <div className="flex items-center gap-1 border-b border-border">
+            {FILTERS.map((f) => {
+              const isActive = statusFilter === f.value
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setStatusFilter(f.value)}
+                  className={`relative px-3 py-2 text-[12px] font-semibold transition-colors ${
+                    isActive ? 'text-accent' : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {f.label}
+                  <span className="ml-1.5 opacity-60">{f.count}</span>
+                  {isActive && (
+                    <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />
+                  )}
+                </button>
+              )
+            })}
           </div>
           <button
             onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
@@ -279,13 +283,15 @@ export default function Tasks() {
             groups.map(group => (
               <div key={group.key}>
                 {/* Group header */}
-                <div className={`flex items-center gap-2 px-5 py-2 border-b border-border ${group.isOverdue ? 'bg-negative/5' : 'bg-input-bg/30'}`}>
+                <div className="flex items-center gap-2 px-5 py-2 border-b border-border bg-input-bg/30">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${group.isOverdue ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
-                  <span className={`text-[11px] font-semibold ${group.isOverdue ? 'text-negative' : 'text-text-secondary'}`}>
+                  <span className="text-[11px] font-semibold text-text-secondary">
                     {group.label}
                   </span>
                   <span className="text-[10px] text-text-muted">{group.tasks.length}</span>
-                  {group.isOverdue && <AlertTriangle size={10} className="text-negative ml-0.5" />}
+                  {group.isOverdue && (
+                    <span className="text-[10px] font-medium text-negative uppercase tracking-wide ml-1">Overdue</span>
+                  )}
                 </div>
 
                 {/* Tasks */}
@@ -316,7 +322,7 @@ export default function Tasks() {
                             {task.status === 'done' && <Check size={9} className="text-white" />}
                           </button>
                           <div className="min-w-0">
-                            <p className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : isPastDue ? 'text-negative' : 'text-text-primary'}`}>
+                            <p className={`text-[12px] font-medium truncate ${task.status === 'done' ? 'line-through text-text-muted' : 'text-text-primary'}`}>
                               {task.title}
                             </p>
                             {hoursLogged > 0 && (
@@ -387,16 +393,19 @@ export default function Tasks() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-0.5">
                           {task.status !== 'done' && (
                             <button
                               type="button"
                               onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
                               title="Log time"
-                              className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
-                              style={{ background: isLogging ? 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' : 'linear-gradient(135deg, #8a9690 0%, #a4afb5 100%)' }}
+                              className={`p-1.5 rounded-md transition-all active:scale-95 ${
+                                isLogging
+                                  ? 'bg-accent/10 text-accent'
+                                  : 'text-text-muted hover:text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 focus:opacity-100'
+                              }`}
                             >
-                              <Clock size={11} className="text-white" />
+                              <Clock size={12} />
                             </button>
                           )}
                           <button
@@ -406,19 +415,17 @@ export default function Tasks() {
                               setTaskFormOpen(true)
                             }}
                             title="Edit task"
-                            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #374151 0%, #64748b 100%)' }}
+                            className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-input-bg transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
                           >
-                            <Pencil size={11} className="text-white" />
+                            <Pencil size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => { if (confirm('Delete this task?')) deleteTask(task.id) }}
                             title="Delete task"
-                            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:opacity-90 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' }}
+                            className="p-1.5 rounded-md text-text-muted hover:text-negative hover:bg-negative/10 transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
                           >
-                            <Trash2 size={11} className="text-white" />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>
