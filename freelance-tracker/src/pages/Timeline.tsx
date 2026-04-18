@@ -9,14 +9,18 @@ function TimelineHero({ activeCount, endingSoon }: { activeCount: number; ending
   return (
     <div
       className="rounded-[16px] text-white relative overflow-hidden"
-      style={{
-        backgroundColor: '#0a1223',
-        backgroundImage: 'url(/timeline-hero.webp)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 35%',
-        minHeight: '160px',
-      }}
+      style={{ backgroundColor: '#0a1223', minHeight: '160px' }}
     >
+      <img
+        src="/timeline-hero.webp"
+        alt=""
+        aria-hidden="true"
+        fetchPriority="high"
+        loading="eager"
+        decoding="async"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: 'center 35%' }}
+      />
       <div
         className="absolute inset-0"
         style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}

@@ -1,4 +1,4 @@
-import { Bell, Search, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const pageTitles: Record<string, string> = {
@@ -48,20 +48,6 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2 min-w-0">
-        <div className="relative hidden md:block">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-[200px] h-8 pl-8 pr-3 bg-input-bg rounded-lg text-[12px] text-text-secondary placeholder:text-text-muted border border-border outline-none focus:ring-1 focus:ring-accent/20 focus:border-accent/30 transition-all"
-          />
-        </div>
-
-        <button className="relative p-1.5 rounded-md hover:bg-input-bg transition-colors shrink-0">
-          <Bell size={16} className="text-text-muted" />
-          <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent rounded-full" />
-        </button>
-
         <button
           onClick={() => navigate('/settings')}
           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0 cursor-pointer overflow-hidden hover:ring-2 hover:ring-accent/20 transition-all"

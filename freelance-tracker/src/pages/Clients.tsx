@@ -143,14 +143,18 @@ export default function Clients() {
       {/* Hero Banner */}
       <div
         className="rounded-[16px] text-white relative overflow-hidden"
-        style={{
-          backgroundColor: '#0a1223',
-          backgroundImage: 'url(/clients-hero.webp)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 40%',
-          minHeight: '180px',
-        }}
+        style={{ backgroundColor: '#0a1223', minHeight: '180px' }}
       >
+        <img
+          src="/clients-hero.webp"
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: 'center 40%' }}
+        />
         {/* Dark gradient overlay for text legibility */}
         <div
           className="absolute inset-0"

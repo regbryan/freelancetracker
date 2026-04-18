@@ -415,26 +415,34 @@ export default function Calendar() {
   const today = new Date()
 
   function EventChip({ event, compact }: { event: CalendarEvent; compact?: boolean }) {
+    const label = (event.title || '').trim() || (event.allDay ? 'Untitled' : fmtTime(event.start))
     return (
       <button
         onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
         className={`w-full text-left rounded px-1.5 py-0.5 text-[11px] leading-tight truncate cursor-pointer hover:opacity-80 transition-opacity ${compact ? '' : 'mb-0.5'}`}
         style={{ borderLeft: `3px solid ${event.color}`, background: `${event.color}15` }}
       >
-        {event.title}
+        {label}
       </button>
     )
   }
 
   function TimeEvent({ event }: { event: CalendarEvent }) {
+    const title = (event.title || '').trim()
     return (
       <button
         onClick={() => setSelectedEvent(event)}
         className="w-full text-left rounded px-2 py-1 text-[12px] mb-1 cursor-pointer hover:opacity-80 transition-opacity"
         style={{ borderLeft: `3px solid ${event.color}`, background: `${event.color}18` }}
       >
-        <span className="font-semibold text-text-primary">{event.title}</span>
-        <span className="text-text-muted ml-1.5 text-[10px]">{fmtTime(event.start)}</span>
+        {title ? (
+          <>
+            <span className="font-semibold text-text-primary">{title}</span>
+            <span className="text-text-muted ml-1.5 text-[10px]">{fmtTime(event.start)}</span>
+          </>
+        ) : (
+          <span className="font-semibold text-text-primary">{fmtTime(event.start)}</span>
+        )}
       </button>
     )
   }
@@ -829,14 +837,18 @@ export default function Calendar() {
       {/* Editorial Hero */}
       <div
         className="rounded-xl p-6 relative overflow-hidden"
-        style={{
-          backgroundColor: '#0a1223',
-          backgroundImage: 'url(/calendar-hero.webp)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 40%',
-          minHeight: '160px',
-        }}
+        style={{ backgroundColor: '#0a1223', minHeight: '160px' }}
       >
+        <img
+          src="/calendar-hero.webp"
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: 'center 40%' }}
+        />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -902,19 +914,24 @@ export default function Calendar() {
 
             {/* Bottom row on mobile: view switcher */}
             <div className="flex items-center gap-1">
-              {(['month', 'week', 'day'] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold transition-all ${
-                    view === v
-                      ? 'bg-accent text-white shadow-sm'
-                      : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
-                  }`}
-                >
-                  {v.charAt(0).toUpperCase() + v.slice(1)}
-                </button>
-              ))}
+              <div className="flex items-center gap-1 border-b border-border">
+                {(['month', 'week', 'day'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`relative px-2.5 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-colors ${
+                      view === v
+                        ? 'text-text-primary'
+                        : 'text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                    {view === v && (
+                      <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />
+                    )}
+                  </button>
+                ))}
+              </div>
               <div className="w-px h-4 bg-border mx-1 hidden sm:block" />
               <button
                 onClick={() => setSidebarOpen((p) => !p)}
