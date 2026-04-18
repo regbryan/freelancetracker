@@ -58,7 +58,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           >
             Bough
           </span>
-          <span className="text-[11px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif", color: '#5a6b60' }}>
+          <span className="text-[13px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif", color: '#5a6b60' }}>
             Grow what you build.
           </span>
         </div>
