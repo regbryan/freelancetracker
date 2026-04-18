@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Mail, Phone, MoreVertical, Users, Loader2, Search, X, Trash2 } from 'lucide-react'
 import { useClients } from '../hooks/useClients'
+import { useInvoices } from '../hooks/useInvoices'
 import type { Client } from '../hooks/useClients'
 import ClientForm from '../components/ClientForm'
 import type { ClientFormData } from '../components/ClientForm'
@@ -12,6 +13,7 @@ type StatusFilter = 'all' | 'active' | 'inactive'
 export default function Clients() {
   const navigate = useNavigate()
   const { clients, loading, error, createClient, updateClient, deleteClient } = useClients()
+  const { invoices } = useInvoices()
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -38,8 +40,18 @@ export default function Clients() {
   }, [clients, searchQuery, statusFilter])
 
   const totalReceivables = useMemo(() => {
-    // Placeholder — could be derived from invoices
-    return clients.length * 0
+    return invoices
+      .filter(i => i.status === 'draft' || i.status === 'sent')
+      .reduce((sum, i) => sum + i.total, 0)
+  }, [invoices])
+
+  const heroStats = useMemo(() => {
+    const active = clients.filter(c => c.status === 'active').length
+    const withRate = clients.filter(c => c.hourly_rate != null).length
+    const avgRate = withRate > 0
+      ? clients.reduce((s, c) => s + (c.hourly_rate ?? 0), 0) / withRate
+      : 0
+    return { active, total: clients.length, withRate, avgRate }
   }, [clients])
 
   function handleAddClick() {
@@ -152,7 +164,9 @@ export default function Clients() {
             "Curation is the bridge between project and partnership."
           </h2>
           <p className="text-white/60 text-[12px] mt-2">
-            Your client retention is up 14% this quarter through intentional engagement.
+            {heroStats.total === 0
+              ? 'Add your first client to start building your roster.'
+              : `${heroStats.active} active · ${heroStats.total} total${heroStats.withRate > 0 ? ` · avg $${heroStats.avgRate.toFixed(0)}/hr` : ''}`}
           </p>
         </div>
       </div>
@@ -183,7 +197,7 @@ export default function Clients() {
               className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
                 statusFilter === f
                   ? 'text-white shadow-sm'
-                  : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
+                  : 'text-text-muted hover:text-text-primary'
               }`}
               style={statusFilter === f ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
@@ -261,7 +275,7 @@ export default function Clients() {
                     <tr
                       key={client.id}
                       onClick={() => setSelectedClient(isSelected ? null : client)}
-                      className={`border-b border-border/50 cursor-pointer transition-colors hover:bg-accent-bg-subtle/50 ${
+                      className={`group border-b border-border/50 cursor-pointer transition-colors hover:bg-accent-bg-subtle/50 ${
                         isSelected ? 'bg-accent-bg-subtle/70' : ''
                       }`}
                     >
@@ -309,7 +323,7 @@ export default function Clients() {
                           </button>
                           <button
                             onClick={(e) => handleDeleteClick(e, client)}
-                            className="p-1 rounded hover:bg-negative/10 transition-colors"
+                            className="p-1 rounded hover:bg-negative/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                             aria-label="Delete client"
                           >
                             <Trash2 size={13} className="text-negative" />
