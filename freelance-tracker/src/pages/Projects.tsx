@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  TrendingUp,
   Briefcase,
   Plus,
   ChevronRight,
@@ -9,6 +8,8 @@ import {
   FolderOpen,
   Copy,
   Pencil,
+  Clock,
+  CalendarClock,
 } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
@@ -144,6 +145,23 @@ export default function Projects() {
   const remainingProjects = filteredProjects.length > 1 ? filteredProjects.slice(1) : []
   const activeCount = projects.filter((p) => p.status === 'active').length
 
+  const heroMetrics = useMemo(() => {
+    const now = new Date()
+    const in14 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+    const dueSoon = projects.filter((p) => {
+      if (p.status !== 'active' || !p.end_date) return false
+      const end = new Date(p.end_date)
+      return end >= now && end <= in14
+    }).length
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const hoursThisMonth = entries
+      .filter((e) => new Date(e.date) >= monthStart)
+      .reduce((s, e) => s + e.hours, 0)
+
+    return { dueSoon, hoursThisMonth }
+  }, [projects, entries])
+
   // Loading state
   if (loading) {
     return (
@@ -233,7 +251,7 @@ export default function Projects() {
           <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Projects</p>
           <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Projects</h1>
           <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
-            "Curation is the bridge between project and partnership — design intent into deliverable."
+            "A project is a promise kept in fragments — one deliverable, one milestone, one season at a time."
           </p>
           <p className="text-white/60 text-[12px] mt-3">{projects.length} total · {activeCount} active</p>
         </div>
@@ -242,22 +260,9 @@ export default function Projects() {
       {/* AI Forecast insight */}
       <AIForecast projects={projects} tasks={tasks} entries={entries} />
 
-      {/* Header Section */}
+      {/* Header Section — contextual metric pills */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="flex gap-3">
-          <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
-            <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
-              <TrendingUp size={14} className="text-accent" />
-            </div>
-            <div>
-              <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
-                Total Projects
-              </p>
-              <p className="font-bold text-[16px] text-text-primary leading-5">
-                {projects.length}
-              </p>
-            </div>
-          </div>
+        <div className="flex gap-3 flex-wrap">
           <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
             <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
               <Briefcase size={14} className="text-accent" />
@@ -271,11 +276,37 @@ export default function Projects() {
               </p>
             </div>
           </div>
+          <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
+            <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
+              <CalendarClock size={14} className="text-accent" />
+            </div>
+            <div>
+              <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
+                Due in 14d
+              </p>
+              <p className="font-bold text-[16px] text-text-primary leading-5">
+                {heroMetrics.dueSoon}
+              </p>
+            </div>
+          </div>
+          <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
+            <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
+              <Clock size={14} className="text-accent" />
+            </div>
+            <div>
+              <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
+                Hours MTD
+              </p>
+              <p className="font-bold text-[16px] text-text-primary leading-5">
+                {heroMetrics.hoursThisMonth.toFixed(1)}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1 flex-wrap border-b border-border">
         {(['all', 'active', 'completed', 'on_hold'] as const).map((status) => {
           const labels: Record<string, string> = { all: 'All', active: 'Active', completed: 'Completed', on_hold: 'On Hold' }
           const isActive = statusFilter === status
@@ -283,13 +314,16 @@ export default function Projects() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+              className={`relative px-3 py-2 text-[12px] font-semibold transition-colors ${
                 isActive
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
+                  ? 'text-accent'
+                  : 'text-text-muted hover:text-text-primary'
               }`}
             >
               {labels[status]}
+              {isActive && (
+                <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />
+              )}
             </button>
           )
         })}

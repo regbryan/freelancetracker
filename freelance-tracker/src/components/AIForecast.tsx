@@ -27,7 +27,7 @@ function ConfidenceRing({ score }: { score: number }) {
             cy={size / 2}
             r={r}
             fill="none"
-            stroke="#e9d5ff"
+            stroke="#cbd5e1"
             strokeWidth={stroke}
           />
           <circle
@@ -35,7 +35,7 @@ function ConfidenceRing({ score }: { score: number }) {
             cy={size / 2}
             r={r}
             fill="none"
-            stroke="#6d28d9"
+            stroke="#15263a"
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={c}
@@ -44,10 +44,10 @@ function ConfidenceRing({ score }: { score: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[#6d28d9] text-[13px] font-bold">{score}%</span>
+          <span className="text-[#15263a] text-[13px] font-bold">{score}%</span>
         </div>
       </div>
-      <p className="text-[#6d28d9] text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap">
+      <p className="text-[#15263a] text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap">
         Confidence
       </p>
     </div>

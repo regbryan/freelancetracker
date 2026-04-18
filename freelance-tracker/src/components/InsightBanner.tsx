@@ -20,13 +20,13 @@ const VARIANTS: Record<InsightVariant, VariantStyle> = {
     labelColor: 'text-accent',
     ctaBg: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
   },
-  // Projects — violet / "AI Forecast"
+  // Projects — navy ink / "AI Forecast"
   forecast: {
-    background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
-    borderColor: '#d8b4fe',
-    iconBg: 'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)',
-    labelColor: 'text-[#6d28d9]',
-    ctaBg: 'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)',
+    background: 'linear-gradient(135deg, #f0f3f8 0%, #e4eaf2 100%)',
+    borderColor: '#b9c4d3',
+    iconBg: 'linear-gradient(135deg, #15263a 0%, #2b425c 100%)',
+    labelColor: 'text-[#15263a]',
+    ctaBg: 'linear-gradient(135deg, #15263a 0%, #2b425c 100%)',
   },
   // Time Tracker — amber / "Curator's Insight"
   curator: {
