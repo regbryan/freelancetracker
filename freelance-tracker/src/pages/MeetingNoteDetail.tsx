@@ -20,6 +20,7 @@ import { useMeetingNote } from '../hooks/useMeetingNotes'
 import { useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
+import { supabase } from '../lib/supabase'
 import MeetingTopicEditor from '../components/MeetingTopicEditor'
 import MeetingNoteForm from '../components/MeetingNoteForm'
 import ActionItemRow from '../components/ActionItemRow'
@@ -189,12 +190,6 @@ export default function MeetingNoteDetail() {
             <button
               onClick={async () => {
                 if (confirm('Delete this meeting note?')) {
-                  const { deleteMeetingNote } = await import('../hooks/useMeetingNotes').then(m => {
-                    // We need to call the hook version — redirect instead
-                    return { deleteMeetingNote: null }
-                  })
-                  // Simple approach: use supabase directly
-                  const { supabase } = await import('../lib/supabase')
                   await supabase.from('meeting_notes').delete().eq('id', meetingNote.id)
                   navigate('/meetings')
                 }

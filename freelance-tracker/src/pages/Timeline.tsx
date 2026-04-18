@@ -3,6 +3,40 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, ChevronRight } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
+import TimelineInsight from '../components/TimelineInsight'
+
+function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
+  return (
+    <div
+      className="rounded-[16px] text-white relative overflow-hidden"
+      style={{
+        background:
+          'linear-gradient(135deg, #15263a 0%, #24354d 45%, #2a4540 100%)',
+        minHeight: '150px',
+      }}
+    >
+      <div
+        className="absolute -top-24 -right-20 w-72 h-72 rounded-full opacity-20 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(90,143,123,0.5) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-20 -left-16 w-64 h-64 rounded-full opacity-15 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(239,234,224,0.4) 0%, transparent 70%)' }}
+      />
+      <div className="relative z-10 px-7 py-7 max-w-2xl">
+        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Runway</p>
+        <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Timeline</h1>
+        <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+          "Time is the axis — every commitment casts a shadow forward."
+        </p>
+        <p className="text-white/60 text-[12px] mt-3">
+          {activeCount} active {activeCount === 1 ? 'project' : 'projects'}
+          {endingSoon > 0 ? ` · ${endingSoon} ending in 14 days` : ''}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 const STATUS_COLORS: Record<string, string> = {
   active: '#3e6b5a',
@@ -113,13 +147,18 @@ export default function Timeline() {
     )
   }
 
+  const activeCount = projects.filter((p) => p.status === 'active').length
+  const endingSoon = projects.filter((p) => {
+    if (p.status !== 'active' || !p.end_date) return false
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const days = Math.ceil((parseDate(p.end_date).getTime() - today.getTime()) / 86400000)
+    return days >= 0 && days <= 14
+  }).length
+
   if (datedProjects.length === 0) {
     return (
-      <div className="p-6 flex flex-col gap-6">
-        <div>
-          <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Timeline</h1>
-          <p className="text-text-muted text-[13px] mt-1">Gantt view of your projects and tasks</p>
-        </div>
+      <div className="p-6 flex flex-col gap-5">
+        <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
         <div className="bg-surface rounded-[14px] shadow-card border border-border p-12 flex flex-col items-center justify-center gap-3">
           <p className="text-text-muted text-[13px]">No projects have start or end dates yet.</p>
           <p className="text-text-muted text-[12px]">Open a project, click Edit, and set its start and end dates to see them here.</p>
@@ -129,12 +168,12 @@ export default function Timeline() {
   }
 
   return (
-    <div className="p-6 flex flex-col gap-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Timeline</h1>
-        <p className="text-text-muted text-[13px] mt-1">Gantt view of your projects and tasks</p>
-      </div>
+    <div className="p-6 flex flex-col gap-5">
+      {/* Editorial Hero */}
+      <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
+
+      {/* Runway Insight */}
+      <TimelineInsight projects={projects} tasks={tasks} />
 
       <div className="bg-surface rounded-[14px] shadow-card border border-border overflow-hidden">
         {/* Scrollable grid */}

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button'
 import { useAuth } from '../hooks/useAuth'
 import { useGmail } from '../hooks/useGmail'
 import { useCalendarAuth } from '../hooks/useCalendarAuth'
+import SettingsInsight from '../components/SettingsInsight'
 
 interface FreelancerProfile {
   name: string
@@ -148,17 +149,49 @@ export default function Settings() {
     }
   }
 
+  const profileFieldCount = [profile.name, profile.email, profile.address, profile.phone]
+    .filter((v) => v.trim()).length
+
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div>
-        <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">
-          Preferences
-        </p>
-        <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">
-          Settings
-        </h2>
+      {/* Editorial Hero */}
+      <div
+        className="rounded-[16px] text-white relative overflow-hidden"
+        style={{
+          background:
+            'linear-gradient(135deg, #15263a 0%, #24354d 45%, #3e6b5a 100%)',
+          minHeight: '150px',
+        }}
+      >
+        <div
+          className="absolute -top-20 -right-24 w-72 h-72 rounded-full opacity-20 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(239,234,224,0.5) 0%, transparent 70%)' }}
+        />
+        <div
+          className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-15 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(138,150,144,0.4) 0%, transparent 70%)' }}
+        />
+        <div className="relative z-10 px-7 py-7 max-w-2xl">
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Preferences</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Settings</h1>
+          <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+            "The details you set once here are the details your clients see every time."
+          </p>
+          <p className="text-white/60 text-[12px] mt-3">
+            {profileFieldCount}/4 profile fields · {isAuthenticated ? 'Gmail connected' : 'Gmail off'} · {(calendarAuth.status.google || calendarAuth.status.microsoft) ? 'Calendar connected' : 'Calendar off'}
+          </p>
+        </div>
       </div>
+
+      {/* Account Setup Insight */}
+      <SettingsInsight
+        profile={profile}
+        defaults={defaults}
+        profilePhoto={profilePhoto}
+        businessLogo={businessLogo}
+        gmailConnected={isAuthenticated}
+        calendarConnected={calendarAuth.status.google || calendarAuth.status.microsoft}
+      />
 
       {/* Profile Section */}
       <div className="bg-surface rounded-[14px] shadow-card p-5">

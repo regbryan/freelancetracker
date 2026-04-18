@@ -13,6 +13,7 @@ import {
   Plus,
   X,
 } from 'lucide-react'
+import CalendarInsight from '../components/CalendarInsight'
 
 /* ── Types ──────────────────────────────────────────────── */
 interface CalendarEvent {
@@ -802,19 +803,76 @@ export default function Calendar() {
     )
   }
 
+  /* ── Hero stats ───────────────────────────────────────── */
+  const heroStats = (() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayCount = events.filter((e) => {
+      const s = new Date(e.start)
+      return s.getFullYear() === today.getFullYear() && s.getMonth() === today.getMonth() && s.getDate() === today.getDate() && !e.allDay
+    }).length
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - today.getDay() + 1)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 4)
+    weekEnd.setHours(23, 59, 59, 999)
+    const weekCount = events.filter((e) => {
+      const s = new Date(e.start)
+      return s >= weekStart && s <= weekEnd && !e.allDay
+    }).length
+    return { todayCount, weekCount }
+  })()
+
   /* ── Main Render ──────────────────────────────────────── */
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <p className="font-semibold text-[11px] text-accent tracking-[1.5px] uppercase">Schedule</p>
-          <h2 className="font-bold text-[20px] text-text-primary tracking-[-0.3px] mt-1">Calendar</h2>
+      {/* Editorial Hero */}
+      <div
+        className="rounded-xl p-6 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #15263a 0%, #24354d 45%, #3e6b5a 100%)',
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-40 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 20% 30%, rgba(138, 150, 144, 0.35) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(62, 107, 90, 0.45) 0%, transparent 55%)',
+          }}
+        />
+        <div className="relative flex flex-col gap-3 max-w-2xl">
+          <p className="font-semibold text-[11px] text-white/70 tracking-[1.5px] uppercase">
+            Your Schedule
+          </p>
+          <h2 className="font-bold text-[22px] text-white tracking-[-0.3px] leading-tight">
+            <span className="italic font-serif font-normal text-white/90">
+              "A calendar is a commitment map — the negative space is where the real work gets done."
+            </span>
+          </h2>
+          <div className="flex items-center gap-2 text-[12px] text-white/70 mt-1">
+            <span>
+              <strong className="text-white">{heroStats.todayCount}</strong> today
+            </span>
+            <span className="text-white/40">·</span>
+            <span>
+              <strong className="text-white">{heroStats.weekCount}</strong> this work week
+            </span>
+            <span className="text-white/40">·</span>
+            <span>
+              Viewing{' '}
+              <strong className="text-white">
+                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </strong>
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Smart Insight Banner */}
+      <CalendarInsight events={events} currentDate={currentDate} />
+
       {/* Calendar Card */}
-      <div className="bg-surface rounded-xl border border-border overflow-hidden flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
+      <div className="bg-surface rounded-xl border border-border overflow-hidden flex flex-col lg:flex-row" style={{ height: 'calc(100vh - 380px)', minHeight: '400px' }}>
         {/* Main Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Toolbar — stacks on mobile */}
