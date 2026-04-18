@@ -830,41 +830,32 @@ export default function Calendar() {
       <div
         className="rounded-xl p-6 relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #15263a 0%, #24354d 45%, #3e6b5a 100%)',
+          backgroundColor: '#0a1223',
+          backgroundImage: 'url(/calendar-hero.webp)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 40%',
+          minHeight: '160px',
         }}
       >
         <div
-          className="absolute inset-0 opacity-40 pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background:
-              'radial-gradient(circle at 20% 30%, rgba(138, 150, 144, 0.35) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(62, 107, 90, 0.45) 0%, transparent 55%)',
+            background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)',
           }}
         />
-        <div className="relative flex flex-col gap-3 max-w-2xl">
-          <p className="font-semibold text-[11px] text-white/70 tracking-[1.5px] uppercase">
-            Your Schedule
+        <div className="relative flex flex-col max-w-2xl">
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Schedule</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Calendar</h1>
+          <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+            "A calendar is a commitment map — the negative space is where the real work gets done."
           </p>
-          <h2 className="font-bold text-[22px] text-white tracking-[-0.3px] leading-tight">
-            <span className="italic font-serif font-normal text-white/90">
-              "A calendar is a commitment map — the negative space is where the real work gets done."
-            </span>
-          </h2>
-          <div className="flex items-center gap-2 text-[12px] text-white/70 mt-1">
-            <span>
-              <strong className="text-white">{heroStats.todayCount}</strong> today
-            </span>
-            <span className="text-white/40">·</span>
-            <span>
-              <strong className="text-white">{heroStats.weekCount}</strong> this work week
-            </span>
-            <span className="text-white/40">·</span>
-            <span>
-              Viewing{' '}
-              <strong className="text-white">
-                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </strong>
-            </span>
-          </div>
+          <p className="text-white/60 text-[12px] mt-3">
+            <strong className="text-white/90">{heroStats.todayCount}</strong> today
+            {' · '}
+            <strong className="text-white/90">{heroStats.weekCount}</strong> this work week
+            {' · '}
+            Viewing <strong className="text-white/90">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</strong>
+          </p>
         </div>
       </div>
 
