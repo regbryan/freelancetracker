@@ -74,7 +74,7 @@ export default function Login() {
           >
             Bough
           </span>
-          <span className="text-text-muted text-[11px] italic tracking-[0.2px] mt-0.5" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+          <span className="text-text-muted text-[14px] italic tracking-[0.2px] mt-1" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
             Grow what you build.
           </span>
         </div>

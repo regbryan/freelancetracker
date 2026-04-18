@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['bough-logo.png', 'bough-logo-192.png', 'bough-logo-512.png', 'bough-favicon-32.png'],
       manifest: {
         name: 'Bough',
         short_name: 'Bough',
@@ -17,25 +17,25 @@ export default defineConfig({
         start_url: '/',
         display: 'standalone',
         background_color: '#EFEAE0',
-        theme_color: '#15263A',
+        theme_color: '#3E6B5A',
         orientation: 'any',
         icons: [
           {
-            src: '/icon-192.svg',
+            src: '/bough-logo-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/icon-512.svg',
+            src: '/bough-logo-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/bough-favicon-32.png',
+            sizes: '32x32',
+            type: 'image/png',
           },
         ],
       },

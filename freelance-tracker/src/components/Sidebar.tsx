@@ -43,7 +43,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <aside
       className={`fixed left-0 top-0 h-screen w-[220px] border-r border-sidebar-border flex flex-col z-30 transition-transform duration-200 ease-in-out
         ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
-      style={{ background: 'linear-gradient(to right, #15263a 0%, #0f1c2a 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #3e6b5a 0%, #2d5344 100%)' }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 h-14 shrink-0 border-b border-sidebar-border">
@@ -55,7 +55,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           >
             Bough
           </span>
-          <span className="text-white/55 text-[9px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+          <span className="text-white/70 text-[11px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
             Grow what you build.
           </span>
         </div>
@@ -79,7 +79,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   ? 'text-white font-semibold'
                   : 'text-text-nav font-medium hover:bg-white/10 hover:text-white'
               }`}
-              style={isActive ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
+              style={isActive ? { background: 'linear-gradient(135deg, #1a3529 0%, #234435 100%)' } : undefined}
             >
               <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
               <span>{item.label}</span>

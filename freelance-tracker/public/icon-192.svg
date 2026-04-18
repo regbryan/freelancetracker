@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="32" fill="#EFEAE0"/>
-  <text x="96" y="138" font-family="'EB Garamond', 'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="140" font-weight="700" text-anchor="middle" fill="#15263A">B</text>
-  <path d="M 112 52 Q 138 22 172 8" stroke="#3E6B5A" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-  <ellipse cx="128" cy="36" rx="7" ry="3.4" transform="rotate(-35 128 36)" fill="#3E6B5A"/>
-  <ellipse cx="150" cy="20" rx="7.5" ry="3.6" transform="rotate(-20 150 20)" fill="#3E6B5A"/>
-  <ellipse cx="172" cy="8" rx="8" ry="4" transform="rotate(-5 172 8)" fill="#3E6B5A"/>
-</svg>
