@@ -186,7 +186,7 @@ export default function Tasks() {
         className="rounded-[16px] text-white relative overflow-hidden"
         style={{
           backgroundColor: '#0a1223',
-          backgroundImage: 'url(/tasks-hero.png)',
+          backgroundImage: 'url(/tasks-hero.webp)',
           backgroundSize: 'cover',
           backgroundPosition: 'center 30%',
           minHeight: '160px',

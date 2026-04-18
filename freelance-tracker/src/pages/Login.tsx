@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderKanban, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
@@ -45,9 +45,7 @@ export default function Login() {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-surface rounded-xl border border-border p-8 text-center">
-          <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mx-auto mb-4">
-            <FolderKanban size={24} className="text-white" />
-          </div>
+          <img src="/favicon.svg" alt="Bough" className="w-14 h-14 mx-auto mb-4" />
           <h2 className="text-text-primary text-[18px] font-bold mb-2">Check your email</h2>
           <p className="text-text-muted text-[13px] leading-relaxed">
             We sent a confirmation link to <span className="font-semibold text-text-primary">{email}</span>.
@@ -68,12 +66,16 @@ export default function Login() {
     <div className="min-h-screen bg-bg flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <FolderKanban size={20} className="text-white" />
-          </div>
-          <span className="text-text-primary font-bold text-[22px] tracking-[-0.5px]">
-            FreelanceFlow
+        <div className="flex flex-col items-center justify-center gap-1 mb-8">
+          <img src="/favicon.svg" alt="Bough" className="w-12 h-12" />
+          <span
+            className="text-text-primary text-[28px] tracking-[-0.5px] leading-none"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif", fontWeight: 600 }}
+          >
+            Bough
+          </span>
+          <span className="text-text-muted text-[11px] italic tracking-[0.2px] mt-0.5" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+            Grow what you build.
           </span>
         </div>
 

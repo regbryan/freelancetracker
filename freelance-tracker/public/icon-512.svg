@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#2563eb"/>
-  <text x="256" y="310" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-weight="800" font-size="220" fill="white">FF</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="88" fill="#EFEAE0"/>
+  <text x="256" y="368" font-family="'EB Garamond', 'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="380" font-weight="700" text-anchor="middle" fill="#15263A">B</text>
+  <path d="M 298 138 Q 366 60 458 22" stroke="#3E6B5A" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <ellipse cx="340" cy="96" rx="19" ry="9" transform="rotate(-35 340 96)" fill="#3E6B5A"/>
+  <ellipse cx="400" cy="54" rx="20" ry="9.5" transform="rotate(-20 400 54)" fill="#3E6B5A"/>
+  <ellipse cx="458" cy="22" rx="21" ry="10" transform="rotate(-5 458 22)" fill="#3E6B5A"/>
 </svg>

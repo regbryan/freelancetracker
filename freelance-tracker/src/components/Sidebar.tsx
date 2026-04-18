@@ -46,13 +46,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       style={{ background: 'linear-gradient(to right, #15263a 0%, #0f1c2a 100%)' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 h-14 shrink-0 border-b border-sidebar-border">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-accent">
-          <FolderKanban size={14} className="text-white" />
-        </div>
-        <div className="min-w-0">
-          <span className="text-white font-bold text-[14px] tracking-[-0.3px]">
-            FreelanceFlow
+      <div className="flex items-center gap-2 px-5 h-14 shrink-0 border-b border-sidebar-border">
+        <img src="/bough-mark-light.svg" alt="Bough" className="w-8 h-8 shrink-0" />
+        <div className="min-w-0 flex flex-col leading-tight">
+          <span
+            className="text-white text-[18px] tracking-[-0.3px]"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif", fontWeight: 600 }}
+          >
+            Bough
+          </span>
+          <span className="text-white/55 text-[9px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+            Grow what you build.
           </span>
         </div>
       </div>

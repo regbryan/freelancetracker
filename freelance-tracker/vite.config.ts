@@ -11,13 +11,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'FreelanceFlow',
-        short_name: 'FreelanceFlow',
-        description: 'Track time, manage projects, send invoices — all in one app.',
+        name: 'Bough',
+        short_name: 'Bough',
+        description: 'Grow what you build. Time, projects, invoices, and clients for patient freelancers.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#f9fafb',
-        theme_color: '#2563eb',
+        background_color: '#EFEAE0',
+        theme_color: '#15263A',
         orientation: 'any',
         icons: [
           {

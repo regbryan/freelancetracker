@@ -133,7 +133,7 @@ export default function Clients() {
         className="rounded-[16px] text-white relative overflow-hidden"
         style={{
           backgroundColor: '#0a1223',
-          backgroundImage: 'url(/clients-hero.jpg)',
+          backgroundImage: 'url(/clients-hero.webp)',
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
           minHeight: '180px',

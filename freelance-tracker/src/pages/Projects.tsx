@@ -219,7 +219,7 @@ export default function Projects() {
         className="rounded-[16px] text-white relative overflow-hidden"
         style={{
           backgroundColor: '#0a1223',
-          backgroundImage: 'url(/projects-hero.png)',
+          backgroundImage: 'url(/projects-hero.webp)',
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
           minHeight: '160px',
