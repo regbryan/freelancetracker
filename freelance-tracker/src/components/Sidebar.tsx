@@ -46,16 +46,19 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       style={{ background: 'linear-gradient(180deg, #3e6b5a 0%, #2d5344 100%)' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-5 h-14 shrink-0 border-b border-sidebar-border">
-        <img src="/bough-logo.png" alt="Bough" className="w-9 h-9 shrink-0 object-contain" />
+      <div
+        className="flex items-center gap-2 px-5 h-16 shrink-0 border-b border-sidebar-border"
+        style={{ background: '#EFEAE0' }}
+      >
+        <img src="/bough-logo.png" alt="Bough" className="w-10 h-10 shrink-0 object-contain" />
         <div className="min-w-0 flex flex-col leading-tight">
           <span
-            className="text-white text-[18px] tracking-[-0.3px]"
-            style={{ fontFamily: "'EB Garamond', Georgia, serif", fontWeight: 600 }}
+            className="text-[20px] tracking-[-0.3px]"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif", fontWeight: 600, color: '#1a3529' }}
           >
             Bough
           </span>
-          <span className="text-white/70 text-[11px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif" }}>
+          <span className="text-[11px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif", color: '#5a6b60' }}>
             Grow what you build.
           </span>
         </div>
@@ -79,7 +82,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   ? 'text-white font-semibold'
                   : 'text-text-nav font-medium hover:bg-white/10 hover:text-white'
               }`}
-              style={isActive ? { background: 'linear-gradient(135deg, #1a3529 0%, #234435 100%)' } : undefined}
+              style={isActive ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
               <span>{item.label}</span>
