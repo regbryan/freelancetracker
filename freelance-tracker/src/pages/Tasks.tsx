@@ -27,27 +27,57 @@ function expandRecurrence(
   dueDate: string | undefined,
   kind: 'daily' | 'weekly' | 'monthly',
   endDate: string,
+  weekday?: number,
+  dayOfMonth?: number,
 ): { start: string | null; due: string | null }[] {
-  const anchor = dueDate || startDate
-  if (!anchor) return []
   const end = new Date(endDate + 'T00:00:00')
-  const anchorDate = new Date(anchor + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Anchor: due date if set, else start date, else today.
+  const providedAnchor = dueDate || startDate
+  const anchorDate = providedAnchor ? new Date(providedAnchor + 'T00:00:00') : today
   const startD = startDate ? new Date(startDate + 'T00:00:00') : null
-  const deltaMs = startD ? anchorDate.getTime() - startD.getTime() : 0
+  // Delta between due and start, so start shifts with due on each iteration.
+  const deltaMs = startD && dueDate ? new Date(dueDate + 'T00:00:00').getTime() - startD.getTime() : 0
+
+  // Compute first occurrence cursor based on kind + chosen day.
+  const cursor = new Date(anchorDate)
+  if (kind === 'weekly' && weekday !== undefined) {
+    const diff = (weekday - cursor.getDay() + 7) % 7
+    cursor.setDate(cursor.getDate() + diff)
+  } else if (kind === 'monthly' && dayOfMonth !== undefined) {
+    const setToDOM = (d: Date) => {
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+      d.setDate(Math.min(dayOfMonth, lastDay))
+    }
+    setToDOM(cursor)
+    if (cursor.getTime() < anchorDate.getTime()) {
+      cursor.setMonth(cursor.getMonth() + 1)
+      setToDOM(cursor)
+    }
+  }
 
   const results: { start: string | null; due: string | null }[] = []
-  const cursor = new Date(anchorDate)
   let i = 0
   while (cursor.getTime() <= end.getTime() && i < 500) {
     const dueStr = toISO(cursor)
-    const startStr = startD ? toISO(new Date(cursor.getTime() - deltaMs)) : null
-    results.push({ start: startStr, due: dueDate ? dueStr : null })
-    if (!dueDate && startStr) {
-      results[results.length - 1] = { start: startStr, due: null }
+    const startStr = startD && dueDate ? toISO(new Date(cursor.getTime() - deltaMs)) : null
+    results.push({
+      start: startStr ?? (dueDate ? null : dueStr),
+      due: dueDate || kind !== 'daily' ? dueStr : null,
+    })
+    if (kind === 'daily') {
+      cursor.setDate(cursor.getDate() + 1)
+    } else if (kind === 'weekly') {
+      cursor.setDate(cursor.getDate() + 7)
+    } else {
+      cursor.setMonth(cursor.getMonth() + 1)
+      if (dayOfMonth !== undefined) {
+        const lastDay = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate()
+        cursor.setDate(Math.min(dayOfMonth, lastDay))
+      }
     }
-    if (kind === 'daily') cursor.setDate(cursor.getDate() + 1)
-    else if (kind === 'weekly') cursor.setDate(cursor.getDate() + 7)
-    else cursor.setMonth(cursor.getMonth() + 1)
     i++
   }
   return results
@@ -857,7 +887,7 @@ export default function Tasks() {
           } else {
             const base = { project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, meeting_note_id: null, assignee: 'me' as const }
             if (data.recurrence && data.recurrence !== 'none' && data.recurrenceEnd) {
-              const occurrences = expandRecurrence(data.startDate, data.dueDate, data.recurrence, data.recurrenceEnd)
+              const occurrences = expandRecurrence(data.startDate, data.dueDate, data.recurrence, data.recurrenceEnd, data.recurrenceWeekday, data.recurrenceDayOfMonth)
               await createTasks(occurrences.map(o => ({ ...base, start_date: o.start, due_date: o.due })))
             } else {
               await createTask({ ...base, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })

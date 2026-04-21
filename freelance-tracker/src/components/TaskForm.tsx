@@ -31,6 +31,10 @@ export interface TaskFormData {
   projectId?: string
   recurrence?: RecurrenceKind
   recurrenceEnd?: string
+  /** 0 = Sunday … 6 = Saturday */
+  recurrenceWeekday?: number
+  /** 1 … 31 (clamped to last day of month if shorter) */
+  recurrenceDayOfMonth?: number
 }
 
 interface TaskFormProps {
@@ -81,6 +85,8 @@ export default function TaskForm({
   const [projectId, setProjectId] = useState('')
   const [recurrence, setRecurrence] = useState<RecurrenceKind>('none')
   const [recurrenceEnd, setRecurrenceEnd] = useState('')
+  const [recurrenceWeekday, setRecurrenceWeekday] = useState<number>(1)
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number>(1)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -94,6 +100,9 @@ export default function TaskForm({
       setProjectId('')
       setRecurrence('none')
       setRecurrenceEnd('')
+      const today = new Date()
+      setRecurrenceWeekday(today.getDay())
+      setRecurrenceDayOfMonth(today.getDate())
     }
   }, [open, task])
 
@@ -112,6 +121,8 @@ export default function TaskForm({
         projectId: projectId || undefined,
         recurrence: isEdit ? 'none' : recurrence,
         recurrenceEnd: !isEdit && recurrence !== 'none' ? (recurrenceEnd || undefined) : undefined,
+        recurrenceWeekday: !isEdit && recurrence === 'weekly' ? recurrenceWeekday : undefined,
+        recurrenceDayOfMonth: !isEdit && recurrence === 'monthly' ? recurrenceDayOfMonth : undefined,
       })
       onOpenChange(false)
     } finally {
@@ -236,34 +247,81 @@ export default function TaskForm({
 
           {/* Recurrence — only when creating */}
           {!isEdit && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="task-recurrence" className="text-[12px]">Repeats</Label>
-                <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceKind)}>
-                  <SelectTrigger id="task-recurrence">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Does not repeat</SelectItem>
-                    <SelectItem value="daily">Every day</SelectItem>
-                    <SelectItem value="weekly">Every week</SelectItem>
-                    <SelectItem value="monthly">Every month</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {recurrence !== 'none' && (
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="task-recurrence-end" className="text-[12px]">
-                    Ends on <span className="text-negative">*</span>
-                  </Label>
-                  <Input
-                    id="task-recurrence-end"
-                    type="date"
-                    value={recurrenceEnd}
-                    min={dueDate || startDate || undefined}
-                    onChange={(e) => setRecurrenceEnd(e.target.value)}
-                    required
-                  />
+                  <Label htmlFor="task-recurrence" className="text-[12px]">Repeats</Label>
+                  <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceKind)}>
+                    <SelectTrigger id="task-recurrence">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Does not repeat</SelectItem>
+                      <SelectItem value="daily">Every day</SelectItem>
+                      <SelectItem value="weekly">Every week</SelectItem>
+                      <SelectItem value="monthly">Every month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {recurrence !== 'none' && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="task-recurrence-end" className="text-[12px]">
+                      Ends on <span className="text-negative">*</span>
+                    </Label>
+                    <Input
+                      id="task-recurrence-end"
+                      type="date"
+                      value={recurrenceEnd}
+                      min={dueDate || startDate || undefined}
+                      onChange={(e) => setRecurrenceEnd(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              {recurrence === 'weekly' && (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-[12px]">On</Label>
+                  <div className="flex gap-1">
+                    {[
+                      { v: 0, l: 'Sun' }, { v: 1, l: 'Mon' }, { v: 2, l: 'Tue' },
+                      { v: 3, l: 'Wed' }, { v: 4, l: 'Thu' }, { v: 5, l: 'Fri' }, { v: 6, l: 'Sat' },
+                    ].map(d => (
+                      <button
+                        key={d.v}
+                        type="button"
+                        onClick={() => setRecurrenceWeekday(d.v)}
+                        className={`flex-1 h-8 rounded-[8px] text-[11px] font-semibold border transition-colors ${
+                          recurrenceWeekday === d.v
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-input-bg text-text-secondary border-border hover:bg-accent/10'
+                        }`}
+                      >
+                        {d.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recurrence === 'monthly' && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="task-recurrence-dom" className="text-[12px]">Day of month</Label>
+                  <Select
+                    value={String(recurrenceDayOfMonth)}
+                    onValueChange={(v) => setRecurrenceDayOfMonth(Number(v))}
+                  >
+                    <SelectTrigger id="task-recurrence-dom">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[260px]">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(n => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[10px] text-text-muted">Shorter months clamp to the last day.</span>
                 </div>
               )}
             </div>
@@ -293,7 +351,7 @@ export default function TaskForm({
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId) || (!isEdit && recurrence !== 'none' && (!recurrenceEnd || !(dueDate || startDate)))}>
+            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId) || (!isEdit && recurrence !== 'none' && !recurrenceEnd) || (!isEdit && recurrence === 'daily' && !(dueDate || startDate))}>
               {saving ? t('taskForm.saving') : isEdit ? t('taskForm.saveChanges') : t('taskForm.create')}
             </Button>
           </DialogFooter>
