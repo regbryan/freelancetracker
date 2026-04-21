@@ -85,6 +85,9 @@ export default function Tasks() {
   }, [timeEntries])
 
   const [expandedTimeTaskId, setExpandedTimeTaskId] = useState<string | null>(null)
+  const [editingDateTaskId, setEditingDateTaskId] = useState<string | null>(null)
+  const [editStartDraft, setEditStartDraft] = useState('')
+  const [editDueDraft, setEditDueDraft] = useState('')
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const [editHours, setEditHours] = useState('')
   const [editDate, setEditDate] = useState('')
@@ -470,29 +473,82 @@ export default function Tasks() {
                           )}
                         </div>
 
-                        {/* Status */}
+                        {/* Status — click to cycle */}
                         <div>
-                          {task.status === 'todo' && (
-                            <span className="text-[10px] font-semibold text-text-muted">To Do</span>
-                          )}
-                          {task.status === 'in_progress' && (
-                            <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>
-                          )}
-                          {task.status === 'done' && (
-                            <span className="text-[10px] font-semibold text-positive">Done</span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = task.status === 'todo' ? 'in_progress' : task.status === 'in_progress' ? 'done' : 'todo'
+                              updateTask(task.id, { status: next })
+                            }}
+                            title="Click to cycle status"
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded hover:bg-input-bg transition-colors"
+                          >
+                            {task.status === 'todo' && <span className="text-text-muted">To Do</span>}
+                            {task.status === 'in_progress' && <span className="text-status-scheduled-text">In Progress</span>}
+                            {task.status === 'done' && <span className="text-positive">Done</span>}
+                          </button>
                         </div>
 
-                        {/* Date range */}
+                        {/* Date range — click to edit */}
                         <div>
-                          {task.due_date ? (
-                            <span className={`text-[11px] ${dueDateColor}`}>
-                              {task.start_date && task.start_date !== task.due_date
-                                ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
+                          {editingDateTaskId === task.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={editStartDraft}
+                                onChange={(e) => setEditStartDraft(e.target.value)}
+                                className="h-6 rounded-[6px] border border-border bg-input-bg px-1 text-[10px] text-text-primary focus:outline-none focus:border-accent"
+                              />
+                              <input
+                                type="date"
+                                value={editDueDraft}
+                                onChange={(e) => setEditDueDraft(e.target.value)}
+                                className="h-6 rounded-[6px] border border-border bg-input-bg px-1 text-[10px] text-text-primary focus:outline-none focus:border-accent"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await updateTask(task.id, {
+                                    start_date: editStartDraft || null,
+                                    due_date: editDueDraft || null,
+                                  })
+                                  setEditingDateTaskId(null)
+                                }}
+                                className="text-[10px] font-semibold text-accent hover:underline"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDateTaskId(null)}
+                                className="text-[10px] text-text-muted hover:text-text-primary"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
                           ) : (
-                            <span className="text-text-muted text-[11px]">—</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditStartDraft(task.start_date ?? '')
+                                setEditDueDraft(task.due_date ?? '')
+                                setEditingDateTaskId(task.id)
+                              }}
+                              title="Click to edit dates"
+                              className="text-left px-1.5 py-0.5 rounded hover:bg-input-bg transition-colors"
+                            >
+                              {task.due_date ? (
+                                <span className={`text-[11px] ${dueDateColor}`}>
+                                  {task.start_date && task.start_date !== task.due_date
+                                    ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                    : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                              ) : (
+                                <span className="text-text-muted text-[11px]">—</span>
+                              )}
+                            </button>
                           )}
                         </div>
 
