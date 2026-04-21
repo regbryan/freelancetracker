@@ -36,6 +36,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const title = t(resolveTitleKey(location.pathname))
 
   async function handleLogout() {
+    if (!window.confirm('Are you sure you want to log out?')) return
     await signOut()
     navigate('/login')
   }
