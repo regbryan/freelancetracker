@@ -84,9 +84,9 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
       .single();
 
     if (updateError) throw updateError;
-    await fetchTasks();
+    setTasks(prev => prev.map(t => t.id === id ? (data as Task) : t));
     return data;
-  }, [fetchTasks]);
+  }, []);
 
   const deleteTask = useCallback(async (id: string): Promise<void> => {
     const { error: deleteError } = await supabase
