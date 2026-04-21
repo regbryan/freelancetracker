@@ -9,6 +9,7 @@ import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
 import type { TaskRow } from '../components/TaskList'
 import TaskInsight from '../components/TaskInsight'
+import { useI18n } from '../lib/i18n'
 
 type StatusFilter = 'all' | 'todo' | 'in_progress' | 'done'
 
@@ -18,6 +19,7 @@ function todayISO(): string {
 }
 
 export default function Tasks() {
+  const { t, lang } = useI18n()
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
   const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
@@ -86,25 +88,25 @@ export default function Tasks() {
   }
 
   async function handleDeleteEntry(id: string) {
-    if (!confirm('Delete this time entry?')) return
+    if (!confirm(t('tasks.confirmDeleteEntry'))) return
     await deleteEntry(id)
   }
 
-  const doneCount = tasks.filter((t) => t.status === 'done').length
-  const todoCount = tasks.filter((t) => t.status === 'todo').length
-  const inProgressCount = tasks.filter((t) => t.status === 'in_progress').length
+  const doneCount = tasks.filter((tk) => tk.status === 'done').length
+  const todoCount = tasks.filter((tk) => tk.status === 'todo').length
+  const inProgressCount = tasks.filter((tk) => tk.status === 'in_progress').length
 
   const FILTERS: { value: StatusFilter; label: string; count: number }[] = [
-    { value: 'all', label: 'All', count: tasks.length },
-    { value: 'todo', label: 'To Do', count: todoCount },
-    { value: 'in_progress', label: 'In Progress', count: inProgressCount },
-    { value: 'done', label: 'Done', count: doneCount },
+    { value: 'all', label: t('tasks.filterAll'), count: tasks.length },
+    { value: 'todo', label: t('tasks.filterTodo'), count: todoCount },
+    { value: 'in_progress', label: t('tasks.filterInProgress'), count: inProgressCount },
+    { value: 'done', label: t('tasks.filterDone'), count: doneCount },
   ]
 
   // Filter + sort by due date
   const filtered = useMemo(() => {
     return tasks
-      .filter((t) => statusFilter === 'all' || t.status === statusFilter)
+      .filter((tk) => statusFilter === 'all' || tk.status === statusFilter)
       .sort((a, b) => {
         if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
         if (a.due_date) return -1
@@ -118,25 +120,25 @@ export default function Tasks() {
     const today = new Date().toDateString()
     const result: { key: string; label: string; isOverdue: boolean; tasks: typeof filtered }[] = []
     const seen = new Set<string>()
-    for (const t of filtered) {
-      const key = t.due_date ?? 'none'
+    for (const tk of filtered) {
+      const key = tk.due_date ?? 'none'
       if (!seen.has(key)) {
         seen.add(key)
-        let label = 'No Due Date'
+        let label = t('tasks.noDueDate')
         let isOverdue = false
-        if (t.due_date) {
-          const d = new Date(t.due_date + 'T00:00:00')
+        if (tk.due_date) {
+          const d = new Date(tk.due_date + 'T00:00:00')
           const isToday = d.toDateString() === today
           const isPast = d < new Date(today)
           isOverdue = isPast && !isToday
-          label = isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+          label = isToday ? t('tasks.today') : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
         }
         result.push({ key, label, isOverdue, tasks: [] })
       }
-      result.find(g => g.key === key)!.tasks.push(t)
+      result.find(g => g.key === key)!.tasks.push(tk)
     }
     return result
-  }, [filtered])
+  }, [filtered, t, lang])
 
   function openLogForm(taskId: string) {
     setLoggingTaskId(taskId)
@@ -192,7 +194,7 @@ export default function Tasks() {
           aria-hidden="true"
           fetchPriority="high"
           loading="eager"
-          decoding="async"
+          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 30%' }}
         />

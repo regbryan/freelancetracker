@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import CalendarInsight from '../components/CalendarInsight'
+import { useI18n } from '../lib/i18n'
 
 /* ── Types ──────────────────────────────────────────────── */
 interface CalendarEvent {
@@ -40,8 +41,6 @@ interface CalendarInfo {
 type View = 'month' | 'week' | 'day'
 
 /* ── Helpers ────────────────────────────────────────────── */
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
@@ -72,6 +71,12 @@ function hourLabel(h: number) {
 
 /* ── Component ──────────────────────────────────────────── */
 export default function Calendar() {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+  const DAY_NAMES_I18N = [
+    t('calendar.sunday'), t('calendar.monday'), t('calendar.tuesday'),
+    t('calendar.wednesday'), t('calendar.thursday'), t('calendar.friday'), t('calendar.saturday'),
+  ]
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [apiCalendars, setApiCalendars] = useState<{ name: string; source: string; color: string }[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -111,7 +116,7 @@ export default function Calendar() {
   const loadEvents = useCallback(async () => {
     if (!apiUrl) {
       setLoading(false)
-      setError('Calendar API not configured. Set VITE_CALENDAR_API_URL in your .env file.')
+      setError(t('calendar.apiNotConfigured'))
       return
     }
 
@@ -144,7 +149,7 @@ export default function Calendar() {
       })
       setError(null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load events')
+      setError(err instanceof Error ? err.message : t('calendar.failedLoadEvents'))
     } finally {
       setLoading(false)
     }
@@ -230,14 +235,14 @@ export default function Calendar() {
   }
 
   const headerLabel = useMemo(() => {
-    if (view === 'month') return currentDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    if (view === 'month') return currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
     if (view === 'week') {
       const ws = startOfWeek(currentDate)
       const we = addDays(ws, 6)
-      return `${ws.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${we.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+      return `${ws.toLocaleDateString(locale, { month: 'short', day: 'numeric' })} – ${we.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}`
     }
-    return currentDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-  }, [currentDate, view])
+    return currentDate.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  }, [currentDate, view, locale])
 
   /* ── Toggle helpers ───────────────────────────────────── */
   function toggleCal(key: string) {
@@ -288,7 +293,7 @@ export default function Calendar() {
       setShowCreateModal(false)
       loadEvents()
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create event')
+      setCreateError(err instanceof Error ? err.message : t('calendar.failedCreateEvent'))
     } finally {
       setCreating(false)
     }
@@ -306,7 +311,7 @@ export default function Calendar() {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-text-primary text-[16px] font-bold">New Event</h2>
+            <h2 className="text-text-primary text-[16px] font-bold">{t('calendar.newEvent')}</h2>
             <button
               onClick={() => setShowCreateModal(false)}
               className="p-1 rounded hover:bg-border transition-colors"
@@ -317,19 +322,19 @@ export default function Calendar() {
 
           <form onSubmit={handleCreateEvent} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-text-muted">Title <span className="text-negative">*</span></label>
+              <label className="text-[11px] font-semibold text-text-muted">{t('calendar.titleField')} <span className="text-negative">*</span></label>
               <input
                 type="text"
                 required
                 value={createForm.title}
                 onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Meeting with client"
+                placeholder={t('calendar.titlePlaceholder')}
                 className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-text-muted">Date <span className="text-negative">*</span></label>
+              <label className="text-[11px] font-semibold text-text-muted">{t('calendar.dateField')} <span className="text-negative">*</span></label>
               <input
                 type="date"
                 required
@@ -341,7 +346,7 @@ export default function Calendar() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-text-muted">Start Time <span className="text-negative">*</span></label>
+                <label className="text-[11px] font-semibold text-text-muted">{t('calendar.startTime')} <span className="text-negative">*</span></label>
                 <input
                   type="time"
                   required
@@ -351,7 +356,7 @@ export default function Calendar() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-text-muted">End Time <span className="text-negative">*</span></label>
+                <label className="text-[11px] font-semibold text-text-muted">{t('calendar.endTime')} <span className="text-negative">*</span></label>
                 <input
                   type="time"
                   required
@@ -363,22 +368,22 @@ export default function Calendar() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-text-muted">Location</label>
+              <label className="text-[11px] font-semibold text-text-muted">{t('calendar.locationField')}</label>
               <input
                 type="text"
                 value={createForm.location}
                 onChange={(e) => setCreateForm((f) => ({ ...f, location: e.target.value }))}
-                placeholder="Office, Zoom link, etc."
+                placeholder={t('calendar.locationPlaceholder')}
                 className="h-9 px-3 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-text-muted">Description</label>
+              <label className="text-[11px] font-semibold text-text-muted">{t('calendar.descriptionField')}</label>
               <textarea
                 value={createForm.description}
                 onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Notes about the event..."
+                placeholder={t('calendar.descriptionPlaceholder')}
                 rows={3}
                 className="px-3 py-2 rounded-lg border border-border bg-input-bg text-[13px] text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent/30 resize-none"
               />
@@ -394,7 +399,7 @@ export default function Calendar() {
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 rounded-lg text-[12px] font-semibold text-text-secondary hover:bg-input-bg transition-colors"
               >
-                Cancel
+                {t('calendar.cancel')}
               </button>
               <button
                 type="submit"
@@ -402,7 +407,7 @@ export default function Calendar() {
                 className="px-4 py-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
-                {creating ? 'Creating...' : 'Create Event'}
+                {creating ? t('calendar.creating') : t('calendar.createEvent')}
               </button>
             </div>
           </form>
@@ -415,7 +420,7 @@ export default function Calendar() {
   const today = new Date()
 
   function EventChip({ event, compact }: { event: CalendarEvent; compact?: boolean }) {
-    const label = (event.title || '').trim() || (event.allDay ? 'Untitled' : fmtTime(event.start))
+    const label = (event.title || '').trim() || (event.allDay ? t('calendar.untitled') : fmtTime(event.start))
     return (
       <button
         onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
@@ -459,7 +464,7 @@ export default function Calendar() {
       <div className="flex-1 overflow-auto">
         {/* Day name headers */}
         <div className="grid grid-cols-7 border-b border-border">
-          {DAY_NAMES.map((d, i) => (
+          {DAY_NAMES_I18N.map((d, i) => (
             <div
               key={d}
               className={`px-1 sm:px-2 py-1.5 sm:py-2 text-center text-[9px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wider ${
@@ -501,7 +506,7 @@ export default function Calendar() {
                     <EventChip key={ev.id} event={ev} compact />
                   ))}
                   {dayEvents.length > 3 && (
-                    <span className="text-[10px] text-text-muted px-1">+{dayEvents.length - 3} more</span>
+                    <span className="text-[10px] text-text-muted px-1">{t('calendar.plusMore', { n: dayEvents.length - 3 })}</span>
                   )}
                 </div>
               </div>
@@ -528,7 +533,7 @@ export default function Calendar() {
             return (
               <div key={i} className={`px-2 py-2 text-center ${i < 6 ? 'border-r border-border' : ''} ${isToday ? 'bg-accent/5' : ''}`}>
                 <p className={`text-[11px] font-semibold ${isToday ? 'text-accent' : 'text-text-muted'}`}>
-                  {DAY_NAMES[d.getDay()]}
+                  {DAY_NAMES_I18N[d.getDay()]}
                 </p>
                 <p className={`text-[14px] font-bold ${isToday ? 'text-accent' : 'text-text-primary'}`}>
                   {d.getDate()}
@@ -569,7 +574,7 @@ export default function Calendar() {
       <div className="flex-1 overflow-auto">
         {allDay.length > 0 && (
           <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-input-bg/30">
-            <span className="text-[11px] text-text-muted font-medium w-[52px] text-right">All day</span>
+            <span className="text-[11px] text-text-muted font-medium w-[52px] text-right">{t('calendar.allDay')}</span>
             <div className="flex flex-wrap gap-1">
               {allDay.map((ev) => (
                 <EventChip key={ev.id} event={ev} />
@@ -644,7 +649,7 @@ export default function Calendar() {
                   color: isGoogle ? '#2E7D32' : '#1565C0',
                 }}
               >
-                {isGoogle ? 'Google' : 'Outlook'} &mdash; {ev.calendarName}
+                {isGoogle ? t('calendar.google') : t('calendar.outlook')} &mdash; {ev.calendarName}
               </span>
             </div>
 
@@ -668,35 +673,35 @@ export default function Calendar() {
     return (
       <div className="hidden lg:block w-[220px] bg-surface border-l border-border p-4 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-text-primary text-[13px] font-bold">My Calendars</span>
+          <span className="text-text-primary text-[13px] font-bold">{t('calendar.myCalendars')}</span>
           <span className="text-text-muted text-[11px]">{visCount}/{calendars.length}</span>
         </div>
 
         <div className="flex gap-2 mb-4">
           <button onClick={() => toggleAll(true)} className="text-accent text-[11px] font-medium hover:underline">
-            Show all
+            {t('calendar.showAll')}
           </button>
           <span className="text-border text-[11px]">&middot;</span>
           <button onClick={() => toggleAll(false)} className="text-accent text-[11px] font-medium hover:underline">
-            Hide all
+            {t('calendar.hideAll')}
           </button>
         </div>
 
         {googleCals.length > 0 && (
-          <CalSection label="Google Calendar" icon="G" iconBg="#34A853" calendars={googleCals} />
+          <CalSection label={t('calendar.googleCalendar')} icon="G" iconBg="#34A853" calendars={googleCals} />
         )}
         {msCals.length > 0 && (
-          <CalSection label="Outlook" icon="M" iconBg="#0078D4" calendars={msCals} />
+          <CalSection label={t('calendar.outlook')} icon="M" iconBg="#0078D4" calendars={msCals} />
         )}
         {calendars.length === 0 && (
           <div className="text-center py-6">
             <CalendarIcon size={20} className="text-text-muted mx-auto mb-2" />
-            <p className="text-text-muted text-[12px]">No calendars connected.</p>
+            <p className="text-text-muted text-[12px]">{t('calendar.noCalendars')}</p>
             <a
               href="/settings"
               className="text-accent text-[11px] font-semibold hover:underline mt-1 inline-block"
             >
-              Connect in Settings →
+              {t('calendar.connectInSettings')}
             </a>
           </div>
         )}
@@ -756,7 +761,7 @@ export default function Calendar() {
                 <button
                   onClick={() => setEditingCalKey(isEditing ? null : c.key)}
                   className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-border transition-all shrink-0"
-                  title="Edit calendar"
+                  title={t('calendar.editCalendar')}
                 >
                   {isEditing ? <Check size={10} className="text-accent" /> : <Pencil size={10} className="text-text-muted" />}
                 </button>
@@ -767,7 +772,7 @@ export default function Calendar() {
               {isEditing && (
                 <div className="mx-2 mb-2 p-2.5 bg-input-bg/60 rounded-lg flex flex-col gap-2">
                   <div>
-                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Display Name</label>
+                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">{t('calendar.displayName')}</label>
                     <input
                       type="text"
                       defaultValue={c.name}
@@ -786,7 +791,7 @@ export default function Calendar() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Color</label>
+                    <label className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">{t('calendar.color')}</label>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {COLOR_PRESETS.map((color) => (
                         <button
@@ -845,7 +850,7 @@ export default function Calendar() {
           aria-hidden="true"
           fetchPriority="high"
           loading="eager"
-          decoding="async"
+          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 40%' }}
         />
@@ -856,17 +861,17 @@ export default function Calendar() {
           }}
         />
         <div className="relative flex flex-col max-w-2xl">
-          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Schedule</p>
-          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Calendar</h1>
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('calendar.heroLabel')}</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('calendar.title')}</h1>
           <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
-            "A calendar is a commitment map — the negative space is where the real work gets done."
+            {t('calendar.heroQuote')}
           </p>
           <p className="text-white/60 text-[12px] mt-3">
-            <strong className="text-white/90">{heroStats.todayCount}</strong> today
+            {t('calendar.heroTodayCount', { count: heroStats.todayCount })}
             {' · '}
-            <strong className="text-white/90">{heroStats.weekCount}</strong> this work week
+            {t('calendar.heroWeekCount', { count: heroStats.weekCount })}
             {' · '}
-            Viewing <strong className="text-white/90">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</strong>
+            {t('calendar.heroViewing', { month: currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' }) })}
           </p>
         </div>
       </div>
@@ -888,14 +893,14 @@ export default function Calendar() {
                 style={{ background: 'linear-gradient(135deg, #3e6b5a 0%, #5a8f7b 100%)' }}
               >
                 <Plus size={11} />
-                <span className="hidden sm:inline">New Event</span>
-                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">{t('calendar.newEvent')}</span>
+                <span className="sm:hidden">{t('calendar.newEventShort')}</span>
               </button>
               <button
                 onClick={() => { setCurrentDate(new Date()) }}
                 className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-input-bg text-text-primary hover:bg-border transition-colors"
               >
-                Today
+                {t('calendar.today')}
               </button>
               <button
                 onClick={() => navigate(-1)}
@@ -925,7 +930,7 @@ export default function Calendar() {
                         : 'text-text-muted hover:text-text-primary'
                     }`}
                   >
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                    {v === 'month' ? t('calendar.month') : v === 'week' ? t('calendar.week') : t('calendar.day')}
                     {view === v && (
                       <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />
                     )}
@@ -946,7 +951,7 @@ export default function Calendar() {
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-3 flex-1">
               <Loader2 size={28} className="animate-spin text-accent" />
-              <p className="text-text-muted text-[13px]">Loading calendar...</p>
+              <p className="text-text-muted text-[13px]">{t('calendar.loading')}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center gap-3 flex-1 px-8">
@@ -957,7 +962,7 @@ export default function Calendar() {
                   onClick={loadEvents}
                   className="mt-2 px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent text-white hover:bg-accent/90 transition-colors"
                 >
-                  Retry
+                  {t('calendar.retry')}
                 </button>
               )}
             </div>

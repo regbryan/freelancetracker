@@ -17,16 +17,18 @@ import { useTasks } from '../hooks/useTasks'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import ProjectForm, { type ProjectFormData } from '../components/ProjectForm'
 import AIForecast from '../components/AIForecast'
+import { useI18n } from '../lib/i18n'
 
-const STATUS_CONFIG: Record<string, { label: string; dotColor: string; textColor: string }> = {
-  active: { label: 'Active', dotColor: 'bg-accent', textColor: 'text-accent' },
-  completed: { label: 'Completed', dotColor: 'bg-positive', textColor: 'text-positive' },
-  on_hold: { label: 'On Hold', dotColor: 'bg-status-hold-text', textColor: 'text-status-hold-text' },
-  cancelled: { label: 'Cancelled', dotColor: 'bg-text-muted', textColor: 'text-text-muted' },
+const STATUS_CONFIG: Record<string, { labelKey: string; dotColor: string; textColor: string }> = {
+  active: { labelKey: 'projects.statusActive', dotColor: 'bg-accent', textColor: 'text-accent' },
+  completed: { labelKey: 'projects.statusCompleted', dotColor: 'bg-positive', textColor: 'text-positive' },
+  on_hold: { labelKey: 'projects.statusOnHold', dotColor: 'bg-status-hold-text', textColor: 'text-status-hold-text' },
+  cancelled: { labelKey: 'projects.statusCancelled', dotColor: 'bg-text-muted', textColor: 'text-text-muted' },
 }
 
 export default function Projects() {
   const navigate = useNavigate()
+  const { t, lang } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const { projects, loading, error, createProject, updateProject } = useProjects()
   const { clients } = useClients()
@@ -123,7 +125,7 @@ export default function Projects() {
     try {
       await createProject({
         client_id: project.client_id,
-        name: `${project.name} (Copy)`,
+        name: `${project.name} ${t('projects.copySuffix')}`,
         description: project.description,
         status: 'active',
         type: project.type,
@@ -167,7 +169,7 @@ export default function Projects() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-text-muted text-[13px]">Loading projects...</p>
+        <p className="text-text-muted text-[13px]">{t('projects.loading')}</p>
       </div>
     )
   }
@@ -176,7 +178,7 @@ export default function Projects() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
-        <p className="text-negative text-[13px]">Error: {error}</p>
+        <p className="text-negative text-[13px]">{t('projects.error', { error })}</p>
       </div>
     )
   }
@@ -185,14 +187,31 @@ export default function Projects() {
   if (projects.length === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <p className="font-semibold text-[11px] text-accent tracking-[1.5px] uppercase">
-              Your Projects
+        {/* Hero Banner */}
+        <div
+          className="rounded-[16px] text-white relative overflow-hidden"
+          style={{ backgroundColor: '#0a1223', minHeight: '160px' }}
+        >
+          <img
+            src="/projects-hero.webp"
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            loading="eager"
+            decoding="sync"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: 'center 40%' }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
+          />
+          <div className="relative z-10 px-7 py-7 max-w-2xl">
+            <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('projects.yourProjects')}</p>
+            <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('projects.title')}</h1>
+            <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
+              {t('projects.heroQuote')}
             </p>
-            <h2 className="font-bold text-[20px] text-text-primary tracking-[-0.3px] mt-1">
-              Active Projects
-            </h2>
           </div>
         </div>
 
@@ -201,9 +220,9 @@ export default function Projects() {
             <FolderOpen size={24} className="text-accent" />
           </div>
           <div className="text-center">
-            <h3 className="text-text-primary text-[16px] font-bold">No projects yet</h3>
+            <h3 className="text-text-primary text-[16px] font-bold">{t('projects.noProjectsYet')}</h3>
             <p className="text-text-secondary text-[13px] mt-1">
-              Create your first project to start tracking time and revenue.
+              {t('projects.createFirst')}
             </p>
           </div>
           <button
@@ -211,7 +230,7 @@ export default function Projects() {
             className="mt-2 px-5 py-2.5 rounded-[12px] text-white text-[13px] font-semibold shadow-[0px_8px_24px_rgba(0,88,190,0.35)] hover:shadow-[0px_12px_32px_rgba(0,88,190,0.45)] transition-shadow active:scale-95"
             style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
-            Create Project
+            {t('projects.createProject')}
           </button>
         </div>
 
@@ -243,7 +262,7 @@ export default function Projects() {
           aria-hidden="true"
           fetchPriority="high"
           loading="eager"
-          decoding="async"
+          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 40%' }}
         />
@@ -252,12 +271,12 @@ export default function Projects() {
           style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
         />
         <div className="relative z-10 px-7 py-7 max-w-2xl">
-          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Projects</p>
-          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Projects</h1>
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('projects.yourProjects')}</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('projects.title')}</h1>
           <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
-            "A project is a promise kept in fragments — one deliverable, one milestone, one season at a time."
+            {t('projects.heroQuote')}
           </p>
-          <p className="text-white/60 text-[12px] mt-3">{projects.length} total · {activeCount} active</p>
+          <p className="text-white/60 text-[12px] mt-3">{t('projects.heroSummary', { total: projects.length, active: activeCount })}</p>
         </div>
       </div>
 
@@ -273,7 +292,7 @@ export default function Projects() {
             </div>
             <div>
               <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
-                Active
+                {t('projects.active')}
               </p>
               <p className="font-bold text-[16px] text-text-primary leading-5">
                 {activeCount}
@@ -286,7 +305,7 @@ export default function Projects() {
             </div>
             <div>
               <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
-                Due in 14d
+                {t('projects.dueIn14')}
               </p>
               <p className="font-bold text-[16px] text-text-primary leading-5">
                 {heroMetrics.dueSoon}
@@ -299,7 +318,7 @@ export default function Projects() {
             </div>
             <div>
               <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
-                Hours MTD
+                {t('projects.hoursMtd')}
               </p>
               <p className="font-bold text-[16px] text-text-primary leading-5">
                 {heroMetrics.hoursThisMonth.toFixed(1)}
@@ -312,7 +331,7 @@ export default function Projects() {
       {/* Status Filter Tabs */}
       <div className="flex items-center gap-1 flex-wrap border-b border-border">
         {(['all', 'active', 'completed', 'on_hold'] as const).map((status) => {
-          const labels: Record<string, string> = { all: 'All', active: 'Active', completed: 'Completed', on_hold: 'On Hold' }
+          const labels: Record<string, string> = { all: t('projects.filterAll'), active: t('projects.filterActive'), completed: t('projects.filterCompleted'), on_hold: t('projects.filterOnHold') }
           const isActive = statusFilter === status
           return (
             <button
@@ -336,12 +355,12 @@ export default function Projects() {
       {/* No results */}
       {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 bg-surface rounded-[16px] shadow-card">
-          <p className="text-text-muted text-[13px] font-medium">No projects match this filter.</p>
+          <p className="text-text-muted text-[13px] font-medium">{t('projects.noMatch')}</p>
           <button
             onClick={() => setStatusFilter('all')}
             className="text-accent text-[12px] font-semibold hover:underline"
           >
-            Show all projects
+            {t('projects.showAll')}
           </button>
         </div>
       ) : (
@@ -358,12 +377,12 @@ export default function Projects() {
               <button
                 onClick={(e) => openEditForm(e, featuredProject)}
                 className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
-                title="Edit project"
+                title={t('projects.editProject')}
               >
                 <Pencil size={13} className="text-text-muted" />
               </button>
               <span className={`bg-accent-bg text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${featuredStatus.textColor}`}>
-                {featuredStatus.label}
+                {t(featuredStatus.labelKey)}
               </span>
             </div>
 
@@ -373,22 +392,22 @@ export default function Projects() {
                   {featuredProject.name}
                 </h3>
                 <p className="text-text-secondary text-[13px]">
-                  {featuredProject.clients?.name ?? 'No client'}
+                  {featuredProject.clients?.name ?? t('projects.noClient')}
                 </p>
 
                 <div className="grid grid-cols-3 gap-6 pt-4">
                   <div className="flex flex-col gap-1">
-                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">Status</p>
+                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">{t('projects.status')}</p>
                     <div className="flex items-center gap-1.5">
                       <div className={`w-1.5 h-1.5 rounded-full ${featuredStatus.dotColor}`} />
                       <span className="text-text-primary text-[13px] font-semibold">
-                        {featuredStatus.label}
+                        {t(featuredStatus.labelKey)}
                       </span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">
-                      {featuredProject.billing_type === 'monthly' ? 'Monthly Rate' : 'Hourly Rate'}
+                      {featuredProject.billing_type === 'monthly' ? t('projects.monthlyRate') : t('projects.hourlyRate')}
                     </p>
                     <span className="text-text-primary text-[13px] font-semibold">
                       {featuredProject.billing_type === 'monthly'
@@ -397,9 +416,9 @@ export default function Projects() {
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">Created</p>
+                    <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wider">{t('projects.created')}</p>
                     <span className="text-text-primary text-[13px] font-semibold">
-                      {new Date(featuredProject.created_at).toLocaleDateString('en-US', {
+                      {new Date(featuredProject.created_at).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
@@ -429,17 +448,16 @@ export default function Projects() {
               <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
                 <Briefcase size={12} className="text-accent" />
               </div>
-              <span className="text-text-primary text-[12px] font-bold uppercase tracking-wider">Project Summary</span>
+              <span className="text-text-primary text-[12px] font-bold uppercase tracking-wider">{t('projects.summary')}</span>
             </div>
           </div>
 
           <div className="pb-4 relative z-10 w-full flex-1">
             <p className="text-text-secondary text-[13px] leading-[22px]">
-              You have <span className="font-bold text-accent">{activeCount} active</span>{' '}
-              {activeCount === 1 ? 'project' : 'projects'} out of{' '}
-              <span className="font-semibold">{projects.length} total</span>.
+              <span className="font-bold text-accent">{activeCount}</span>{' '}
+              {activeCount === 1 ? t('projects.projectSingular') : t('projects.projectPlural')} / <span className="font-semibold">{projects.length}</span>
               {projects.filter((p) => p.status === 'completed').length > 0 && (
-                <> <span className="font-semibold">{projects.filter((p) => p.status === 'completed').length}</span> completed.</>
+                <> · <span className="font-semibold">{projects.filter((p) => p.status === 'completed').length}</span> {t('projects.filterCompleted').toLowerCase()}.</>
               )}
             </p>
           </div>
@@ -447,7 +465,7 @@ export default function Projects() {
           <div className="relative z-10 w-full mt-auto">
             <div className="border-t border-border pt-4 flex flex-col gap-2 w-full">
               <div className="flex items-center justify-between w-full">
-                <span className="text-text-primary text-[11px] font-medium">Active Rate</span>
+                <span className="text-text-primary text-[11px] font-medium">{t('projects.activeRate')}</span>
                 <span className="text-accent text-[11px] font-bold">
                   {projects.length > 0 ? Math.round((activeCount / projects.length) * 100) : 0}%
                 </span>
@@ -478,18 +496,18 @@ export default function Projects() {
                   <Briefcase size={16} className="text-accent" />
                 </div>
                 <span className={`text-[9px] font-bold uppercase ${status.textColor}`}>
-                  {status.label}
+                  {t(status.labelKey)}
                 </span>
               </div>
               <h3 className="text-text-primary text-[15px] font-bold leading-5 pt-3 truncate">
                 {project.name}
               </h3>
               <p className="text-text-secondary text-[12px]">
-                {project.clients?.name ?? 'No client'}
+                {project.clients?.name ?? t('projects.noClient')}
               </p>
               <div className="flex items-center justify-between py-3 w-full">
                 <span className="text-text-secondary text-[12px]">
-                  {project.billing_type === 'monthly' ? 'Monthly Rate' : 'Hourly Rate'}
+                  {project.billing_type === 'monthly' ? t('projects.monthlyRate') : t('projects.hourlyRate')}
                 </span>
                 <span className="text-[12px] font-bold text-text-primary">
                   {project.billing_type === 'monthly'
@@ -501,14 +519,14 @@ export default function Projects() {
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${status.dotColor}`} />
                   <span className="text-text-muted text-[10px] font-medium">
-                    {status.label}
+                    {t(status.labelKey)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => openEditForm(e, project)}
                     className="p-1 rounded hover:bg-border transition-colors"
-                    title="Edit project"
+                    title={t('projects.editProject')}
                   >
                     <Pencil size={11} className="text-text-muted" />
                   </button>
@@ -518,7 +536,7 @@ export default function Projects() {
                       handleCloneProject(project)
                     }}
                     className="p-1 rounded hover:bg-border transition-colors"
-                    title="Clone project"
+                    title={t('projects.cloneProject')}
                   >
                     <Copy size={11} className="text-text-muted" />
                   </button>

@@ -4,8 +4,10 @@ import { Loader2, ChevronRight } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import TimelineInsight from '../components/TimelineInsight'
+import { useI18n } from '../lib/i18n'
 
 function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
+  const { t } = useI18n()
   return (
     <div
       className="rounded-[16px] text-white relative overflow-hidden"
@@ -17,7 +19,7 @@ function TimelineHero({ activeCount, endingSoon }: { activeCount: number; ending
         aria-hidden="true"
         fetchPriority="high"
         loading="eager"
-        decoding="async"
+        decoding="sync"
         className="absolute inset-0 w-full h-full object-cover"
         style={{ objectPosition: 'center 35%' }}
       />
@@ -26,14 +28,14 @@ function TimelineHero({ activeCount, endingSoon }: { activeCount: number; ending
         style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
       />
       <div className="relative z-10 px-7 py-7 max-w-2xl">
-        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Your Runway</p>
-        <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Timeline</h1>
+        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('timeline.yourRunway')}</p>
+        <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('timeline.title')}</h1>
         <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
-          "Time is the axis — every commitment casts a shadow forward."
+          {t('timeline.heroQuote')}
         </p>
         <p className="text-white/60 text-[12px] mt-3">
-          {activeCount} active {activeCount === 1 ? 'project' : 'projects'}
-          {endingSoon > 0 ? ` · ${endingSoon} ending in 14 days` : ''}
+          {activeCount === 1 ? t('timeline.activeProject', { n: activeCount }) : t('timeline.activeProjects', { n: activeCount })}
+          {endingSoon > 0 ? t('timeline.endingIn14', { n: endingSoon }) : ''}
         </p>
       </div>
     </div>
@@ -67,12 +69,13 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1)
 }
 
-function monthLabel(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+function monthLabel(d: Date, lang: string): string {
+  return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', year: 'numeric' })
 }
 
 export default function Timeline() {
   const navigate = useNavigate()
+  const { t, lang } = useI18n()
   const { projects, loading: projectsLoading } = useProjects()
   const { tasks, loading: tasksLoading } = useTasks()
 
@@ -93,9 +96,9 @@ export default function Timeline() {
       if (p.start_date) allDates.push(parseDate(p.start_date))
       if (p.end_date) allDates.push(parseDate(p.end_date))
     }
-    for (const t of tasks) {
-      if (t.start_date) allDates.push(parseDate(t.start_date))
-      if (t.due_date) allDates.push(parseDate(t.due_date))
+    for (const tk of tasks) {
+      if (tk.start_date) allDates.push(parseDate(tk.start_date))
+      if (tk.due_date) allDates.push(parseDate(tk.due_date))
     }
 
     const min = addDays(new Date(Math.min(...allDates.map((d) => d.getTime()))), -7)
@@ -112,11 +115,11 @@ export default function Timeline() {
     let cur = startOfMonth(minDate)
     while (cur <= maxDate) {
       const left = ((cur.getTime() - minDate.getTime()) / 86400000 / totalDays) * 100
-      ticks.push({ label: monthLabel(cur), left })
+      ticks.push({ label: monthLabel(cur, lang), left })
       cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1)
     }
     return ticks
-  }, [minDate, maxDate, totalDays])
+  }, [minDate, maxDate, totalDays, lang])
 
   // Today marker
   const todayLeft = useMemo(() => {
@@ -136,7 +139,7 @@ export default function Timeline() {
 
   function formatDate(iso: string | null) {
     if (!iso) return ''
-    return parseDate(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return parseDate(iso).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })
   }
 
   const LABEL_W = 220
@@ -162,8 +165,8 @@ export default function Timeline() {
       <div className="p-6 flex flex-col gap-5">
         <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
         <div className="bg-surface rounded-[14px] shadow-card border border-border p-12 flex flex-col items-center justify-center gap-3">
-          <p className="text-text-muted text-[13px]">No projects have start or end dates yet.</p>
-          <p className="text-text-muted text-[12px]">Open a project, click Edit, and set its start and end dates to see them here.</p>
+          <p className="text-text-muted text-[13px]">{t('timeline.noDates')}</p>
+          <p className="text-text-muted text-[12px]">{t('timeline.noDatesHelp')}</p>
         </div>
       </div>
     )
@@ -186,7 +189,7 @@ export default function Timeline() {
             <div className="flex border-b border-border bg-input-bg/60">
               {/* Label column spacer */}
               <div style={{ width: LABEL_W, minWidth: LABEL_W }} className="border-r border-border shrink-0 px-4 py-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Project / Task</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.projectTask')}</span>
               </div>
               {/* Time axis */}
               <div className="relative flex-1 h-9">
@@ -314,30 +317,33 @@ export default function Timeline() {
 
         {/* Legend */}
         <div className="flex items-center gap-4 px-4 py-2.5 border-t border-border bg-input-bg/30 flex-wrap">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Legend</span>
-          {(['active', 'completed', 'on_hold'] as const).map((s) => (
-            <div key={s} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[s] }} />
-              <span className="text-[11px] text-text-secondary capitalize">{s.replace('_', ' ')}</span>
-            </div>
-          ))}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.legend')}</span>
+          {(['active', 'completed', 'on_hold'] as const).map((s) => {
+            const labelKey = s === 'active' ? 'timeline.legendActive' : s === 'completed' ? 'timeline.legendCompleted' : 'timeline.legendOnHold'
+            return (
+              <div key={s} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[s] }} />
+                <span className="text-[11px] text-text-secondary">{t(labelKey)}</span>
+              </div>
+            )
+          })}
           <div className="w-px h-4 bg-border mx-1" />
           <div className="flex items-center gap-1.5">
             <div className="w-8 h-2.5 rounded" style={{ backgroundColor: TASK_STATUS_COLORS.done.bg, border: `1.5px solid ${TASK_STATUS_COLORS.done.border}` }} />
-            <span className="text-[11px] text-text-secondary">Done</span>
+            <span className="text-[11px] text-text-secondary">{t('timeline.legendDone')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-8 h-2.5 rounded" style={{ backgroundColor: TASK_STATUS_COLORS.in_progress.bg, border: `1.5px solid ${TASK_STATUS_COLORS.in_progress.border}` }} />
-            <span className="text-[11px] text-text-secondary">In Progress</span>
+            <span className="text-[11px] text-text-secondary">{t('timeline.legendInProgress')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-8 h-2.5 rounded" style={{ backgroundColor: TASK_STATUS_COLORS.todo.bg, border: `1.5px solid ${TASK_STATUS_COLORS.todo.border}` }} />
-            <span className="text-[11px] text-text-secondary">To Do</span>
+            <span className="text-[11px] text-text-secondary">{t('timeline.legendTodo')}</span>
           </div>
           <div className="w-px h-4 bg-border mx-1" />
           <div className="flex items-center gap-1.5">
             <div className="w-0.5 h-4 bg-accent/60" />
-            <span className="text-[11px] text-text-secondary">Today</span>
+            <span className="text-[11px] text-text-secondary">{t('timeline.today')}</span>
           </div>
         </div>
       </div>

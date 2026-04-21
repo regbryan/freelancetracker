@@ -7,10 +7,12 @@ import type { Client } from '../hooks/useClients'
 import ClientForm from '../components/ClientForm'
 import type { ClientFormData } from '../components/ClientForm'
 import { Button } from '../components/ui/button'
+import { useI18n } from '../lib/i18n'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 export default function Clients() {
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
   const { clients, loading, error, createClient, updateClient, deleteClient } = useClients()
   const { invoices } = useInvoices()
@@ -67,15 +69,13 @@ export default function Clients() {
 
   async function handleDeleteClick(e: React.MouseEvent, client: Client) {
     e.stopPropagation()
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${client.name}"? This action cannot be undone.`
-    )
+    const confirmed = window.confirm(t('clients.confirmDelete', { name: client.name }))
     if (!confirmed) return
     try {
       await deleteClient(client.id)
       if (selectedClient?.id === client.id) setSelectedClient(null)
     } catch (err) {
-      alert(`Failed to delete "${client.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('clients.failedDelete', { name: client.name, error: err instanceof Error ? err.message : t('clients.unknownError') }))
     }
   }
 
@@ -115,16 +115,16 @@ export default function Clients() {
   }
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-    active: { bg: 'var(--color-status-active-bg)', text: 'var(--color-status-active-text)', label: 'Active' },
-    inactive: { bg: 'var(--color-input-bg)', text: 'var(--color-text-muted)', label: 'Inactive' },
-    paused: { bg: 'var(--color-status-hold-bg)', text: 'var(--color-status-hold-text)', label: 'Paused' },
+    active: { bg: 'var(--color-status-active-bg)', text: 'var(--color-status-active-text)', label: t('clients.statusActive') },
+    inactive: { bg: 'var(--color-input-bg)', text: 'var(--color-text-muted)', label: t('clients.statusInactive') },
+    paused: { bg: 'var(--color-status-hold-bg)', text: 'var(--color-status-hold-text)', label: t('clients.statusPaused') },
   }
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-[13px] font-medium">Loading clients...</p>
+        <p className="text-[13px] font-medium">{t('clients.loading')}</p>
       </div>
     )
   }
@@ -132,7 +132,7 @@ export default function Clients() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
-        <p className="text-[13px] font-medium text-negative">Failed to load clients</p>
+        <p className="text-[13px] font-medium text-negative">{t('clients.failedToLoad')}</p>
         <p className="text-[11px]">{error}</p>
       </div>
     )
@@ -151,7 +151,7 @@ export default function Clients() {
           aria-hidden="true"
           fetchPriority="high"
           loading="eager"
-          decoding="async"
+          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 40%' }}
         />
@@ -163,14 +163,16 @@ export default function Clients() {
 
         {/* Text content */}
         <div className="relative z-10 px-8 py-8 max-w-lg">
-          <p className="text-white/70 text-[11px] font-semibold uppercase tracking-[1.5px] mb-2">Clients Directory</p>
+          <p className="text-white/70 text-[11px] font-semibold uppercase tracking-[1.5px] mb-2">{t('clients.directory')}</p>
           <h2 className="text-[22px] font-bold leading-tight tracking-[-0.3px] italic">
-            "Curation is the bridge between project and partnership."
+            {t('clients.heroQuote')}
           </h2>
           <p className="text-white/60 text-[12px] mt-2">
             {heroStats.total === 0
-              ? 'Add your first client to start building your roster.'
-              : `${heroStats.active} active · ${heroStats.total} total${heroStats.withRate > 0 ? ` · avg $${heroStats.avgRate.toFixed(0)}/hr` : ''}`}
+              ? t('clients.addFirstClient')
+              : heroStats.withRate > 0
+                ? t('clients.heroSummaryWithRate', { active: heroStats.active, total: heroStats.total, rate: heroStats.avgRate.toFixed(0) })
+                : t('clients.heroSummary', { active: heroStats.active, total: heroStats.total })}
           </p>
         </div>
       </div>
@@ -178,14 +180,14 @@ export default function Clients() {
       {/* Active Partners Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h3 className="text-text-primary text-[16px] font-bold">Active Partners</h3>
-          <p className="text-text-muted text-[11px] mt-0.5">Managing {clients.length} accounts</p>
+          <h3 className="text-text-primary text-[16px] font-bold">{t('clients.activePartners')}</h3>
+          <p className="text-text-muted text-[11px] mt-0.5">{t('clients.managingAccounts', { n: clients.length })}</p>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Total Receivables</p>
+            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">{t('clients.totalReceivables')}</p>
             <p className="text-text-primary text-[22px] font-bold tracking-[-0.5px]">
-              ${totalReceivables.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${totalReceivables.toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
@@ -205,7 +207,7 @@ export default function Clients() {
               }`}
               style={statusFilter === f ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
-              {f === 'all' ? 'All' : f === 'active' ? 'Retained' : 'Inactive'}
+              {f === 'all' ? t('clients.filterAll') : f === 'active' ? t('clients.filterActive') : t('clients.filterInactive')}
             </button>
           ))}
         </div>
@@ -216,7 +218,7 @@ export default function Clients() {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
-                placeholder="Search clients..."
+                placeholder={t('clients.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 w-48 pl-8 pr-3 bg-input-bg rounded-lg text-[11px] text-text-secondary placeholder:text-text-muted border border-border outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30 transition-all"
@@ -225,7 +227,7 @@ export default function Clients() {
           )}
           <Button size="sm" onClick={handleAddClick}>
             <Plus size={12} />
-            Add Client
+            {t('clients.addClient')}
           </Button>
         </div>
       </div>
@@ -252,22 +254,22 @@ export default function Clients() {
           ) : filteredClients.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-text-muted">
               <Search size={20} className="text-text-muted/50" />
-              <p className="text-[13px] font-medium">No clients match "{searchQuery}"</p>
+              <p className="text-[13px] font-medium">{t('clients.noMatch', { query: searchQuery })}</p>
               <button
                 onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
                 className="text-accent text-[12px] font-semibold hover:underline"
               >
-                Clear filters
+                {t('clients.clearFilters')}
               </button>
             </div>
           ) : (
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Client Name</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden md:table-cell">Organization</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden sm:table-cell">Status</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden lg:table-cell">Rate</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t('clients.colName')}</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden md:table-cell">{t('clients.colOrg')}</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden sm:table-cell">{t('clients.colStatus')}</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider hidden lg:table-cell">{t('clients.colRate')}</th>
                   <th className="w-10 px-2 py-3" />
                 </tr>
               </thead>
@@ -321,14 +323,14 @@ export default function Clients() {
                           <button
                             onClick={(e) => handleEditClick(e, client)}
                             className="p-1 rounded hover:bg-input-bg transition-colors"
-                            aria-label="Edit client"
+                            aria-label={t('clients.editClient')}
                           >
                             <MoreVertical size={14} className="text-text-muted" />
                           </button>
                           <button
                             onClick={(e) => handleDeleteClick(e, client)}
                             className="p-1 rounded hover:bg-negative/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                            aria-label="Delete client"
+                            aria-label={t('clients.deleteClient')}
                           >
                             <Trash2 size={13} className="text-negative" />
                           </button>
@@ -389,7 +391,7 @@ export default function Clients() {
               {/* Rate */}
               {selectedClient.hourly_rate != null && (
                 <div className="bg-input-bg/60 rounded-xl p-3 mb-4">
-                  <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Hourly Rate</p>
+                  <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">{t('clients.hourlyRate')}</p>
                   <p className="text-text-primary text-[18px] font-bold mt-0.5">${selectedClient.hourly_rate}</p>
                 </div>
               )}
@@ -397,7 +399,7 @@ export default function Clients() {
               {/* Notes */}
               {selectedClient.notes && (
                 <div className="mb-4">
-                  <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide mb-1">Notes</p>
+                  <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide mb-1">{t('clients.notes')}</p>
                   <p className="text-text-secondary text-[12px] leading-relaxed">{selectedClient.notes}</p>
                 </div>
               )}
@@ -409,7 +411,7 @@ export default function Clients() {
                   className="w-full"
                   onClick={() => navigate(`/clients/${selectedClient.id}`)}
                 >
-                  Open Dashboard →
+                  {t('clients.openDashboard')}
                 </Button>
                 <Button
                   size="sm"
@@ -417,7 +419,7 @@ export default function Clients() {
                   className="w-full"
                   onClick={(e) => handleEditClick(e, selectedClient)}
                 >
-                  Edit Client
+                  {t('clients.editClientBtn')}
                 </Button>
                 <button
                   type="button"
@@ -425,7 +427,7 @@ export default function Clients() {
                   className="flex items-center justify-center gap-1.5 h-8 w-full rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
                 >
                   <Trash2 size={12} />
-                  Delete Client
+                  {t('clients.deleteClientBtn')}
                 </button>
               </div>
             </div>
