@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
@@ -86,8 +86,22 @@ export default function Tasks() {
 
   const [expandedTimeTaskId, setExpandedTimeTaskId] = useState<string | null>(null)
   const [editingDateTaskId, setEditingDateTaskId] = useState<string | null>(null)
+  const [editingStatusTaskId, setEditingStatusTaskId] = useState<string | null>(null)
   const [editStartDraft, setEditStartDraft] = useState('')
   const [editDueDraft, setEditDueDraft] = useState('')
+
+  useEffect(() => {
+    if (!editingStatusTaskId && !editingDateTaskId) return
+    const onDown = (e: MouseEvent) => {
+      const el = e.target as HTMLElement
+      if (!el.closest('[data-inline-popover]')) {
+        setEditingStatusTaskId(null)
+        setEditingDateTaskId(null)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [editingStatusTaskId, editingDateTaskId])
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const [editHours, setEditHours] = useState('')
   const [editDate, setEditDate] = useState('')
@@ -331,7 +345,7 @@ export default function Tasks() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
+      <div className="bg-surface rounded-[14px] shadow-card">
         {/* Column headers */}
         <div className="grid grid-cols-[1fr_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
@@ -473,82 +487,127 @@ export default function Tasks() {
                           )}
                         </div>
 
-                        {/* Status — click to cycle */}
-                        <div>
+                        {/* Status — click opens popover */}
+                        <div className="relative" data-inline-popover={editingStatusTaskId === task.id ? 'true' : undefined}>
                           <button
                             type="button"
-                            onClick={() => {
-                              const next = task.status === 'todo' ? 'in_progress' : task.status === 'in_progress' ? 'done' : 'todo'
-                              updateTask(task.id, { status: next })
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingDateTaskId(null)
+                              setEditingStatusTaskId(editingStatusTaskId === task.id ? null : task.id)
                             }}
-                            title="Click to cycle status"
+                            title="Change status"
                             className="text-[10px] font-semibold px-1.5 py-0.5 rounded hover:bg-input-bg transition-colors"
                           >
                             {task.status === 'todo' && <span className="text-text-muted">To Do</span>}
                             {task.status === 'in_progress' && <span className="text-status-scheduled-text">In Progress</span>}
                             {task.status === 'done' && <span className="text-positive">Done</span>}
                           </button>
+                          {editingStatusTaskId === task.id && (
+                            <div
+                              data-inline-popover="true"
+                              className="absolute left-0 top-full mt-1 z-20 bg-surface border border-border rounded-[8px] shadow-card py-1 min-w-[120px]"
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              {([
+                                { key: 'todo', label: 'To Do', cls: 'text-text-muted' },
+                                { key: 'in_progress', label: 'In Progress', cls: 'text-status-scheduled-text' },
+                                { key: 'done', label: 'Done', cls: 'text-positive' },
+                              ] as const).map(opt => (
+                                <button
+                                  key={opt.key}
+                                  type="button"
+                                  onClick={() => {
+                                    updateTask(task.id, { status: opt.key })
+                                    setEditingStatusTaskId(null)
+                                  }}
+                                  className={`w-full text-left px-3 py-1.5 text-[11px] font-semibold hover:bg-input-bg ${opt.cls} ${task.status === opt.key ? 'bg-input-bg/60' : ''}`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Date range — click to edit */}
-                        <div>
-                          {editingDateTaskId === task.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="date"
-                                value={editStartDraft}
-                                onChange={(e) => setEditStartDraft(e.target.value)}
-                                className="h-6 rounded-[6px] border border-border bg-input-bg px-1 text-[10px] text-text-primary focus:outline-none focus:border-accent"
-                              />
-                              <input
-                                type="date"
-                                value={editDueDraft}
-                                onChange={(e) => setEditDueDraft(e.target.value)}
-                                className="h-6 rounded-[6px] border border-border bg-input-bg px-1 text-[10px] text-text-primary focus:outline-none focus:border-accent"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await updateTask(task.id, {
-                                    start_date: editStartDraft || null,
-                                    due_date: editDueDraft || null,
-                                  })
-                                  setEditingDateTaskId(null)
-                                }}
-                                className="text-[10px] font-semibold text-accent hover:underline"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingDateTaskId(null)}
-                                className="text-[10px] text-text-muted hover:text-text-primary"
-                              >
-                                <X size={10} />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
+                        {/* Date range — click opens popover */}
+                        <div className="relative" data-inline-popover={editingDateTaskId === task.id ? 'true' : undefined}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingStatusTaskId(null)
+                              if (editingDateTaskId === task.id) {
+                                setEditingDateTaskId(null)
+                              } else {
                                 setEditStartDraft(task.start_date ?? '')
                                 setEditDueDraft(task.due_date ?? '')
                                 setEditingDateTaskId(task.id)
-                              }}
-                              title="Click to edit dates"
-                              className="text-left px-1.5 py-0.5 rounded hover:bg-input-bg transition-colors"
+                              }
+                            }}
+                            title="Click to edit dates"
+                            className="text-left px-1.5 py-0.5 rounded hover:bg-input-bg transition-colors"
+                          >
+                            {task.due_date ? (
+                              <span className={`text-[11px] ${dueDateColor}`}>
+                                {task.start_date && task.start_date !== task.due_date
+                                  ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                  : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            ) : (
+                              <span className="text-text-muted text-[11px]">—</span>
+                            )}
+                          </button>
+                          {editingDateTaskId === task.id && (
+                            <div
+                              data-inline-popover="true"
+                              className="absolute left-0 top-full mt-1 z-20 bg-surface border border-border rounded-[10px] shadow-card p-3 w-[260px]"
+                              onMouseDown={(e) => e.stopPropagation()}
                             >
-                              {task.due_date ? (
-                                <span className={`text-[11px] ${dueDateColor}`}>
-                                  {task.start_date && task.start_date !== task.due_date
-                                    ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                    : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                              ) : (
-                                <span className="text-text-muted text-[11px]">—</span>
-                              )}
-                            </button>
+                              <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] text-text-muted">Start</label>
+                                  <input
+                                    type="date"
+                                    value={editStartDraft}
+                                    onChange={(e) => setEditStartDraft(e.target.value)}
+                                    className="h-8 rounded-[6px] border border-border bg-input-bg px-2 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] text-text-muted">Due</label>
+                                  <input
+                                    type="date"
+                                    value={editDueDraft}
+                                    onChange={(e) => setEditDueDraft(e.target.value)}
+                                    className="h-8 rounded-[6px] border border-border bg-input-bg px-2 text-[11px] text-text-primary focus:outline-none focus:border-accent"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      await updateTask(task.id, {
+                                        start_date: editStartDraft || null,
+                                        due_date: editDueDraft || null,
+                                      })
+                                      setEditingDateTaskId(null)
+                                    }}
+                                    className="flex-1 h-7 rounded-[6px] text-[11px] font-semibold text-white"
+                                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingDateTaskId(null)}
+                                    className="h-7 px-3 rounded-[6px] text-[11px] text-text-muted hover:bg-input-bg"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
 
