@@ -17,6 +17,7 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select'
+import { useI18n } from '../lib/i18n'
 
 export interface Project {
   id: string
@@ -55,10 +56,10 @@ interface ProjectFormProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'active', labelKey: 'projForm.statusActive' },
+  { value: 'completed', labelKey: 'projForm.statusCompleted' },
+  { value: 'on_hold', labelKey: 'projForm.statusOnHold' },
+  { value: 'cancelled', labelKey: 'projForm.statusCancelled' },
 ] as const
 
 export default function ProjectForm({
@@ -69,6 +70,7 @@ export default function ProjectForm({
   projectTypes = [],
   onSave,
 }: ProjectFormProps) {
+  const { t } = useI18n()
   const isEdit = Boolean(project)
 
   const [clientId, setClientId] = useState('')
@@ -84,8 +86,8 @@ export default function ProjectForm({
   const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const filteredTypes = projectTypes.filter((t) =>
-    t.toLowerCase().includes(type.toLowerCase()),
+  const filteredTypes = projectTypes.filter((pt) =>
+    pt.toLowerCase().includes(type.toLowerCase()),
   )
 
   useEffect(() => {
@@ -130,11 +132,9 @@ export default function ProjectForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Project' : 'Add Project'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('projForm.editTitle') : t('projForm.addTitle')}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? 'Update the project details below.'
-              : 'Fill in the details to create a new project.'}
+            {isEdit ? t('projForm.editDesc') : t('projForm.addDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,11 +142,11 @@ export default function ProjectForm({
           {/* Client */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-client" className="text-[12px]">
-              Client <span className="text-negative">*</span>
+              {t('projForm.client')} <span className="text-negative">*</span>
             </Label>
             <Select value={clientId} onValueChange={setClientId} required>
               <SelectTrigger id="project-client">
-                <SelectValue placeholder="Select a client" />
+                <SelectValue placeholder={t('projForm.selectClient')} />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
@@ -161,13 +161,13 @@ export default function ProjectForm({
           {/* Project Name */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-name" className="text-[12px]">
-              Project Name <span className="text-negative">*</span>
+              {t('projForm.name')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="project-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Brand Identity Redesign"
+              placeholder={t('projForm.namePh')}
               required
             />
           </div>
@@ -175,13 +175,13 @@ export default function ProjectForm({
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-desc" className="text-[12px]">
-              Description
+              {t('projForm.description')}
             </Label>
             <textarea
               id="project-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief project description..."
+              placeholder={t('projForm.descPh')}
               rows={3}
               className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
             />
@@ -190,7 +190,7 @@ export default function ProjectForm({
           {/* Project Type — combobox */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-type" className="text-[12px]">
-              Type
+              {t('projForm.type')}
             </Label>
             <div className="relative">
               <Input
@@ -205,23 +205,23 @@ export default function ProjectForm({
                   // Delay to allow click on dropdown item
                   setTimeout(() => setShowTypeDropdown(false), 150)
                 }}
-                placeholder="e.g. Web Design, Development..."
+                placeholder={t('projForm.typePh')}
                 autoComplete="off"
               />
               {showTypeDropdown && filteredTypes.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-card z-20 max-h-32 overflow-y-auto">
-                  {filteredTypes.map((t) => (
+                  {filteredTypes.map((pt) => (
                     <button
-                      key={t}
+                      key={pt}
                       type="button"
                       className="w-full text-left px-3 py-1.5 text-[12px] text-text-primary hover:bg-input-bg transition-colors"
                       onMouseDown={(e) => {
                         e.preventDefault()
-                        setType(t)
+                        setType(pt)
                         setShowTypeDropdown(false)
                       }}
                     >
-                      {t}
+                      {pt}
                     </button>
                   ))}
                 </div>
@@ -232,7 +232,7 @@ export default function ProjectForm({
           {/* Status */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-status" className="text-[12px]">
-              Status <span className="text-negative">*</span>
+              {t('projForm.status')} <span className="text-negative">*</span>
             </Label>
             <Select
               value={status}
@@ -244,7 +244,7 @@ export default function ProjectForm({
               <SelectContent>
                 {STATUS_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -254,7 +254,7 @@ export default function ProjectForm({
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-start" className="text-[12px]">Start Date</Label>
+              <Label htmlFor="project-start" className="text-[12px]">{t('projForm.startDate')}</Label>
               <Input
                 id="project-start"
                 type="date"
@@ -264,7 +264,7 @@ export default function ProjectForm({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="project-end" className="text-[12px]">End Date</Label>
+              <Label htmlFor="project-end" className="text-[12px]">{t('projForm.endDate')}</Label>
               <Input
                 id="project-end"
                 type="date"
@@ -277,7 +277,7 @@ export default function ProjectForm({
 
           {/* Billing Type toggle + Rate */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-[12px]">Billing Type</Label>
+            <Label className="text-[12px]">{t('projForm.billingType')}</Label>
             <div className="flex gap-1 p-1 rounded-[10px] bg-input-bg border border-border w-full">
               {(['hourly', 'monthly'] as const).map((bt) => (
                 <button
@@ -290,7 +290,7 @@ export default function ProjectForm({
                       : 'text-text-muted hover:text-text-primary'
                   }`}
                 >
-                  {bt === 'hourly' ? 'Hourly' : 'Monthly Flat Rate'}
+                  {bt === 'hourly' ? t('projForm.hourly') : t('projForm.monthlyFlat')}
                 </button>
               ))}
             </div>
@@ -299,7 +299,7 @@ export default function ProjectForm({
           {/* Rate field — label & step change based on billing type */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project-rate" className="text-[12px]">
-              {billingType === 'hourly' ? 'Hourly Rate' : 'Monthly Rate'}
+              {billingType === 'hourly' ? t('projForm.hourlyRate') : t('projForm.monthlyRate')}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[13px]">
@@ -341,10 +341,10 @@ export default function ProjectForm({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="gradient" disabled={saving || !clientId}>
-              {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Project'}
+              {saving ? t('projForm.saving') : isEdit ? t('projForm.saveChanges') : t('projForm.create')}
             </Button>
           </DialogFooter>
         </form>

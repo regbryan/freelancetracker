@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import type { Client } from '../hooks/useClients'
+import { useI18n } from '../lib/i18n'
 
 interface Project {
   id: string
@@ -35,6 +36,7 @@ interface MeetingNoteFormProps {
 }
 
 export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, initial }: MeetingNoteFormProps) {
+  const { t } = useI18n()
   const [title, setTitle] = useState(initial?.title ?? '')
   const [meetingDate, setMeetingDate] = useState(
     initial?.meeting_date
@@ -86,7 +88,7 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-text-primary text-[16px] font-bold">
-            {initial ? 'Edit Meeting Note' : 'New Meeting Note'}
+            {initial ? t('mtgForm.editTitle') : t('mtgForm.addTitle')}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-input-bg transition-colors">
             <X size={16} className="text-text-muted" />
@@ -97,13 +99,13 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
           {/* Title */}
           <div>
             <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-              Title *
+              {t('mtgForm.titleField')}
             </label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Website Redesign Kickoff"
+              placeholder={t('mtgForm.titlePh')}
               className="w-full h-10 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               required
             />
@@ -113,7 +115,7 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-                Date & Time
+                {t('mtgForm.dateTime')}
               </label>
               <input
                 type="datetime-local"
@@ -124,14 +126,14 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
             </div>
             <div>
               <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-                Client
+                {t('mtgForm.client')}
               </label>
               <select
                 value={clientId}
                 onChange={e => { setClientId(e.target.value); setProjectId(''); }}
                 className="w-full h-10 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               >
-                <option value="">No client</option>
+                <option value="">{t('mtgForm.noClient')}</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -139,14 +141,14 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
             </div>
             <div>
               <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-                Project
+                {t('mtgForm.project')}
               </label>
               <select
                 value={projectId}
                 onChange={e => setProjectId(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               >
-                <option value="">No project</option>
+                <option value="">{t('mtgForm.noProject')}</option>
                 {filteredProjects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -157,7 +159,7 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
           {/* Attendees */}
           <div>
             <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-              Attendees
+              {t('mtgForm.attendees')}
             </label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {attendees.map((name, i) => (
@@ -178,7 +180,7 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
                 value={attendeeInput}
                 onChange={e => setAttendeeInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAttendee(); } }}
-                placeholder="Add attendee name"
+                placeholder={t('mtgForm.addAttendee')}
                 className="flex-1 h-9 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               />
               <button
@@ -188,7 +190,7 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
                 disabled={!attendeeInput.trim()}
                 className="h-9 px-3 rounded-lg border border-border text-[12px] transition-all flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-input-bg enabled:hover:text-accent text-text-muted"
               >
-                <Plus size={12} /> Add
+                <Plus size={12} /> {t('mtgForm.add')}
               </button>
             </div>
           </div>
@@ -196,12 +198,12 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
           {/* Summary */}
           <div>
             <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-              Summary
+              {t('mtgForm.summary')}
             </label>
             <textarea
               value={summary}
               onChange={e => setSummary(e.target.value)}
-              placeholder="Quick 2-3 sentence overview of what was discussed..."
+              placeholder={t('mtgForm.summaryPh')}
               rows={3}
               className="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all resize-none"
             />
@@ -210,12 +212,12 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
           {/* Transcript */}
           <div>
             <label className="block text-text-secondary text-[11px] font-semibold uppercase tracking-wide mb-1.5">
-              Transcript / Full Notes
+              {t('mtgForm.transcript')}
             </label>
             <textarea
               value={transcript}
               onChange={e => setTranscript(e.target.value)}
-              placeholder="Paste your meeting transcript from Granola, Google, or any note-taker here..."
+              placeholder={t('mtgForm.transcriptPh')}
               rows={6}
               className="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] font-mono placeholder:text-text-muted placeholder:font-sans focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all resize-y"
             />
@@ -228,14 +230,14 @@ export default function MeetingNoteForm({ clients, projects, onSubmit, onClose, 
               onClick={onClose}
               className="h-9 px-4 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-all"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="h-9 px-5 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
               style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
             >
-              {initial ? 'Save Changes' : 'Create Meeting Note'}
+              {initial ? t('mtgForm.saveChanges') : t('mtgForm.create')}
             </button>
           </div>
         </form>

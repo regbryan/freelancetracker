@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '../lib/i18n'
 
 interface TimeEntryEditData {
   id: string
@@ -32,6 +33,7 @@ export default function TimeEntryEditDialog({
   entry,
   onSave,
 }: TimeEntryEditDialogProps) {
+  const { t } = useI18n()
   const [description, setDescription] = useState('')
   const [hours, setHours] = useState('')
   const [date, setDate] = useState('')
@@ -73,9 +75,9 @@ export default function TimeEntryEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Time Entry</DialogTitle>
+          <DialogTitle>{t('tEdit.title')}</DialogTitle>
           <DialogDescription>
-            Update the details for this time entry.
+            {t('tEdit.desc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,13 +85,13 @@ export default function TimeEntryEditDialog({
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-description" className="text-[12px]">
-              Description <span className="text-negative">*</span>
+              {t('tEdit.description')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="edit-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What did you work on?"
+              placeholder={t('tEdit.descPh')}
               required
             />
           </div>
@@ -98,7 +100,7 @@ export default function TimeEntryEditDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="edit-hours" className="text-[12px]">
-                Hours <span className="text-negative">*</span>
+                {t('tEdit.hours')} <span className="text-negative">*</span>
               </Label>
               <Input
                 id="edit-hours"
@@ -107,15 +109,15 @@ export default function TimeEntryEditDialog({
                 step="0.25"
                 value={hours}
                 onChange={(e) => setHours(e.target.value)}
-                placeholder="0.25"
+                placeholder={t('tEdit.hoursPh')}
                 required
               />
-              <p className="text-text-muted text-[10px]">Rounded to 0.25hr increments</p>
+              <p className="text-text-muted text-[10px]">{t('tEdit.rounded')}</p>
             </div>
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="edit-date" className="text-[12px]">
-                Date
+                {t('tEdit.date')}
               </Label>
               <Input
                 id="edit-date"
@@ -156,7 +158,7 @@ export default function TimeEntryEditDialog({
               </svg>
             </button>
             <Label className="text-[12px] cursor-pointer" onClick={() => setBillable(!billable)}>
-              Billable
+              {t('tEdit.billable')}
             </Label>
           </div>
 
@@ -167,10 +169,10 @@ export default function TimeEntryEditDialog({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="gradient" disabled={saving || !description || !hours}>
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('tEdit.saving') : t('tEdit.saveChanges')}
             </Button>
           </DialogFooter>
         </form>

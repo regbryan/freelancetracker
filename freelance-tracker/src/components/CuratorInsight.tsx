@@ -3,6 +3,7 @@ import { Compass } from 'lucide-react'
 import type { Project } from '../hooks/useProjects'
 import type { TimeEntry } from '../hooks/useTimeEntries'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface CuratorInsightProps {
   projects: Project[]
@@ -14,7 +15,7 @@ type Insight = {
   cta?: { label: string; to: string }
 }
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAY_KEYS = ['curator.sunday', 'curator.monday', 'curator.tuesday', 'curator.wednesday', 'curator.thursday', 'curator.friday', 'curator.saturday']
 
 function sameIsoWeek(d: Date, ref: Date): boolean {
   const refMonday = new Date(ref)
@@ -27,6 +28,7 @@ function sameIsoWeek(d: Date, ref: Date): boolean {
 }
 
 export default function CuratorInsight({ projects, entries }: CuratorInsightProps) {
+  const { t } = useI18n()
   const insight = useMemo<Insight | null>(() => {
     const now = new Date()
 
@@ -60,8 +62,7 @@ export default function CuratorInsight({ projects, entries }: CuratorInsightProp
           return {
             message: (
               <>
-                Your billable ratio is <strong>up {pct}%</strong> vs last week
-                ({Math.round(curRatio * 100)}% vs {Math.round(lastRatio * 100)}%). Momentum is compounding — lock the cadence.
+                {t('curator.ratioUp')} <strong>{t('curator.upPct', { pct })}</strong>{t('curator.ratioUpTail', { cur: Math.round(curRatio * 100), last: Math.round(lastRatio * 100) })}
               </>
             ),
           }
@@ -69,8 +70,7 @@ export default function CuratorInsight({ projects, entries }: CuratorInsightProp
           return {
             message: (
               <>
-                Your billable ratio is <strong>down {pct}%</strong> vs last week.
-                If the drop is intentional (admin, learning), fine — if not, re-center on paying work.
+                {t('curator.ratioDown')} <strong>{t('curator.downPct', { pct })}</strong>{t('curator.ratioDownTail')}
               </>
             ),
           }
@@ -105,9 +105,8 @@ export default function CuratorInsight({ projects, entries }: CuratorInsightProp
         return {
           message: (
             <>
-              Your most productive day is <strong>{DAY_NAMES[topIdx]}</strong> — averaging{' '}
-              <strong>{avgByDay[topIdx].toFixed(1)}h</strong>, {pctAboveAvg}% above your weekly average.
-              Protect it for deep work.
+              {t('curator.mostProductivePre')} <strong>{t(DAY_KEYS[topIdx])}</strong>{t('curator.mostProductiveMid')}{' '}
+              <strong>{t('curator.hoursShort', { h: avgByDay[topIdx].toFixed(1) })}</strong>{t('curator.aboveAvgTail', { pct: pctAboveAvg })}
             </>
           ),
         }
@@ -123,22 +122,21 @@ export default function CuratorInsight({ projects, entries }: CuratorInsightProp
       return {
         message: (
           <>
-            You haven't logged any time on <strong>"{stale.name}"</strong> this week.
-            A 30-minute block keeps the project warm and clients reassured.
+            {t('curator.stalePre')} <strong>"{stale.name}"</strong>{t('curator.staleTail')}
           </>
         ),
-        cta: { label: 'View Project', to: `/projects/${stale.id}` },
+        cta: { label: t('curator.viewProject'), to: `/projects/${stale.id}` },
       }
     }
 
     return null
-  }, [projects, entries])
+  }, [projects, entries, t])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Curator's Insight"
+      label={t('curator.label')}
       variant="curator"
       icon={Compass}
       message={insight.message}

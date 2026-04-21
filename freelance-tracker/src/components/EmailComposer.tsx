@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { generateInvoicePDF } from '@/components/InvoicePDF';
 import type { Invoice, InvoiceItem } from '@/hooks/useInvoices';
 import type { Project } from '@/hooks/useProjects';
+import { useI18n } from '../lib/i18n';
 
 export interface AttachableInvoice {
   id: string;
@@ -86,12 +87,6 @@ function clearEditorContent(el: HTMLElement) {
 // Formatting toolbar definition
 // ---------------------------------------------------------------------------
 
-const TOOLBAR = [
-  { cmd: 'bold',                  Icon: Bold,      title: 'Bold (Ctrl+B)'       },
-  { cmd: 'italic',                Icon: Italic,    title: 'Italic (Ctrl+I)'     },
-  { cmd: 'underline',             Icon: Underline, title: 'Underline (Ctrl+U)'  },
-  { cmd: 'insertUnorderedList',   Icon: List,      title: 'Bullet list'         },
-];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -105,6 +100,13 @@ export default function EmailComposer({
   replyTo,
   onClearReply,
 }: EmailComposerProps) {
+  const { t, lang } = useI18n();
+  const TOOLBAR = [
+    { cmd: 'bold',                  Icon: Bold,      title: t('emailComposer.bold')       },
+    { cmd: 'italic',                Icon: Italic,    title: t('emailComposer.italic')     },
+    { cmd: 'underline',             Icon: Underline, title: t('emailComposer.underline')  },
+    { cmd: 'insertUnorderedList',   Icon: List,      title: t('emailComposer.bulletList') },
+  ];
   const [toEmail, setToEmail] = useState(clientEmail ?? '');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
@@ -146,7 +148,7 @@ export default function EmailComposer({
   }
 
   function handleLink() {
-    const url = window.prompt('Enter URL:');
+    const url = window.prompt(t('emailComposer.promptUrl'));
     if (url) execCmd('createLink', url.startsWith('http') ? url : `https://${url}`);
   }
 
@@ -183,7 +185,7 @@ export default function EmailComposer({
     try {
       await login();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to connect Gmail');
+      setError(err instanceof Error ? err.message : t('emailComposer.failedConnect'));
     } finally {
       setConnecting(false);
     }
@@ -201,17 +203,17 @@ export default function EmailComposer({
       .select('*, invoice_items(*)')
       .eq('id', selectedInvoiceId)
       .single();
-    if (invErr || !invoiceData) throw new Error('Failed to load invoice for attachment');
+    if (invErr || !invoiceData) throw new Error(t('emailComposer.failedLoadInvoice'));
 
     const invoiceProjectId = projectId ?? invoiceData.project_id;
-    if (!invoiceProjectId) throw new Error('Invoice has no associated project');
+    if (!invoiceProjectId) throw new Error(t('emailComposer.invoiceNoProject'));
 
     const { data: projectData, error: projErr } = await supabase
       .from('projects')
       .select('*, clients(id, name, email, company)')
       .eq('id', invoiceProjectId)
       .single();
-    if (projErr || !projectData) throw new Error('Failed to load project for attachment');
+    if (projErr || !projectData) throw new Error(t('emailComposer.failedLoadProject'));
 
     const rawClient = Array.isArray(projectData.clients)
       ? projectData.clients[0]
@@ -229,6 +231,7 @@ export default function EmailComposer({
       (invoiceData.invoice_items ?? []) as InvoiceItem[],
       projectData as Project,
       clientInfo,
+      lang,
     );
 
     const ab = doc.output('arraybuffer');
@@ -304,7 +307,7 @@ export default function EmailComposer({
       onClearReply?.();
       onSent?.();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to send email');
+      setError(err instanceof Error ? err.message : t('emailComposer.failedSend'));
     } finally {
       setSending(false);
     }
@@ -319,7 +322,7 @@ export default function EmailComposer({
       <div className="rounded-[14px] bg-surface p-5 shadow-card">
         <div className="flex items-center justify-center py-6 gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-accent" />
-          <span className="text-[12px] text-text-muted">Checking Gmail connection...</span>
+          <span className="text-[12px] text-text-muted">{t('emailComposer.checking')}</span>
         </div>
       </div>
     );
@@ -333,13 +336,13 @@ export default function EmailComposer({
             <Mail className="h-5 w-5 text-accent" />
           </div>
           <p className="text-[13px] text-text-secondary text-center">
-            Connect your Gmail account to send and sync emails.
+            {t('emailComposer.connectPrompt')}
           </p>
           {error && <p className="text-[12px] text-negative text-center">{error}</p>}
           <Button variant="gradient" size="sm" onClick={handleConnect} disabled={connecting}>
             {connecting
-              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Connecting...</>
-              : <><Mail className="h-3.5 w-3.5" />Connect Gmail</>}
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('emailComposer.connecting2')}</>
+              : <><Mail className="h-3.5 w-3.5" />{t('emailComposer.connectGmail')}</>}
           </Button>
         </div>
       </div>
@@ -357,7 +360,7 @@ export default function EmailComposer({
       {!isStandalone && (
         <div className="mb-4 flex items-center gap-2">
           <Send className="h-4 w-4 text-accent" />
-          <h3 className="text-[13px] font-semibold text-text-primary">Compose Email</h3>
+          <h3 className="text-[13px] font-semibold text-text-primary">{t('emailComposer.compose')}</h3>
         </div>
       )}
 
@@ -368,12 +371,12 @@ export default function EmailComposer({
           <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-input-bg border border-border">
             <CornerUpLeft className="h-3.5 w-3.5 text-accent shrink-0" />
             <span className="text-[12px] text-text-secondary flex-1 truncate">
-              Replying to
+              {t('emailComposer.replyingTo')}
               {replyTo.fromEmail && <span className="font-medium text-text-primary"> {replyTo.fromEmail}</span>}
               {replyTo.subject && <>: <span className="italic">{replyTo.subject}</span></>}
             </span>
             {onClearReply && (
-              <button type="button" onClick={onClearReply} className="p-0.5 rounded hover:bg-border transition-colors" aria-label="Cancel reply">
+              <button type="button" onClick={onClearReply} className="p-0.5 rounded hover:bg-border transition-colors" aria-label={t('emailComposer.cancelReply')}>
                 <X className="h-3 w-3 text-text-muted" />
               </button>
             )}
@@ -383,16 +386,16 @@ export default function EmailComposer({
         {/* To */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <Label htmlFor="email-to" className="text-[11px] text-text-muted">To</Label>
+            <Label htmlFor="email-to" className="text-[11px] text-text-muted">{t('emailComposer.to')}</Label>
             <div className="flex gap-2">
               {!showCc && (
                 <button type="button" onClick={() => setShowCc(true)} className="text-[11px] text-accent hover:underline">
-                  Cc
+                  {t('emailComposer.cc')}
                 </button>
               )}
               {!showBcc && (
                 <button type="button" onClick={() => setShowBcc(true)} className="text-[11px] text-accent hover:underline">
-                  Bcc
+                  {t('emailComposer.bcc')}
                 </button>
               )}
             </div>
@@ -403,7 +406,7 @@ export default function EmailComposer({
             value={toEmail}
             readOnly={toIsReadOnly}
             onChange={(e) => !toIsReadOnly && setToEmail(e.target.value)}
-            placeholder={isStandalone ? 'recipient@example.com' : ''}
+            placeholder={isStandalone ? t('emailComposer.toPlaceholder') : ''}
             required
             className={`text-[12px] ${toIsReadOnly ? 'opacity-70 cursor-default bg-input-bg' : ''}`}
           />
@@ -413,12 +416,12 @@ export default function EmailComposer({
         {showCc && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-cc" className="text-[11px] text-text-muted">Cc</Label>
-              <button type="button" onClick={() => { setShowCc(false); setCc(''); }} className="text-text-muted hover:text-text-secondary transition-colors" aria-label="Remove Cc">
+              <Label htmlFor="email-cc" className="text-[11px] text-text-muted">{t('emailComposer.cc')}</Label>
+              <button type="button" onClick={() => { setShowCc(false); setCc(''); }} className="text-text-muted hover:text-text-secondary transition-colors" aria-label={t('emailComposer.removeCc')}>
                 <X className="h-3 w-3" />
               </button>
             </div>
-            <Input id="email-cc" type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="cc@example.com" className="text-[12px]" />
+            <Input id="email-cc" type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder={t('emailComposer.ccPlaceholder')} className="text-[12px]" />
           </div>
         )}
 
@@ -426,23 +429,23 @@ export default function EmailComposer({
         {showBcc && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-bcc" className="text-[11px] text-text-muted">Bcc</Label>
-              <button type="button" onClick={() => { setShowBcc(false); setBcc(''); }} className="text-text-muted hover:text-text-secondary transition-colors" aria-label="Remove Bcc">
+              <Label htmlFor="email-bcc" className="text-[11px] text-text-muted">{t('emailComposer.bcc')}</Label>
+              <button type="button" onClick={() => { setShowBcc(false); setBcc(''); }} className="text-text-muted hover:text-text-secondary transition-colors" aria-label={t('emailComposer.removeBcc')}>
                 <X className="h-3 w-3" />
               </button>
             </div>
-            <Input id="email-bcc" type="text" value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="bcc@example.com" className="text-[12px]" />
+            <Input id="email-bcc" type="text" value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder={t('emailComposer.bccPlaceholder')} className="text-[12px]" />
           </div>
         )}
 
         {/* Subject */}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="email-subject" className="text-[11px] text-text-muted">Subject</Label>
+          <Label htmlFor="email-subject" className="text-[11px] text-text-muted">{t('emailComposer.subject')}</Label>
           <Input
             id="email-subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Email subject..."
+            placeholder={t('emailComposer.subjectPlaceholder')}
             required
             className="text-[12px]"
           />
@@ -450,7 +453,7 @@ export default function EmailComposer({
 
         {/* Body — rich text editor */}
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-text-muted">Message</Label>
+          <Label className="text-[11px] text-text-muted">{t('emailComposer.message')}</Label>
 
           {/* Formatting toolbar */}
           <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-t-[12px] border border-b-0 border-border bg-input-bg">
@@ -467,7 +470,7 @@ export default function EmailComposer({
             ))}
             <button
               type="button"
-              title="Insert link"
+              title={t('emailComposer.insertLink')}
               onMouseDown={(e) => { e.preventDefault(); handleLink(); }}
               className="p-1.5 rounded-[6px] hover:bg-border transition-colors text-text-muted hover:text-text-primary"
             >
@@ -495,8 +498,8 @@ export default function EmailComposer({
             />
             {!bodyHasContent && (
               <div className="pointer-events-none absolute top-2 left-3 text-[12px] text-text-muted select-none">
-                Write your message…{' '}
-                <span className="opacity-50">(Ctrl+Enter to send)</span>
+                {t('emailComposer.writeMessage')}{' '}
+                <span className="opacity-50">{t('emailComposer.ctrlEnterToSend')}</span>
               </div>
             )}
           </div>
@@ -513,7 +516,7 @@ export default function EmailComposer({
                   {selectedInvoice.invoice_number}.pdf
                   <span className="text-accent/60 font-normal ml-1.5">${selectedInvoice.total.toLocaleString()}</span>
                 </span>
-                <button type="button" onClick={() => setSelectedInvoiceId(null)} className="p-0.5 rounded hover:bg-accent/20 transition-colors" aria-label="Remove attachment">
+                <button type="button" onClick={() => setSelectedInvoiceId(null)} className="p-0.5 rounded hover:bg-accent/20 transition-colors" aria-label={t('emailComposer.removeAttachment')}>
                   <X className="h-3 w-3 text-accent" />
                 </button>
               </div>
@@ -523,7 +526,7 @@ export default function EmailComposer({
                 onChange={(e) => setSelectedInvoiceId(e.target.value || null)}
                 className="flex h-9 w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <option value="">— Attach an invoice (optional) —</option>
+                <option value="">{t('emailComposer.attachInvoiceOption')}</option>
                 {invoices.map((inv) => (
                   <option key={inv.id} value={inv.id}>
                     {inv.invoice_number} · ${inv.total.toLocaleString()} · {inv.status}
@@ -539,7 +542,7 @@ export default function EmailComposer({
               <Paperclip className="h-3.5 w-3.5 text-text-muted shrink-0" />
               <span className="text-[12px] text-text-secondary flex-1 truncate">{file.name}</span>
               <span className="text-[11px] text-text-muted shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
-              <button type="button" onClick={() => removeFile(idx)} className="p-0.5 rounded hover:bg-border transition-colors" aria-label="Remove file">
+              <button type="button" onClick={() => removeFile(idx)} className="p-0.5 rounded hover:bg-border transition-colors" aria-label={t('emailComposer.removeFile')}>
                 <X className="h-3 w-3 text-text-muted" />
               </button>
             </div>
@@ -559,7 +562,7 @@ export default function EmailComposer({
               className="flex items-center gap-1.5 text-[12px] text-text-muted hover:text-text-secondary transition-colors"
             >
               <Paperclip className="h-3.5 w-3.5" />
-              Attach file
+              {t('emailComposer.attachFile')}
             </button>
           </div>
 
@@ -570,8 +573,8 @@ export default function EmailComposer({
             disabled={sending || !toEmail.trim() || !subject.trim() || !bodyHasContent}
           >
             {sending
-              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Sending...</>
-              : <><Send className="h-3.5 w-3.5" />Send</>}
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('emailComposer.sending')}</>
+              : <><Send className="h-3.5 w-3.5" />{t('emailComposer.send')}</>}
           </Button>
         </div>
       </form>

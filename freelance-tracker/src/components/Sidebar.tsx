@@ -14,20 +14,21 @@ import {
   Plus,
   Mail,
 } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/clients', label: 'Clients', icon: Users },
-  { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
-  { to: '/meetings', label: 'Meeting Notes', icon: BookOpen },
-  { to: '/calendar', label: 'Calendar', icon: Calendar },
-  { to: '/emails', label: 'Email Search', icon: Mail },
-  { to: '/expenses', label: 'Expenses', icon: Receipt },
-  { to: '/contracts', label: 'Contracts', icon: FileCheck },
-  { to: '/invoices', label: 'Invoices', icon: FileText },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/clients', labelKey: 'nav.clients', icon: Users },
+  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare },
+  { to: '/timeline', labelKey: 'nav.timeline', icon: GanttChartSquare },
+  { to: '/meetings', labelKey: 'nav.meetings', icon: BookOpen },
+  { to: '/calendar', labelKey: 'nav.calendar', icon: Calendar },
+  { to: '/emails', labelKey: 'nav.emails', icon: Mail },
+  { to: '/expenses', labelKey: 'nav.expenses', icon: Receipt },
+  { to: '/contracts', labelKey: 'nav.contracts', icon: FileCheck },
+  { to: '/invoices', labelKey: 'nav.invoices', icon: FileText },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -38,6 +39,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { t } = useI18n()
 
   return (
     <aside
@@ -59,7 +61,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             Bough
           </span>
           <span className="text-[13px] italic tracking-[0.2px]" style={{ fontFamily: "'EB Garamond', Georgia, serif", color: '#5a6b60' }}>
-            Grow what you build.
+            {t('brand.tagline')}
           </span>
         </div>
       </div>
@@ -85,7 +87,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               style={isActive ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           )
         })}
@@ -100,7 +102,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="w-5 h-5 rounded-md bg-white/10 group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all">
             <Plus size={12} />
           </div>
-          <span className="font-medium">New Project</span>
+          <span className="font-medium">{t('nav.newProject')}</span>
         </button>
       </div>
     </aside>

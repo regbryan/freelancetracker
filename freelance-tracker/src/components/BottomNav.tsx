@@ -6,13 +6,14 @@ import {
   FileText,
   Menu,
 } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 const navItems = [
-  { to: '/', label: 'Home', icon: LayoutDashboard },
-  { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/time', label: 'Time', icon: Clock },
-  { to: '/invoices', label: 'Invoices', icon: FileText },
-  { to: '/more', label: 'More', icon: Menu },
+  { to: '/', labelKey: 'nav.home', icon: LayoutDashboard },
+  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban },
+  { to: '/time', labelKey: 'nav.time', icon: Clock },
+  { to: '/invoices', labelKey: 'nav.invoices', icon: FileText },
+  { to: '/more', labelKey: 'nav.more', icon: Menu },
 ]
 
 interface BottomNavProps {
@@ -21,8 +22,8 @@ interface BottomNavProps {
 
 export default function BottomNav({ onMoreClick }: BottomNavProps) {
   const location = useLocation()
+  const { t } = useI18n()
 
-  // Pages that show in "More" — if we're on one, highlight More
   const morePages = ['/clients', '/expenses', '/contracts', '/calendar', '/settings']
   const isMoreActive = morePages.some((p) => location.pathname.startsWith(p))
 
@@ -39,7 +40,7 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
               }`}
             >
               <item.icon size={20} strokeWidth={isMoreActive ? 2 : 1.5} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-medium">{t(item.labelKey)}</span>
             </button>
           )
         }
@@ -58,7 +59,7 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
             }`}
           >
             <item.icon size={20} strokeWidth={isActive ? 2 : 1.5} />
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="text-[10px] font-medium">{t(item.labelKey)}</span>
           </NavLink>
         )
       })}

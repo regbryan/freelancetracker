@@ -1,4 +1,5 @@
 import { Pencil, Trash2, FileText } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 interface ActionItemRowProps {
   id: string
@@ -23,9 +24,9 @@ function isOverdue(dueDate: string | null | undefined, status: string): boolean 
   return due < today
 }
 
-function formatDate(date: string): string {
+function formatDate(date: string, lang: string): string {
   const d = new Date(date + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })
 }
 
 export default function ActionItemRow({
@@ -42,6 +43,7 @@ export default function ActionItemRow({
   onDelete,
   showMeetingBadge = false,
 }: ActionItemRowProps) {
+  const { t, lang } = useI18n()
   const done = status === 'done'
   const overdue = isOverdue(dueDate, status)
   const isClient = assignee !== 'me'
@@ -54,7 +56,7 @@ export default function ActionItemRow({
         onClick={() => onToggle(id, status)}
         className="flex-shrink-0 w-5 h-5 rounded-md border-2 border-border flex items-center justify-center transition-colors hover:border-accent"
         style={done ? { backgroundColor: '#3e6b5a', borderColor: '#3e6b5a' } : undefined}
-        aria-label={done ? 'Mark as todo' : 'Mark as done'}
+        aria-label={done ? t('actionItem.markAsTodo') : t('actionItem.markAsDone')}
       >
         {done && (
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -86,25 +88,25 @@ export default function ActionItemRow({
             ? 'bg-amber-100 text-amber-700'
             : 'bg-accent-bg text-accent'
         }`}>
-          {isClient ? assignee : 'Me'}
+          {isClient ? assignee : t('actionItem.me')}
         </span>
 
         {/* Priority badge */}
         {priority === 'high' && (
           <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-negative-bg text-negative">
-            High
+            {t('actionItem.high')}
           </span>
         )}
         {priority === 'medium' && (
           <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-status-hold-bg text-status-hold-text">
-            Med
+            {t('actionItem.med')}
           </span>
         )}
 
         {/* Due date */}
         {dueDate && (
           <span className={`text-[11px] ${overdue ? 'text-negative font-medium' : 'text-text-muted'}`}>
-            {formatDate(dueDate)}
+            {formatDate(dueDate, lang)}
           </span>
         )}
       </div>

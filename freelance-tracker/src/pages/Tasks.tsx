@@ -151,6 +151,13 @@ export default function Tasks() {
       dg.tasks.push(tk)
     }
 
+    for (const pg of projMap.values()) {
+      for (const dg of pg.dateGroups) {
+        if (dg.isOverdue && !dg.tasks.some(tk => tk.status !== 'done')) {
+          dg.isOverdue = false
+        }
+      }
+    }
     const arr = Array.from(projMap.values())
     arr.sort((a, b) => a.projectName.localeCompare(b.projectName))
     return arr

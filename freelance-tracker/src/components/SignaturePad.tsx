@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '../lib/i18n'
 
 interface SignaturePadProps {
   onSave: (dataUrl: string) => void
@@ -7,6 +8,7 @@ interface SignaturePadProps {
 }
 
 export default function SignaturePad({ onSave, onClear }: SignaturePadProps) {
+  const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
 
@@ -113,10 +115,10 @@ export default function SignaturePad({ onSave, onClear }: SignaturePadProps) {
       />
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" size="sm" onClick={handleClear}>
-          Clear
+          {t('signaturePad.clear')}
         </Button>
         <Button type="button" variant="gradient" size="sm" onClick={handleAccept}>
-          Accept Signature
+          {t('signaturePad.accept')}
         </Button>
       </div>
     </div>

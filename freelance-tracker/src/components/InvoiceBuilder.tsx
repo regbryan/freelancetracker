@@ -14,6 +14,7 @@ import { useUnbilledEntries, type TimeEntry } from '@/hooks/useTimeEntries'
 import { useUnbilledExpenses, type Expense } from '@/hooks/useExpenses'
 import { useProject } from '@/hooks/useProjects'
 import { useInvoices, getNextInvoiceNumber, type InvoiceItemInsert } from '@/hooks/useInvoices'
+import { useI18n } from '../lib/i18n'
 
 interface InvoiceBuilderProps {
   open: boolean
@@ -37,6 +38,8 @@ export default function InvoiceBuilder({
   projectId,
   onCreated,
 }: InvoiceBuilderProps) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const { entries, loading: entriesLoading } = useUnbilledEntries(projectId)
   const { expenses: unbilledExpenses, loading: expensesLoading } = useUnbilledExpenses(projectId)
   const { project, loading: projectLoading } = useProject(projectId)
@@ -179,7 +182,7 @@ export default function InvoiceBuilder({
     try {
       const trimmedNumber = invoiceNumber.trim()
       if (!trimmedNumber) {
-        alert('Please enter an invoice number.')
+        alert(t('invBuilder.enterNumber'))
         setSubmitting(false)
         return
       }
@@ -190,7 +193,7 @@ export default function InvoiceBuilder({
 
       if (isMonthly) {
         const qty = Number(monthlyQty) || 1
-        const retainerDesc = monthlyDesc.trim() || 'Monthly retainer'
+        const retainerDesc = monthlyDesc.trim() || t('invBuilder.retainerPh')
         const retainerItem: InvoiceItemInsert = {
           description: retainerDesc,
           quantity: qty,
@@ -210,7 +213,7 @@ export default function InvoiceBuilder({
         items = [retainerItem, ...expenseItems]
       } else {
         const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => ({
-          description: entry.description || 'Time entry',
+          description: entry.description || t('invBuilder.timeEntry'),
           quantity: entry.hours,
           rate,
           amount: entry.hours * rate,
@@ -261,13 +264,13 @@ export default function InvoiceBuilder({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Invoice</DialogTitle>
+          <DialogTitle>{t('invBuilder.title')}</DialogTitle>
           <DialogDescription>
-            {isMonthly ? 'Configure the monthly retainer for ' : 'Select unbilled time entries for '}
+            {isMonthly ? t('invBuilder.descMonthly') : t('invBuilder.descHourly')}
             {project ? (
               <span className="font-medium text-text-primary">{project.name}</span>
             ) : (
-              'this project'
+              t('invBuilder.thisProject')
             )}
             {project?.clients?.name && (
               <>
@@ -279,10 +282,10 @@ export default function InvoiceBuilder({
         </DialogHeader>
 
         {loading ? (
-          <div className="py-12 text-center text-text-muted text-sm">Loading entries...</div>
+          <div className="py-12 text-center text-text-muted text-sm">{t('invBuilder.loading')}</div>
         ) : !hasItems ? (
           <div className="py-12 text-center text-text-muted text-sm">
-            No unbilled time entries or expenses found for this project.
+            {t('invBuilder.empty')}
           </div>
         ) : (
           <>
@@ -290,22 +293,22 @@ export default function InvoiceBuilder({
             {isMonthly ? (
               <div className="border border-border rounded-[12px] overflow-hidden">
                 <div className="px-4 py-2.5 bg-input-bg text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Monthly Retainer
+                  {t('invBuilder.monthlyRetainer')}
                 </div>
                 <div className="divide-y divide-border">
                   <div className="flex items-end gap-3 px-4 py-3">
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[11px] text-text-muted">Description</label>
+                      <label className="text-[11px] text-text-muted">{t('invBuilder.description')}</label>
                       <input
                         type="text"
                         value={monthlyDesc}
                         onChange={(e) => setMonthlyDesc(e.target.value)}
-                        placeholder="Monthly retainer"
+                        placeholder={t('invBuilder.retainerPh')}
                         className="flex h-9 w-full rounded-[10px] border border-border bg-input-bg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       />
                     </div>
                     <div className="w-20 flex flex-col gap-1">
-                      <label className="text-[11px] text-text-muted">Months</label>
+                      <label className="text-[11px] text-text-muted">{t('invBuilder.months')}</label>
                       <input
                         type="number"
                         min="1"
@@ -316,13 +319,13 @@ export default function InvoiceBuilder({
                       />
                     </div>
                     <div className="w-24 flex flex-col gap-1">
-                      <label className="text-[11px] text-text-muted text-right">Rate / mo</label>
+                      <label className="text-[11px] text-text-muted text-right">{t('invBuilder.ratePerMonth')}</label>
                       <p className="h-9 flex items-center justify-end text-sm text-text-muted pr-0.5">
                         ${monthlyRate.toFixed(2)}
                       </p>
                     </div>
                     <div className="w-24 flex flex-col gap-1">
-                      <label className="text-[11px] text-text-muted text-right">Amount</label>
+                      <label className="text-[11px] text-text-muted text-right">{t('invBuilder.amount')}</label>
                       <p className="h-9 flex items-center justify-end text-sm font-semibold text-text-primary">
                         ${monthlyRetainerSubtotal.toFixed(2)}
                       </p>
@@ -341,20 +344,20 @@ export default function InvoiceBuilder({
                       checked={selectedIds.size === entries.length}
                       onChange={toggleAll}
                       className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      aria-label="Select all entries"
+                      aria-label={t('invBuilder.selectAllEntries')}
                     />
                   </div>
-                  <div className="flex-1">Description</div>
-                  <div className="w-16 text-right">Hours</div>
-                  <div className="w-20 text-right">Rate</div>
-                  <div className="w-24 text-right">Amount</div>
+                  <div className="flex-1">{t('invBuilder.description')}</div>
+                  <div className="w-16 text-right">{t('invBuilder.hours')}</div>
+                  <div className="w-20 text-right">{t('invBuilder.rate')}</div>
+                  <div className="w-24 text-right">{t('invBuilder.amount')}</div>
                 </div>
 
                 {/* Rows */}
                 <div className="divide-y divide-border">
                   {entries.length === 0 ? (
                     <p className="px-4 py-6 text-center text-[12px] text-text-muted">
-                      No unbilled time entries for this project.
+                      {t('invBuilder.noUnbilled')}
                     </p>
                   ) : entries.map((entry: TimeEntry) => {
                     const checked = selectedIds.has(entry.id)
@@ -376,9 +379,9 @@ export default function InvoiceBuilder({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-text-primary truncate">
-                            {entry.description || 'Untitled entry'}
+                            {entry.description || t('invBuilder.untitledEntry')}
                           </p>
-                          <p className="text-[11px] text-text-muted">{formatEntryDate(entry.date)}</p>
+                          <p className="text-[11px] text-text-muted">{formatEntryDate(entry.date, locale)}</p>
                         </div>
                         <div className="w-16 text-right text-sm text-text-secondary">
                           {entry.hours.toFixed(2)}
@@ -406,12 +409,12 @@ export default function InvoiceBuilder({
                       checked={selectedExpenseIds.size === unbilledExpenses.length}
                       onChange={toggleAllExpenses}
                       className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      aria-label="Select all expenses"
+                      aria-label={t('invBuilder.selectAllExpenses')}
                     />
                   </div>
-                  <div className="flex-1">Expense</div>
-                  <div className="w-20 text-right">Category</div>
-                  <div className="w-24 text-right">Amount</div>
+                  <div className="flex-1">{t('invBuilder.expense')}</div>
+                  <div className="w-20 text-right">{t('invBuilder.category')}</div>
+                  <div className="w-24 text-right">{t('invBuilder.amount')}</div>
                 </div>
 
                 <div className="divide-y divide-border">
@@ -434,7 +437,7 @@ export default function InvoiceBuilder({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-text-primary truncate">{exp.description}</p>
-                          <p className="text-[11px] text-text-muted">{formatEntryDate(exp.date)}</p>
+                          <p className="text-[11px] text-text-muted">{formatEntryDate(exp.date, locale)}</p>
                         </div>
                         <div className="w-20 text-right">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-status-completed-bg text-status-completed-text">
@@ -454,7 +457,7 @@ export default function InvoiceBuilder({
             {/* Invoice settings */}
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div className="col-span-2 flex flex-col gap-1.5">
-                <Label htmlFor="invoice-number">Invoice Number</Label>
+                <Label htmlFor="invoice-number">{t('invBuilder.invoiceNumber')}</Label>
                 <Input
                   id="invoice-number"
                   type="text"
@@ -463,11 +466,11 @@ export default function InvoiceBuilder({
                   placeholder="INV-2026-001"
                 />
                 <p className="text-[10px] text-text-muted">
-                  Auto-suggested from your existing invoices for {new Date().getFullYear()}. Edit if needed.
+                  {t('invBuilder.autoSuggested', { year: new Date().getFullYear() })}
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+                <Label htmlFor="tax-rate">{t('invBuilder.taxRate')}</Label>
                 <Input
                   id="tax-rate"
                   type="number"
@@ -479,7 +482,7 @@ export default function InvoiceBuilder({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="due-date">Due Date</Label>
+                <Label htmlFor="due-date">{t('invBuilder.dueDate')}</Label>
                 <Input
                   id="due-date"
                   type="date"
@@ -490,13 +493,13 @@ export default function InvoiceBuilder({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="notes">Notes (optional)</Label>
+              <Label htmlFor="notes">{t('invBuilder.notesOpt')}</Label>
               <textarea
                 id="notes"
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Payment terms, additional notes..."
+                placeholder={t('invBuilder.notesPh')}
                 className="flex w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary ring-offset-surface placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               />
             </div>
@@ -506,19 +509,21 @@ export default function InvoiceBuilder({
               <div className="flex justify-between text-sm text-text-secondary">
                 <span>
                   {isMonthly
-                    ? `Subtotal (retainer${selectedExpenses.length > 0 ? ` + ${selectedExpenses.length} expense${selectedExpenses.length !== 1 ? 's' : ''}` : ''})`
-                    : `Subtotal (${selectedEntries.length + selectedExpenses.length} item${selectedEntries.length + selectedExpenses.length !== 1 ? 's' : ''})`}
+                    ? (selectedExpenses.length > 0
+                        ? t(selectedExpenses.length === 1 ? 'invBuilder.subtotalRetainerExpenses' : 'invBuilder.subtotalRetainerExpensesPlural', { n: selectedExpenses.length })
+                        : t('invBuilder.subtotalRetainer'))
+                    : t(selectedEntries.length + selectedExpenses.length === 1 ? 'invBuilder.subtotalItems' : 'invBuilder.subtotalItemsPlural', { n: selectedEntries.length + selectedExpenses.length })}
                 </span>
                 <span className="font-medium text-text-primary">${subtotal.toFixed(2)}</span>
               </div>
               {taxRateNum > 0 && (
                 <div className="flex justify-between text-sm text-text-secondary">
-                  <span>Tax ({taxRateNum}%)</span>
+                  <span>{t('invBuilder.tax', { pct: taxRateNum })}</span>
                   <span>${taxAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold text-text-primary pt-1">
-                <span>Total</span>
+                <span>{t('invBuilder.total')}</span>
                 <span className="text-accent">${total.toFixed(2)}</span>
               </div>
             </div>
@@ -526,7 +531,7 @@ export default function InvoiceBuilder({
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="gradient"
@@ -534,7 +539,7 @@ export default function InvoiceBuilder({
                 disabled={submitting || (!isMonthly && selectedEntries.length === 0 && selectedExpenses.length === 0)}
               >
                 <FileText size={16} />
-                {submitting ? 'Creating...' : 'Generate Invoice'}
+                {submitting ? t('invBuilder.creating') : t('invBuilder.generate')}
               </Button>
             </div>
           </>
@@ -544,7 +549,7 @@ export default function InvoiceBuilder({
   )
 }
 
-function formatEntryDate(dateStr: string): string {
+function formatEntryDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
 }

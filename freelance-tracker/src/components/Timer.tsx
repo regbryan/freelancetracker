@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Play, Pause, Square } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 interface TimerProps {
   projectId?: string
@@ -13,6 +14,7 @@ interface TimerProps {
 }
 
 export default function Timer({ projectId, projects, onSave }: TimerProps) {
+  const { t } = useI18n()
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? '')
   const [description, setDescription] = useState('')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -110,11 +112,11 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
                 isRunning ? 'bg-negative animate-pulse' : elapsedSeconds > 0 ? 'bg-status-medium-text' : 'bg-text-muted'
               }`}
             />
-            {isRunning ? 'Active Session' : elapsedSeconds > 0 ? 'Paused' : 'Ready'}
+            {isRunning ? t('timer.active') : elapsedSeconds > 0 ? t('timer.paused') : t('timer.ready')}
           </div>
           {elapsedSeconds > 0 && (
             <span className="text-text-muted text-[10px] font-medium">
-              Auto-rounded to 15-min increment on save
+              {t('timer.autoRounded')}
             </span>
           )}
         </div>
@@ -126,7 +128,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What are you working on?"
+              placeholder={t('timer.whatWorking')}
               className="w-full h-9 px-3 bg-input-bg rounded-lg text-[12px] text-text-secondary placeholder:text-text-muted border-none outline-none focus:ring-2 focus:ring-accent/20 transition-all"
             />
           </div>
@@ -136,7 +138,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
               onChange={(e) => setSelectedProjectId(e.target.value)}
               className="h-9 px-3 bg-input-bg rounded-lg text-[12px] text-text-secondary border-none outline-none appearance-none cursor-pointer min-w-[140px]"
             >
-              <option value="">Select Project</option>
+              <option value="">{t('timer.selectProject')}</option>
               {projects?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -163,7 +165,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
                   ? '#ef4444'
                   : 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
               }}
-              aria-label={isRunning ? 'Pause timer' : 'Start timer'}
+              aria-label={isRunning ? t('timer.pauseAria') : t('timer.startAria')}
             >
               {isRunning ? (
                 <Pause size={16} />
@@ -180,7 +182,7 @@ export default function Timer({ projectId, projects, onSave }: TimerProps) {
               style={{
                 background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)',
               }}
-              aria-label="Stop timer and save entry"
+              aria-label={t('timer.stopAria')}
             >
               <Square size={14} />
             </button>

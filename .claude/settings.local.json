@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(npx tsc:*)",
+      "mcp__e632a91f-601a-4e8e-852f-1c28f299a1a4__list_deployments",
+      "mcp__e632a91f-601a-4e8e-852f-1c28f299a1a4__get_deployment_build_logs",
+      "Read(//c/Users/reggi/OneDrive/Documents/unified-calendar/**)",
+      "Bash(npm install:*)",
+      "Bash(npx vercel:*)",
+      "Bash(node -e \":*)",
+      "Bash(grep -r \"user_id\\\\|auth_session\\\\|policy\\\\|RLS\" '/c/Users/reggi/OneDrive/Documents/FreeLance Tracker/freelance-tracker/src' --include=*.tsx --include=*.ts)",
+      "Bash(xargs grep:*)",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(powershell -command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 20 Name, CPU, WorkingSet | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Stop-Process -Id 5400, 11848, 18280, 19156 -Force; Write-Host 'Killed 4 high-RAM Claude processes'\")",
+      "Bash(powershell -command \"Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | Format-List\")",
+      "Bash(powershell -command \"Get-Process chrome | Select-Object Id, Name, CPU, WorkingSet, MainWindowTitle | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Stop-Process -Name chrome -Force; Write-Host 'Done'\")",
+      "Bash(powershell -command \"Get-Process chrome -ErrorAction SilentlyContinue | Select-Object Id, Name, WorkingSet | Format-Table -AutoSize; if \\(-not \\(Get-Process chrome -ErrorAction SilentlyContinue\\)\\) { Write-Host 'All Chrome processes cleared!' }\")",
+      "Bash(powershell -command \"Get-PSDrive C | Select-Object Used, Free | Format-List\")",
+      "Bash(powershell -command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, CPU, WorkingSet | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Get-Process OneDrive -ErrorAction SilentlyContinue | Select-Object Name, CPU, WorkingSet | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Stop-Process -Name TotalAV -Force -ErrorAction SilentlyContinue; Stop-Process -Name endpointprotection -Force -ErrorAction SilentlyContinue; Stop-Process -Name SecurityService -Force -ErrorAction SilentlyContinue; Stop-Process -Name TotalSecurityService -Force -ErrorAction SilentlyContinue; Write-Host 'Done'\")",
+      "Bash(powershell -command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, CPU, WorkingSet | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Get-Process chrome | Select-Object Id, CPU, WorkingSet, MainWindowTitle | Sort-Object CPU -Descending | Format-Table -AutoSize\")",
+      "Bash(powershell -command \"Stop-Process -Name chrome -Force; Write-Host 'Chrome fully killed'\")",
+      "Bash(powershell -command \"Get-ChildItem 'C:\\\\Users\\\\reggi\\\\AppData\\\\Local\\\\Google\\\\Chrome\\\\User Data\\\\Default\\\\Extensions' -Directory | Measure-Object | Select-Object Count\")",
+      "mcp__c8d6a62a-4dcd-4a13-9c9b-0741278e3268__get_design_context",
+      "WebFetch(domain:help.salesforce.com)",
+      "WebFetch(domain:social-media-website-ruby-one.vercel.app)",
+      "mcp__ed237f7f-4b19-4c1f-a6ec-73b726b26032__get_logs",
+      "WebFetch(domain:supabase.com)",
+      "WebSearch"
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '../lib/i18n'
 
 export interface TimeEntry {
   id: string
@@ -17,18 +18,21 @@ interface TimeEntryListProps {
   loading?: boolean
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 }
 
 export default function TimeEntryList({ entries, onEdit, onDelete, loading }: TimeEntryListProps) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+
   if (loading) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-text-muted text-[12px]">Loading entries...</p>
+          <p className="text-text-muted text-[12px]">{t('tList.loading')}</p>
         </div>
       </div>
     )
@@ -37,7 +41,7 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
   if (entries.length === 0) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-        <p className="text-text-muted text-[13px]">No time entries yet.</p>
+        <p className="text-text-muted text-[13px]">{t('tList.empty')}</p>
       </div>
     )
   }
@@ -48,11 +52,11 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
         <table className="w-full min-w-[500px]">
           <thead>
             <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-              <th className="text-left px-5 py-3">Date</th>
-              <th className="text-left px-3 py-3">Description</th>
-              <th className="text-right px-3 py-3">Hours</th>
-              <th className="text-center px-3 py-3">Billable</th>
-              <th className="text-right px-5 py-3">Actions</th>
+              <th className="text-left px-5 py-3">{t('tList.date')}</th>
+              <th className="text-left px-3 py-3">{t('tList.description')}</th>
+              <th className="text-right px-3 py-3">{t('tList.hours')}</th>
+              <th className="text-center px-3 py-3">{t('tList.billable')}</th>
+              <th className="text-right px-5 py-3">{t('tList.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -62,7 +66,7 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
                 className="border-b border-border/50 last:border-0 hover:bg-input-bg/50 transition-colors"
               >
                 <td className="px-5 py-3 text-text-muted text-[12px]">
-                  {formatDate(entry.date)}
+                  {formatDate(entry.date, locale)}
                 </td>
                 <td className="px-3 py-3 text-text-secondary text-[12px]">
                   {entry.description}
@@ -78,7 +82,7 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
                         : 'bg-status-completed-bg text-status-completed-text'
                     }`}
                   >
-                    {entry.billable ? 'Yes' : 'No'}
+                    {entry.billable ? t('tList.yes') : t('tList.no')}
                   </span>
                 </td>
                 <td className="px-5 py-3 text-right">
@@ -88,7 +92,7 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => onEdit(entry)}
-                      aria-label="Edit entry"
+                      aria-label={t('tList.editAria')}
                     >
                       <Pencil size={12} className="text-text-muted" />
                     </Button>
@@ -97,7 +101,7 @@ export default function TimeEntryList({ entries, onEdit, onDelete, loading }: Ti
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => onDelete(entry.id)}
-                      aria-label="Delete entry"
+                      aria-label={t('tList.deleteAria')}
                     >
                       <Trash2 size={12} className="text-negative" />
                     </Button>

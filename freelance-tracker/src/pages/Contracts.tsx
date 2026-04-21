@@ -7,53 +7,62 @@ import { useProjects } from '../hooks/useProjects'
 import ContractForm from '../components/ContractForm'
 import type { ContractFormData } from '../components/ContractForm'
 import { generateContractPDF } from '../components/ContractPDF'
+import { useI18n } from '../lib/i18n'
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+export default function Contracts() {
+  const { t, lang } = useI18n()
 
-function statusBadge(
-  status: string,
-  onClick?: () => void,
-  hasNext?: boolean,
-) {
-  const styles: Record<string, string> = {
-    draft: 'bg-status-completed-bg text-status-completed-text',
-    sent: 'bg-status-scheduled-bg text-status-scheduled-text',
-    signed: 'bg-status-active-bg text-status-active-text',
-    expired: 'bg-negative-bg text-negative',
+  function formatDate(iso: string | null): string {
+    if (!iso) return '--'
+    const d = new Date(iso)
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })
   }
 
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+  function statusBadge(
+    status: string,
+    onClick?: () => void,
+    hasNext?: boolean,
+  ) {
+    const styles: Record<string, string> = {
+      draft: 'bg-status-completed-bg text-status-completed-text',
+      sent: 'bg-status-scheduled-bg text-status-scheduled-text',
+      signed: 'bg-status-active-bg text-status-active-text',
+      expired: 'bg-negative-bg text-negative',
+    }
 
-  if (!hasNext) {
+    const labelMap: Record<string, string> = {
+      draft: t('contracts.statusDraft'),
+      sent: t('contracts.statusSent'),
+      signed: t('contracts.statusSigned'),
+      expired: t('contracts.statusExpired'),
+    }
+    const label = labelMap[status] ?? status
+
+    if (!hasNext) {
+      return (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[status] || ''}`}
+        >
+          {label}
+        </span>
+      )
+    }
+
     return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[status] || ''}`}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick?.()
+        }}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${styles[status] || ''}`}
+        title={t('contracts.advanceTooltip')}
       >
         {label}
-      </span>
+        <ChevronDown size={10} />
+      </button>
     )
   }
 
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick?.()
-      }}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${styles[status] || ''}`}
-      title={`Click to advance to "sent"`}
-    >
-      {label}
-      <ChevronDown size={10} />
-    </button>
-  )
-}
-
-export default function Contracts() {
   const { contracts, loading, error, createContract, updateContract, refetch } = useContracts()
   const { clients } = useClients()
   const { projects } = useProjects()
@@ -93,11 +102,11 @@ export default function Contracts() {
   const handleDownload = useCallback((contract: Contract) => {
     try {
       const sig = contract.contract_signatures?.[0]
-      const doc = generateContractPDF(contract, sig)
+      const doc = generateContractPDF(contract, sig, lang)
       doc.save(`${contract.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
     } catch (err) {
       console.error('Failed to generate PDF:', err)
-      alert(`Failed to download contract: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('contracts.failedDownload', { error: err instanceof Error ? err.message : t('contracts.unknownError') }))
     }
   }, [])
 
@@ -108,7 +117,7 @@ export default function Contracts() {
       setCopiedId(contract.id)
       setTimeout(() => setCopiedId(null), 3000)
     } catch {
-      alert('Failed to copy link to clipboard')
+      alert(t('contracts.failedCopy'))
     }
   }, [])
 
@@ -117,8 +126,8 @@ export default function Contracts() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">Legal</p>
-          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">Contracts</h2>
+          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('contracts.legal')}</p>
+          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">{t('contracts.title')}</h2>
         </div>
         <button
           onClick={() => setFormOpen(true)}
@@ -126,15 +135,15 @@ export default function Contracts() {
           style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <Plus size={12} />
-          New Contract
+          {t('contracts.newContract')}
         </button>
       </div>
 
       {/* Error state */}
       {error && (
         <div className="bg-negative-bg rounded-[14px] p-4 text-negative text-[12px]">
-          Failed to load contracts: {error}
-          <button onClick={refetch} className="ml-3 underline font-semibold">Retry</button>
+          {t('contracts.failedToLoad', { error: String(error) })}
+          <button onClick={refetch} className="ml-3 underline font-semibold">{t('contracts.retry')}</button>
         </div>
       )}
 
@@ -142,7 +151,7 @@ export default function Contracts() {
       {!loading && contracts.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {(['all', 'draft', 'sent', 'signed'] as const).map((status) => {
-            const labels: Record<string, string> = { all: 'All', draft: 'Draft', sent: 'Sent', signed: 'Signed' }
+            const labels: Record<string, string> = { all: t('contracts.filterAll'), draft: t('contracts.filterDraft'), sent: t('contracts.filterSent'), signed: t('contracts.filterSigned') }
             const isActive = statusFilter === status
             return (
               <button
@@ -166,7 +175,7 @@ export default function Contracts() {
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            <p className="text-text-muted text-[12px]">Loading contracts...</p>
+            <p className="text-text-muted text-[12px]">{t('contracts.loading')}</p>
           </div>
         </div>
       ) : contracts.length === 0 ? (
@@ -174,9 +183,9 @@ export default function Contracts() {
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-center">
             <FileCheck size={32} className="text-text-muted" />
-            <p className="text-text-muted text-[13px]">No contracts yet.</p>
+            <p className="text-text-muted text-[13px]">{t('contracts.noContracts')}</p>
             <p className="text-text-muted text-[11px]">
-              Create your first contract to get started.
+              {t('contracts.createFirst')}
             </p>
           </div>
         </div>
@@ -184,12 +193,12 @@ export default function Contracts() {
         /* No filter results */
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-text-muted text-[13px] font-medium">No contracts with status "{statusFilter}".</p>
+            <p className="text-text-muted text-[13px] font-medium">{t('contracts.noMatch', { status: statusFilter })}</p>
             <button
               onClick={() => setStatusFilter('all')}
               className="text-accent text-[12px] font-semibold hover:underline"
             >
-              Show all contracts
+              {t('contracts.showAll')}
             </button>
           </div>
         </div>
@@ -200,12 +209,12 @@ export default function Contracts() {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                  <th className="text-left px-5 py-3">Title</th>
-                  <th className="text-left px-3 py-3">Client</th>
-                  <th className="text-left px-3 py-3">Project</th>
-                  <th className="text-center px-3 py-3">Status</th>
-                  <th className="text-left px-3 py-3">Created</th>
-                  <th className="text-right px-5 py-3">Actions</th>
+                  <th className="text-left px-5 py-3">{t('contracts.colTitle')}</th>
+                  <th className="text-left px-3 py-3">{t('contracts.colClient')}</th>
+                  <th className="text-left px-3 py-3">{t('contracts.colProject')}</th>
+                  <th className="text-center px-3 py-3">{t('contracts.colStatus')}</th>
+                  <th className="text-left px-3 py-3">{t('contracts.colCreated')}</th>
+                  <th className="text-right px-5 py-3">{t('contracts.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,11 +258,11 @@ export default function Contracts() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              alert('Contract preview coming soon')
+                              alert(t('contracts.previewComingSoon'))
                             }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
-                            aria-label="Preview contract"
-                            title="Preview"
+                            aria-label={t('contracts.previewContract')}
+                            title={t('contracts.previewTitle')}
                           >
                             <Eye size={12} className="text-text-muted" />
                           </button>
@@ -263,8 +272,8 @@ export default function Contracts() {
                               handleDownload(contract)
                             }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
-                            aria-label="Download contract"
-                            title="Download"
+                            aria-label={t('contracts.downloadContract')}
+                            title={t('contracts.downloadTitle')}
                           >
                             <Download size={12} className="text-text-muted" />
                           </button>
@@ -275,8 +284,8 @@ export default function Contracts() {
                                 handleCopySignLink(contract)
                               }}
                               className="p-1.5 rounded hover:bg-border transition-colors"
-                              aria-label="Copy signing link"
-                              title={copiedId === contract.id ? 'Copied!' : 'Copy signing link'}
+                              aria-label={t('contracts.copySignLink')}
+                              title={copiedId === contract.id ? t('contracts.copied') : t('contracts.copySignLink')}
                             >
                               {copiedId === contract.id ? (
                                 <Check size={12} className="text-status-active-text" />

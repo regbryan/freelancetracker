@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ListChecks } from 'lucide-react'
 import type { Task } from '../hooks/useTasks'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface TaskInsightProps {
   tasks: Task[]
@@ -19,39 +20,38 @@ function daysBetween(aIso: string, bIso: string): number {
 }
 
 export default function TaskInsight({ tasks }: TaskInsightProps) {
+  const { t } = useI18n()
   const insight = useMemo<Insight | null>(() => {
     const today = new Date().toISOString().slice(0, 10)
 
     // 1) Overdue tasks (due before today, not done)
     const overdue = tasks.filter(
-      t => t.status !== 'done' && t.due_date && t.due_date < today,
+      tk => tk.status !== 'done' && tk.due_date && tk.due_date < today,
     )
     if (overdue.length > 0) {
       const worstDays = Math.max(
-        ...overdue.map(t => daysBetween(t.due_date!, today)),
+        ...overdue.map(tk => daysBetween(tk.due_date!, today)),
       )
+      const countKey = overdue.length === 1 ? 'taskInsight.taskCount' : 'taskInsight.taskCountPlural'
+      const daysKey = worstDays === 1 ? 'taskInsight.overdueDays' : 'taskInsight.overdueDaysPlural'
       return {
         message: (
           <>
-            <strong>
-              {overdue.length} task{overdue.length > 1 ? 's' : ''}
-            </strong>{' '}
-            {overdue.length === 1 ? 'is' : 'are'} past due — the oldest by{' '}
-            <strong>{worstDays} day{worstDays > 1 ? 's' : ''}</strong>.
-            Reschedule or close them out so your list reflects reality.
+            <strong>{t(countKey, { n: overdue.length })}</strong>{' '}
+            {overdue.length === 1 ? t('taskInsight.isPastDue') : t('taskInsight.arePastDue')} {t('taskInsight.overdueMid')}{' '}
+            <strong>{t(daysKey, { n: worstDays })}</strong>{t('taskInsight.overdueTail')}
           </>
         ),
       }
     }
 
     // 2) High WIP — too many in-progress
-    const inProgress = tasks.filter(t => t.status === 'in_progress')
+    const inProgress = tasks.filter(tk => tk.status === 'in_progress')
     if (inProgress.length >= 5) {
       return {
         message: (
           <>
-            You have <strong>{inProgress.length} tasks in progress</strong> at once.
-            Finishing beats starting — pick the top two and push them to done first.
+            {t('taskInsight.highWipPre')} <strong>{t('taskInsight.inProgressCount', { n: inProgress.length })}</strong>{t('taskInsight.highWipTail')}
           </>
         ),
       }
@@ -59,7 +59,7 @@ export default function TaskInsight({ tasks }: TaskInsightProps) {
 
     // 3) Stale in-progress (not touched in 14+ days)
     const stale = inProgress.filter(
-      t => t.updated_at && daysBetween(t.updated_at.slice(0, 10), today) >= 14,
+      tk => tk.updated_at && daysBetween(tk.updated_at.slice(0, 10), today) >= 14,
     )
     if (stale.length > 0) {
       const oldest = stale[0]
@@ -67,15 +67,15 @@ export default function TaskInsight({ tasks }: TaskInsightProps) {
       return {
         message: (
           <>
-            <strong>"{oldest.title}"</strong> has been in progress for{' '}
-            <strong>{staleDays} days</strong>. Either ship it, split it, or send it back to todo.
+            <strong>"{oldest.title}"</strong> {t('taskInsight.staleMid')}{' '}
+            <strong>{t('taskInsight.staleDays', { n: staleDays })}</strong>{t('taskInsight.staleTail')}
           </>
         ),
       }
     }
 
     // 4) Baseline — completion pace
-    const done = tasks.filter(t => t.status === 'done')
+    const done = tasks.filter(tk => tk.status === 'done')
     const total = tasks.length
     if (total >= 5 && done.length > 0) {
       const pct = Math.round((done.length / total) * 100)
@@ -83,8 +83,7 @@ export default function TaskInsight({ tasks }: TaskInsightProps) {
         return {
           message: (
             <>
-              You've closed <strong>{pct}%</strong> of your tasks ({done.length} of {total}).
-              The finish line is the easiest stretch to coast through — don't.
+              {t('taskInsight.closedPre')} <strong>{t('taskInsight.closedPct', { pct })}</strong> {t('taskInsight.closedMid', { done: done.length, total })}{t('taskInsight.closedTail')}
             </>
           ),
         }
@@ -92,13 +91,13 @@ export default function TaskInsight({ tasks }: TaskInsightProps) {
     }
 
     return null
-  }, [tasks])
+  }, [tasks, t])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Task Focus"
+      label={t('taskInsight.label')}
       variant="smart"
       icon={ListChecks}
       message={insight.message}

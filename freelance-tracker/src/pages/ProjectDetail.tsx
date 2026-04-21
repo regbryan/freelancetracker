@@ -463,6 +463,12 @@ export default function ProjectDetail() {
               groups.find(g => g.key === key)!.tasks.push(tk)
             }
 
+            for (const g of groups) {
+              if (g.isOverdue && !g.tasks.some(tk => tk.status !== 'done')) {
+                g.isOverdue = false
+              }
+            }
+
             return (
               <div className="bg-surface rounded-[14px] shadow-card border border-border-accent overflow-hidden">
                 {/* Header */}

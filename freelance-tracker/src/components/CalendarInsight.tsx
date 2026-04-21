@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { CalendarDays } from 'lucide-react'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface CalendarEvent {
   id: string
@@ -17,8 +18,6 @@ interface CalendarInsightProps {
 
 type Insight = { message: React.ReactNode }
 
-const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
@@ -28,6 +27,8 @@ function durationHours(start: string, end: string): number {
 }
 
 export default function CalendarInsight({ events, currentDate }: CalendarInsightProps) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const insight = useMemo<Insight | null>(() => {
     if (!events.length) return null
 
@@ -57,9 +58,8 @@ export default function CalendarInsight({ events, currentDate }: CalendarInsight
       return {
         message: (
           <>
-            <strong>{todayEvents.length} meetings today</strong> totaling{' '}
-            <strong>{hours.toFixed(1)} hours</strong>. Protect the gaps —
-            they're where the actual work happens.
+            <strong>{t('calInsight.meetingsToday', { n: todayEvents.length })}</strong> {t('calInsight.totaling')}{' '}
+            <strong>{t('calInsight.hours', { n: hours.toFixed(1) })}</strong>{t('calInsight.heavyTail')}
           </>
         ),
       }
@@ -83,15 +83,14 @@ export default function CalendarInsight({ events, currentDate }: CalendarInsight
     if (quietDay) {
       const isTomorrow = sameDay(quietDay, new Date(today.getTime() + 86400000))
       const label = sameDay(quietDay, today)
-        ? 'today'
+        ? t('calInsight.today')
         : isTomorrow
-          ? 'tomorrow'
-          : WEEKDAY[quietDay.getDay()]
+          ? t('calInsight.tomorrow')
+          : quietDay.toLocaleDateString(locale, { weekday: 'long' })
       return {
         message: (
           <>
-            <strong>No meetings {label}</strong> — a full block for deep work.
-            Protect it before someone books over it.
+            <strong>{t('calInsight.noMeetings', { when: label })}</strong>{t('calInsight.quietTail')}
           </>
         ),
       }
@@ -102,8 +101,7 @@ export default function CalendarInsight({ events, currentDate }: CalendarInsight
       return {
         message: (
           <>
-            <strong>{weekEvents.length} meetings</strong> across this work week.
-            Block a "no meetings" slot now before the week closes itself in.
+            <strong>{t('calInsight.weekMeetings', { n: weekEvents.length })}</strong>{t('calInsight.weekTail')}
           </>
         ),
       }
@@ -115,24 +113,26 @@ export default function CalendarInsight({ events, currentDate }: CalendarInsight
       return s >= today && s <= weekEnd && !e.allDay
     }).length
     if (upcomingWeek > 0) {
+      const leftKey = upcomingWeek === 1 ? 'calInsight.upcomingLeft' : 'calInsight.upcomingLeftPlural'
+      const monthLabel = currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
       return {
         message: (
           <>
-            <strong>{upcomingWeek}</strong> meeting{upcomingWeek === 1 ? '' : 's'} left this work week.
-            Viewing <strong>{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</strong>.
+            {t(leftKey, { n: upcomingWeek })}{' '}
+            {t('calInsight.viewing', { month: monthLabel })}
           </>
         ),
       }
     }
 
     return null
-  }, [events, currentDate])
+  }, [events, currentDate, t, locale])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Schedule Read"
+      label={t('calInsight.label')}
       variant="smart"
       icon={CalendarDays}
       message={insight.message}

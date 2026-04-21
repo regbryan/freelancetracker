@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import SignaturePad from '../components/SignaturePad'
 import { FileCheck, Loader2, CheckCircle2 } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 interface ContractData {
   id: string
@@ -23,12 +24,8 @@ interface ContractData {
   }[]
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-}
-
 export default function ContractSign() {
+  const { t, lang } = useI18n()
   const { token } = useParams<{ token: string }>()
   const [contract, setContract] = useState<ContractData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -39,10 +36,15 @@ export default function ContractSign() {
   const [signing, setSigning] = useState(false)
   const signatureDataRef = useRef<string>('')
 
+  function formatDate(iso: string): string {
+    const d = new Date(iso)
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+
   useEffect(() => {
     async function fetchContract() {
       if (!token) {
-        setError('Invalid signing link.')
+        setError(t('contractSign.invalidLink'))
         setLoading(false)
         return
       }
@@ -55,7 +57,7 @@ export default function ContractSign() {
           .single()
 
         if (fetchError || !data) {
-          setError('Contract not found. This link may be invalid or expired.')
+          setError(t('contractSign.contractNotFound'))
           setLoading(false)
           return
         }
@@ -66,23 +68,23 @@ export default function ContractSign() {
           setSigned(true)
         }
       } catch {
-        setError('Failed to load contract. Please try again later.')
+        setError(t('contractSign.failedLoad'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchContract()
-  }, [token])
+  }, [token, t])
 
   async function handleSign() {
     if (!contract) return
     if (!signerName.trim()) {
-      alert('Please enter your name.')
+      alert(t('contractSign.enterName'))
       return
     }
     if (!signatureDataRef.current) {
-      alert('Please draw your signature.')
+      alert(t('contractSign.drawSignature'))
       return
     }
 
@@ -108,7 +110,7 @@ export default function ContractSign() {
 
       setSigned(true)
     } catch (err) {
-      alert(`Failed to sign contract: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('contractSign.signFailed', { error: err instanceof Error ? err.message : t('contracts.unknownError') }))
     } finally {
       setSigning(false)
     }
@@ -120,7 +122,7 @@ export default function ContractSign() {
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={32} className="text-blue-600 animate-spin" />
-          <p className="text-gray-500 text-sm">Loading contract...</p>
+          <p className="text-gray-500 text-sm">{t('contractSign.loading')}</p>
         </div>
       </div>
     )
@@ -132,8 +134,8 @@ export default function ContractSign() {
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
           <FileCheck size={40} className="text-gray-300 mx-auto mb-4" />
-          <h1 className="text-gray-800 text-lg font-bold mb-2">Contract Not Found</h1>
-          <p className="text-gray-500 text-sm">{error || 'This signing link is invalid or has expired.'}</p>
+          <h1 className="text-gray-800 text-lg font-bold mb-2">{t('contractSign.notFoundTitle')}</h1>
+          <p className="text-gray-500 text-sm">{error || t('contractSign.invalidExpired')}</p>
         </div>
       </div>
     )
@@ -149,7 +151,7 @@ export default function ContractSign() {
           </div>
           <div>
             <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-[1.5px]">
-              Contract for Review & Signature
+              {t('contractSign.headerLabel')}
             </p>
           </div>
         </div>
@@ -163,7 +165,7 @@ export default function ContractSign() {
             </h1>
             {contract.clients && (
               <p className="text-gray-500 text-sm">
-                Prepared for: <span className="font-semibold text-gray-700">{contract.clients.name}</span>
+                {t('contractSign.preparedFor')} <span className="font-semibold text-gray-700">{contract.clients.name}</span>
                 {contract.clients.company && (
                   <span className="text-gray-400"> ({contract.clients.company})</span>
                 )}
@@ -191,28 +193,28 @@ export default function ContractSign() {
               <div className="flex items-center gap-3 bg-green-50 rounded-xl p-4">
                 <CheckCircle2 size={24} className="text-green-600 flex-shrink-0" />
                 <div>
-                  <p className="text-green-800 text-sm font-semibold">This contract has been signed</p>
+                  <p className="text-green-800 text-sm font-semibold">{t('contractSign.contractSigned')}</p>
                   <p className="text-green-600 text-xs mt-0.5">
-                    Thank you for signing. A copy has been recorded.
+                    {t('contractSign.thankYou')}
                   </p>
                 </div>
               </div>
             ) : (
               /* Sign form */
               <div className="flex flex-col gap-5">
-                <h2 className="text-gray-900 text-lg font-bold">Sign This Contract</h2>
+                <h2 className="text-gray-900 text-lg font-bold">{t('contractSign.signThisContract')}</h2>
 
                 {/* Name */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="signer-name" className="text-gray-600 text-xs font-semibold">
-                    Full Name <span className="text-red-500">*</span>
+                    {t('contractSign.fullName')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="signer-name"
                     type="text"
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
-                    placeholder="Enter your full name"
+                    placeholder={t('contractSign.namePlaceholder')}
                     required
                     className="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
@@ -221,14 +223,14 @@ export default function ContractSign() {
                 {/* Email */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="signer-email" className="text-gray-600 text-xs font-semibold">
-                    Email <span className="text-gray-400 font-normal">(optional)</span>
+                    {t('contractSign.emailLabel')} <span className="text-gray-400 font-normal">{t('contractSign.emailOptional')}</span>
                   </label>
                   <input
                     id="signer-email"
                     type="email"
                     value={signerEmail}
                     onChange={(e) => setSignerEmail(e.target.value)}
-                    placeholder="Enter your email address"
+                    placeholder={t('contractSign.emailPlaceholder')}
                     className="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
                 </div>
@@ -236,7 +238,7 @@ export default function ContractSign() {
                 {/* Signature Pad */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-xs font-semibold">
-                    Signature <span className="text-red-500">*</span>
+                    {t('contractSign.signatureLabel')} <span className="text-red-500">*</span>
                   </label>
                   <SignaturePad
                     onSave={(dataUrl) => {
@@ -258,10 +260,10 @@ export default function ContractSign() {
                   {signing ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Signing...
+                      {t('contractSign.signing')}
                     </>
                   ) : (
-                    'Sign Contract'
+                    t('contractSign.signContract')
                   )}
                 </button>
               </div>
@@ -271,7 +273,7 @@ export default function ContractSign() {
 
         {/* Footer */}
         <p className="text-center text-gray-400 text-xs mt-6">
-          Powered by Freelance Tracker
+          {t('contractSign.poweredBy')}
         </p>
       </div>
     </div>

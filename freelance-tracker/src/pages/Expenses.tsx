@@ -6,6 +6,7 @@ import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormData } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import type { ExpenseRow } from '../components/ExpenseList'
+import { useI18n } from '../lib/i18n'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -17,6 +18,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function Expenses() {
+  const { t } = useI18n()
   const { expenses, loading, error, createExpense, updateExpense, deleteExpense, refetch } = useExpenses()
   const { projects } = useProjects()
   const { categories } = useExpenseCategories()
@@ -107,8 +109,8 @@ export default function Expenses() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">Tracking</p>
-          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">Expenses</h2>
+          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('expenses.tracking')}</p>
+          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">{t('expenses.title')}</h2>
         </div>
         <button
           onClick={() => {
@@ -119,15 +121,15 @@ export default function Expenses() {
           style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <Plus size={12} />
-          Add Expense
+          {t('expenses.addExpense')}
         </button>
       </div>
 
       {/* Error state */}
       {error && (
         <div className="bg-negative-bg rounded-[14px] p-4 text-negative text-[12px]">
-          Failed to load expenses: {error}
-          <button onClick={refetch} className="ml-3 underline font-semibold">Retry</button>
+          {t('expenses.failedToLoad', { error: String(error) })}
+          <button onClick={refetch} className="ml-3 underline font-semibold">{t('expenses.retry')}</button>
         </div>
       )}
 
@@ -135,15 +137,15 @@ export default function Expenses() {
       {!loading && expenses.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-surface rounded-[14px] shadow-card p-4">
-            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Total Expenses</p>
+            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">{t('expenses.totalExpenses')}</p>
             <p className="text-text-primary text-[20px] font-bold mt-1">{formatCurrency(totalExpenses)}</p>
           </div>
           <div className="bg-surface rounded-[14px] shadow-card p-4">
-            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">This Month</p>
+            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">{t('expenses.thisMonth')}</p>
             <p className="text-text-primary text-[20px] font-bold mt-1">{formatCurrency(thisMonthExpenses)}</p>
           </div>
           <div className="bg-surface rounded-[14px] shadow-card p-4">
-            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">Unbilled</p>
+            <p className="text-text-muted text-[10px] font-semibold uppercase tracking-wide">{t('expenses.unbilled')}</p>
             <p className="text-text-primary text-[20px] font-bold mt-1">{formatCurrency(unbilledExpenses)}</p>
           </div>
         </div>
@@ -154,7 +156,8 @@ export default function Expenses() {
         <div className="flex items-center gap-4 flex-wrap">
           {/* Date range */}
           <div className="flex items-center gap-1.5">
-            {([['7', 'Last 7 Days'], ['30', 'Last 30 Days'], ['all', 'All']] as const).map(([value, label]) => {
+            {(['7', '30', 'all'] as const).map((value) => {
+              const label = value === '7' ? t('expenses.last7') : value === '30' ? t('expenses.last30') : t('expenses.allTime')
               const isActive = dateRange === value
               return (
                 <button
@@ -185,7 +188,7 @@ export default function Expenses() {
                       : 'bg-input-bg text-text-muted hover:text-text-primary hover:bg-border'
                   }`}
                 >
-                  All Categories
+                  {t('expenses.allCategories')}
                 </button>
                 {activeCategories.map((cat) => (
                   <button

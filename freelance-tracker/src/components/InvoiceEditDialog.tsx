@@ -11,6 +11,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useInvoices, type Invoice } from '@/hooks/useInvoices'
+import { useI18n } from '../lib/i18n'
+
+const STATUS_LABEL_KEYS: Record<Invoice['status'], string> = {
+  draft: 'invEdit.draft',
+  sent: 'invEdit.sent',
+  paid: 'invEdit.paid',
+  overdue: 'invEdit.overdue',
+}
 
 interface InvoiceEditDialogProps {
   open: boolean
@@ -27,6 +35,7 @@ export default function InvoiceEditDialog({
   invoice,
   onSaved,
 }: InvoiceEditDialogProps) {
+  const { t } = useI18n()
   const { updateInvoice } = useInvoices()
 
   const [invoiceNumber, setInvoiceNumber] = useState('')
@@ -61,7 +70,7 @@ export default function InvoiceEditDialog({
     if (!invoice) return
     const trimmedNumber = invoiceNumber.trim()
     if (!trimmedNumber) {
-      setError('Invoice number is required.')
+      setError(t('invEdit.numberRequired'))
       return
     }
 
@@ -80,7 +89,7 @@ export default function InvoiceEditDialog({
       onSaved?.()
       onOpenChange(false)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update invoice'
+      const msg = err instanceof Error ? err.message : t('invEdit.failed')
       setError(msg)
     } finally {
       setSubmitting(false)
@@ -91,16 +100,15 @@ export default function InvoiceEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Invoice</DialogTitle>
+          <DialogTitle>{t('invEdit.title')}</DialogTitle>
           <DialogDescription>
-            Update invoice header fields. Line items can be changed by deleting and recreating
-            the invoice.
+            {t('invEdit.desc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-invoice-number">Invoice Number</Label>
+            <Label htmlFor="edit-invoice-number">{t('invEdit.invoiceNumber')}</Label>
             <Input
               id="edit-invoice-number"
               type="text"
@@ -111,7 +119,7 @@ export default function InvoiceEditDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-status">Status</Label>
+            <Label htmlFor="edit-status">{t('invEdit.status')}</Label>
             <select
               id="edit-status"
               value={status}
@@ -120,7 +128,7 @@ export default function InvoiceEditDialog({
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {t(STATUS_LABEL_KEYS[s])}
                 </option>
               ))}
             </select>
@@ -128,7 +136,7 @@ export default function InvoiceEditDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-issued-date">Issued Date</Label>
+              <Label htmlFor="edit-issued-date">{t('invEdit.issuedDate')}</Label>
               <Input
                 id="edit-issued-date"
                 type="date"
@@ -137,7 +145,7 @@ export default function InvoiceEditDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-due-date">Due Date</Label>
+              <Label htmlFor="edit-due-date">{t('invEdit.dueDate')}</Label>
               <Input
                 id="edit-due-date"
                 type="date"
@@ -148,7 +156,7 @@ export default function InvoiceEditDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-tax-rate">Tax Rate (%)</Label>
+            <Label htmlFor="edit-tax-rate">{t('invEdit.taxRate')}</Label>
             <Input
               id="edit-tax-rate"
               type="number"
@@ -161,13 +169,13 @@ export default function InvoiceEditDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-notes">Notes</Label>
+            <Label htmlFor="edit-notes">{t('invEdit.notes')}</Label>
             <textarea
               id="edit-notes"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Payment terms, additional notes..."
+              placeholder={t('invEdit.notesPh')}
               className="flex w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent resize-none"
             />
           </div>
@@ -175,17 +183,17 @@ export default function InvoiceEditDialog({
           {/* Totals preview */}
           <div className="border-t border-border pt-3 space-y-1 text-sm">
             <div className="flex justify-between text-text-secondary">
-              <span>Subtotal</span>
+              <span>{t('invEdit.subtotal')}</span>
               <span className="text-text-primary font-medium">${subtotal.toFixed(2)}</span>
             </div>
             {taxRateNum > 0 && (
               <div className="flex justify-between text-text-secondary">
-                <span>Tax ({taxRateNum}%)</span>
+                <span>{t('invEdit.tax', { pct: taxRateNum })}</span>
                 <span>${(subtotal * (taxRateNum / 100)).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-bold text-text-primary pt-1">
-              <span>Total</span>
+              <span>{t('invEdit.total')}</span>
               <span className="text-accent">${computedTotal.toFixed(2)}</span>
             </div>
           </div>
@@ -198,11 +206,11 @@ export default function InvoiceEditDialog({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button variant="gradient" onClick={handleSave} disabled={submitting}>
               <Save size={16} />
-              {submitting ? 'Saving...' : 'Save Changes'}
+              {submitting ? t('invEdit.saving') : t('invEdit.saveChanges')}
             </Button>
           </div>
         </div>

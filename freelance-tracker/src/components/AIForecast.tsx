@@ -4,6 +4,7 @@ import type { Project } from '../hooks/useProjects'
 import type { Task } from '../hooks/useTasks'
 import type { TimeEntry } from '../hooks/useTimeEntries'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface AIForecastProps {
   projects: Project[]
@@ -12,6 +13,7 @@ interface AIForecastProps {
 }
 
 function ConfidenceRing({ score }: { score: number }) {
+  const { t } = useI18n()
   const size = 56
   const stroke = 5
   const r = (size - stroke) / 2
@@ -48,13 +50,14 @@ function ConfidenceRing({ score }: { score: number }) {
         </div>
       </div>
       <p className="text-[#15263a] text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap">
-        Confidence
+        {t('aiForecast.confidence')}
       </p>
     </div>
   )
 }
 
 export default function AIForecast({ projects, tasks, entries }: AIForecastProps) {
+  const { t } = useI18n()
   const forecast = useMemo(() => {
     const now = new Date()
 
@@ -131,29 +134,28 @@ export default function AIForecast({ projects, tasks, entries }: AIForecastProps
   const message =
     verdict === 'early' ? (
       <>
-        <strong>"{project.name}"</strong> is projected to be completed{' '}
-        <strong>{days} day{days === 1 ? '' : 's'} early</strong>. Keep the momentum — consider pulling in scope from the next phase.
+        <strong>"{project.name}"</strong> {t('aiForecast.early')}{' '}
+        <strong>{days === 1 ? t('aiForecast.daysEarly', { n: days }) : t('aiForecast.daysEarlyPlural', { n: days })}</strong>{t('aiForecast.earlyTail')}
       </>
     ) : verdict === 'late' ? (
       <>
-        <strong>"{project.name}"</strong> is trending{' '}
-        <strong>{days} day{days === 1 ? '' : 's'} behind</strong> the deadline. Re-prioritize or log more time to get back on track.
+        <strong>"{project.name}"</strong> {t('aiForecast.late')}{' '}
+        <strong>{days === 1 ? t('aiForecast.daysBehind', { n: days }) : t('aiForecast.daysBehindPlural', { n: days })}</strong>{t('aiForecast.lateTail')}
       </>
     ) : (
       <>
-        <strong>"{project.name}"</strong> is projected to finish <strong>on schedule</strong>.
-        Hold the line — your burn rate matches the timeline.
+        <strong>"{project.name}"</strong> {t('aiForecast.onTrack')} <strong>{t('aiForecast.onSchedule')}</strong>{t('aiForecast.onTrackTail')}
       </>
     )
 
   return (
     <InsightBanner
-      label="AI Forecast"
+      label={t('aiForecast.label')}
       variant="forecast"
       icon={Brain}
       message={message}
       accessory={<ConfidenceRing score={confidence} />}
-      cta={{ label: 'View Project', to: `/projects/${project.id}` }}
+      cta={{ label: t('aiForecast.viewProject'), to: `/projects/${project.id}` }}
     />
   )
 }

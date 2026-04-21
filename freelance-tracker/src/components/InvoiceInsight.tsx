@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { TrendingUp } from 'lucide-react'
 import type { Invoice } from '../hooks/useInvoices'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface InvoiceInsightProps {
   invoices: Invoice[]
@@ -19,6 +20,7 @@ function daysBetween(aIso: string, bIso: string): number {
 }
 
 export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
+  const { t } = useI18n()
   const insight = useMemo<Insight | null>(() => {
     const today = new Date().toISOString().slice(0, 10)
     const now = new Date()
@@ -36,12 +38,13 @@ export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
     })
     if (longOutstanding.length > 0) {
       const total = longOutstanding.reduce((s, i) => s + i.total, 0)
+      const countKey = longOutstanding.length === 1 ? 'invInsight.invoice' : 'invInsight.invoicePlural'
+      const tailKey = longOutstanding.length === 1 ? 'invInsight.outstandingSingular' : 'invInsight.outstandingPlural'
       return {
         message: (
           <>
-            <strong>{longOutstanding.length} invoice{longOutstanding.length > 1 ? 's' : ''}</strong> totaling{' '}
-            <strong>${total.toLocaleString()}</strong> {longOutstanding.length === 1 ? 'has' : 'have'} been outstanding 30+ days.
-            A firm, polite nudge usually clears ~60% within a week.
+            <strong>{t(countKey, { n: longOutstanding.length })}</strong> {t('invInsight.totaling')}{' '}
+            <strong>${total.toLocaleString()}</strong> {t(tailKey)}
           </>
         ),
       }
@@ -54,8 +57,8 @@ export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
       return {
         message: (
           <>
-            You have <strong>{drafts.length} draft invoices</strong> worth{' '}
-            <strong>${total.toLocaleString()}</strong> waiting to be sent. Cash sits in drafts until you hit send.
+            {t('invInsight.drafts')} <strong>{t('invInsight.draftInvoices', { n: drafts.length })}</strong> {t('invInsight.worth')}{' '}
+            <strong>${total.toLocaleString()}</strong> {t('invInsight.draftsTail')}
           </>
         ),
       }
@@ -84,8 +87,8 @@ export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
           return {
             message: (
               <>
-                Your average collection window has shortened by{' '}
-                <strong>{Math.round(diff)} days</strong> this quarter vs last. Whatever you're doing on reminders — keep doing it.
+                {t('invInsight.windowShorter')}{' '}
+                <strong>{t('invInsight.daysQuarter', { n: Math.round(diff) })}</strong>{t('invInsight.shorterTail')}
               </>
             ),
           }
@@ -93,8 +96,8 @@ export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
           return {
             message: (
               <>
-                Average time-to-paid has grown by{' '}
-                <strong>{Math.round(-diff)} days</strong> this quarter. Tighten net terms or automate follow-ups.
+                {t('invInsight.timeGrown')}{' '}
+                <strong>{t('invInsight.daysQuarter', { n: Math.round(-diff) })}</strong>{t('invInsight.grownTail')}
               </>
             ),
           }
@@ -110,21 +113,20 @@ export default function InvoiceInsight({ invoices }: InvoiceInsightProps) {
       return {
         message: (
           <>
-            Your average invoice settles in about <strong>{Math.round(avg)} days</strong>.
-            Every day shaved off improves cash flow — clear templates and nudges compound quickly.
+            {t('invInsight.settlesIn')} <strong>{t('invInsight.days', { n: Math.round(avg) })}</strong>{t('invInsight.settlesTail')}
           </>
         ),
       }
     }
 
     return null
-  }, [invoices])
+  }, [invoices, t])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Collection Insight"
+      label={t('invInsight.label')}
       variant="collection"
       icon={TrendingUp}
       message={insight.message}

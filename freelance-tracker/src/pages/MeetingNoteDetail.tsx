@@ -24,24 +24,10 @@ import { supabase } from '../lib/supabase'
 import MeetingTopicEditor from '../components/MeetingTopicEditor'
 import MeetingNoteForm from '../components/MeetingNoteForm'
 import ActionItemRow from '../components/ActionItemRow'
-
-const STATUS_CONFIG = {
-  draft: { label: 'Draft', icon: Circle, style: 'bg-status-hold-bg text-status-hold-text', next: 'reviewed' as const },
-  reviewed: { label: 'Reviewed', icon: CheckCircle2, style: 'bg-status-active-bg text-status-active-text', next: 'archived' as const },
-  archived: { label: 'Archived', icon: Archive, style: 'bg-status-completed-bg text-status-completed-text', next: 'draft' as const },
-}
-
-function formatFullDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-}
-
-function formatTime(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
+import { useI18n } from '../lib/i18n'
 
 export default function MeetingNoteDetail() {
+  const { t, lang } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { meetingNote, topics, loading, error, updateNote, createTopic, updateTopic, deleteTopic, refetch } = useMeetingNote(id)
@@ -60,6 +46,24 @@ export default function MeetingNoteDetail() {
   const [newActionAssignee, setNewActionAssignee] = useState('me')
   const [newActionDueDate, setNewActionDueDate] = useState('')
   const [newActionPriority, setNewActionPriority] = useState<'low' | 'medium' | 'high'>('medium')
+
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+
+  const STATUS_CONFIG = {
+    draft: { label: t('meetingDetail.statusDraft'), icon: Circle, style: 'bg-status-hold-bg text-status-hold-text', next: 'reviewed' as const },
+    reviewed: { label: t('meetingDetail.statusReviewed'), icon: CheckCircle2, style: 'bg-status-active-bg text-status-active-text', next: 'archived' as const },
+    archived: { label: t('meetingDetail.statusArchived'), icon: Archive, style: 'bg-status-completed-bg text-status-completed-text', next: 'draft' as const },
+  }
+
+  function formatFullDate(dateStr: string): string {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  }
+
+  function formatTime(dateStr: string): string {
+    const d = new Date(dateStr)
+    return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
+  }
 
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects])
@@ -113,7 +117,7 @@ export default function MeetingNoteDetail() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-text-muted text-[13px]">Loading meeting note...</p>
+        <p className="text-text-muted text-[13px]">{t('meetingDetail.loadingNote')}</p>
       </div>
     )
   }
@@ -121,9 +125,9 @@ export default function MeetingNoteDetail() {
   if (error || !meetingNote) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
-        <p className="text-negative text-[13px]">{error || 'Meeting note not found'}</p>
+        <p className="text-negative text-[13px]">{error || t('meetingDetail.notFound')}</p>
         <button onClick={() => navigate('/meetings')} className="text-accent text-[12px] font-medium hover:underline">
-          ← Back to Meeting Notes
+          ← {t('meetingDetail.backToNotes')}
         </button>
       </div>
     )
@@ -131,7 +135,7 @@ export default function MeetingNoteDetail() {
 
   const statusCfg = STATUS_CONFIG[meetingNote.status]
   const StatusIcon = statusCfg.icon
-  const doneCount = tasks.filter(t => t.status === 'done').length
+  const doneCount = tasks.filter(tk => tk.status === 'done').length
 
   return (
     <div className="flex flex-col gap-5 max-w-4xl">
@@ -141,7 +145,7 @@ export default function MeetingNoteDetail() {
           onClick={() => navigate('/meetings')}
           className="flex items-center gap-1 text-text-muted text-[12px] hover:text-accent transition-colors mb-3"
         >
-          <ArrowLeft size={14} /> Back to Meeting Notes
+          <ArrowLeft size={14} /> {t('meetingDetail.backToNotes')}
         </button>
 
         <div className="flex items-start justify-between gap-4">
@@ -189,7 +193,7 @@ export default function MeetingNoteDetail() {
             </button>
             <button
               onClick={async () => {
-                if (confirm('Delete this meeting note?')) {
+                if (confirm(t('meetingDetail.confirmDeleteNote'))) {
                   await supabase.from('meeting_notes').delete().eq('id', meetingNote.id)
                   navigate('/meetings')
                 }
@@ -204,7 +208,7 @@ export default function MeetingNoteDetail() {
         {/* Attendees */}
         {meetingNote.attendees.length > 0 && (
           <div className="flex items-center gap-1.5 mt-3">
-            <span className="text-text-muted text-[11px]">Attendees:</span>
+            <span className="text-text-muted text-[11px]">{t('meetingDetail.attendeesLabel')}</span>
             {meetingNote.attendees.map((name, i) => (
               <span key={i} className="px-2 py-0.5 rounded-full bg-accent-bg text-accent text-[11px] font-medium">
                 {name}
@@ -217,13 +221,13 @@ export default function MeetingNoteDetail() {
       {/* Summary */}
       <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-text-primary text-[14px] font-bold">Summary</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('meetingDetail.summary')}</h3>
           {!editingSummary && (
             <button
               onClick={() => { setSummaryDraft(meetingNote.summary); setEditingSummary(true) }}
               className="text-accent text-[11px] font-medium hover:underline"
             >
-              Edit
+              {t('meetingDetail.edit')}
             </button>
           )}
         </div>
@@ -237,22 +241,22 @@ export default function MeetingNoteDetail() {
               className="w-full px-3 py-2 rounded-lg border border-border bg-input-bg text-text-primary text-[13px] focus:outline-none focus:border-accent transition-all resize-none"
             />
             <div className="flex items-center gap-2 justify-end">
-              <button onClick={() => setEditingSummary(false)} className="h-8 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all">Cancel</button>
-              <button onClick={handleSaveSummary} className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}>Save</button>
+              <button onClick={() => setEditingSummary(false)} className="h-8 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all">{t('meetingDetail.cancel')}</button>
+              <button onClick={handleSaveSummary} className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}>{t('meetingDetail.save')}</button>
             </div>
           </div>
         ) : (
           <p className="text-text-secondary text-[13px] leading-relaxed">
-            {meetingNote.summary || <span className="text-text-muted italic">No summary yet — click Edit to add one.</span>}
+            {meetingNote.summary || <span className="text-text-muted italic">{t('meetingDetail.noSummary')}</span>}
           </p>
         )}
       </div>
 
       {/* Topics */}
       <div className="bg-surface rounded-xl border border-border p-5">
-        <h3 className="text-text-primary text-[14px] font-bold mb-3">What We Discussed</h3>
+        <h3 className="text-text-primary text-[14px] font-bold mb-3">{t('meetingDetail.whatDiscussed')}</h3>
         {topics.length === 0 && (
-          <p className="text-text-muted text-[12px] mb-3">No topics added yet.</p>
+          <p className="text-text-muted text-[12px] mb-3">{t('meetingDetail.noTopics')}</p>
         )}
         <MeetingTopicEditor
           topics={topics}
@@ -265,9 +269,9 @@ export default function MeetingNoteDetail() {
       {/* Action Items */}
       <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-text-primary text-[14px] font-bold">Action Items</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('meetingDetail.actionItemsTitle')}</h3>
           <span className="text-text-muted text-[11px]">
-            {doneCount}/{tasks.length} completed
+            {t('meetingDetail.completedCount', { done: doneCount, total: tasks.length })}
           </span>
         </div>
 
@@ -296,7 +300,7 @@ export default function MeetingNoteDetail() {
               assignee={task.assignee || 'me'}
               onToggle={handleToggleTask}
               onEdit={() => {/* Could open edit dialog */}}
-              onDelete={async (taskId) => { if (confirm('Delete this action item?')) await deleteTask(taskId) }}
+              onDelete={async (taskId) => { if (confirm(t('meetingDetail.confirmDeleteAction'))) await deleteTask(taskId) }}
             />
           ))}
         </div>
@@ -310,7 +314,7 @@ export default function MeetingNoteDetail() {
               value={newActionTitle}
               onChange={e => setNewActionTitle(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAddActionItem() }}
-              placeholder="What needs to be done?"
+              placeholder={t('meetingDetail.actionPlaceholder')}
               className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
             />
             <div className="flex items-center gap-2 flex-wrap">
@@ -319,9 +323,9 @@ export default function MeetingNoteDetail() {
                 onChange={e => setNewActionAssignee(e.target.value)}
                 className="h-8 px-2 rounded-lg border border-border bg-surface text-text-primary text-[11px] focus:outline-none focus:border-accent transition-all"
               >
-                <option value="me">Assigned to: Me</option>
+                <option value="me">{t('meetingDetail.assignedToMe')}</option>
                 {clients.map(c => (
-                  <option key={c.id} value={c.name}>{`Assigned to: ${c.name}`}</option>
+                  <option key={c.id} value={c.name}>{t('meetingDetail.assignedTo', { name: c.name })}</option>
                 ))}
               </select>
               <select
@@ -329,9 +333,9 @@ export default function MeetingNoteDetail() {
                 onChange={e => setNewActionPriority(e.target.value as 'low' | 'medium' | 'high')}
                 className="h-8 px-2 rounded-lg border border-border bg-surface text-text-primary text-[11px] focus:outline-none focus:border-accent transition-all"
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">{t('meetingDetail.priorityLow')}</option>
+                <option value="medium">{t('meetingDetail.priorityMedium')}</option>
+                <option value="high">{t('meetingDetail.priorityHigh')}</option>
               </select>
               <input
                 type="date"
@@ -340,13 +344,13 @@ export default function MeetingNoteDetail() {
                 className="h-8 px-2 rounded-lg border border-border bg-surface text-text-primary text-[11px] focus:outline-none focus:border-accent transition-all"
               />
               <div className="flex-1" />
-              <button onClick={() => { setShowNewAction(false); setNewActionTitle('') }} className="h-8 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all">Cancel</button>
+              <button onClick={() => { setShowNewAction(false); setNewActionTitle('') }} className="h-8 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all">{t('meetingDetail.cancel')}</button>
               <button
                 onClick={handleAddActionItem}
                 className="h-8 px-4 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all"
                 style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
-                Add
+                {t('meetingDetail.add')}
               </button>
             </div>
           </div>
@@ -355,7 +359,7 @@ export default function MeetingNoteDetail() {
             onClick={() => setShowNewAction(true)}
             className="flex items-center gap-1.5 text-accent text-[12px] font-medium hover:text-accent/80 transition-colors py-1"
           >
-            <Plus size={14} /> Add Action Item
+            <Plus size={14} /> {t('meetingDetail.addActionItem')}
           </button>
         )}
       </div>
@@ -367,7 +371,7 @@ export default function MeetingNoteDetail() {
             onClick={() => setShowTranscript(!showTranscript)}
             className="w-full flex items-center justify-between px-5 py-4 hover:bg-input-bg/30 transition-colors"
           >
-            <h3 className="text-text-primary text-[14px] font-bold">Transcript / Full Notes</h3>
+            <h3 className="text-text-primary text-[14px] font-bold">{t('meetingDetail.transcriptTitle')}</h3>
             {showTranscript ? <ChevronDown size={16} className="text-text-muted" /> : <ChevronRight size={16} className="text-text-muted" />}
           </button>
           {showTranscript && (
@@ -378,12 +382,12 @@ export default function MeetingNoteDetail() {
                 </pre>
               ) : (
                 <div>
-                  <p className="text-text-muted text-[12px] mb-2 italic">No transcript yet.</p>
+                  <p className="text-text-muted text-[12px] mb-2 italic">{t('meetingDetail.noTranscript')}</p>
                   <button
                     onClick={() => setShowEditForm(true)}
                     className="text-accent text-[12px] font-medium hover:underline"
                   >
-                    Add transcript →
+                    {t('meetingDetail.addTranscript')}
                   </button>
                 </div>
               )}

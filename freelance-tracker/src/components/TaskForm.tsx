@@ -17,6 +17,7 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select'
+import { useI18n } from '../lib/i18n'
 
 export interface TaskFormData {
   title: string
@@ -46,15 +47,15 @@ interface TaskFormProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'todo', label: 'To Do' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'done', label: 'Done' },
+  { value: 'todo', labelKey: 'taskForm.statusTodo' },
+  { value: 'in_progress', labelKey: 'taskForm.statusInProgress' },
+  { value: 'done', labelKey: 'taskForm.statusDone' },
 ] as const
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
+  { value: 'low', labelKey: 'taskForm.priorityLow' },
+  { value: 'medium', labelKey: 'taskForm.priorityMedium' },
+  { value: 'high', labelKey: 'taskForm.priorityHigh' },
 ] as const
 
 export default function TaskForm({
@@ -64,6 +65,7 @@ export default function TaskForm({
   projects,
   onSave,
 }: TaskFormProps) {
+  const { t } = useI18n()
   const isEdit = Boolean(task)
 
   const [title, setTitle] = useState('')
@@ -111,11 +113,9 @@ export default function TaskForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Task' : 'Add Task'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('taskForm.editTitle') : t('taskForm.addTitle')}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? 'Update the task details below.'
-              : 'Fill in the details to create a new task.'}
+            {isEdit ? t('taskForm.editDesc') : t('taskForm.addDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,11 +124,11 @@ export default function TaskForm({
           {projects && !isEdit && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-project" className="text-[12px]">
-                Project <span className="text-negative">*</span>
+                {t('taskForm.project')} <span className="text-negative">*</span>
               </Label>
               <Select value={projectId} onValueChange={setProjectId}>
                 <SelectTrigger id="task-project">
-                  <SelectValue placeholder="Select project" />
+                  <SelectValue placeholder={t('taskForm.selectProject')} />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((p) => (
@@ -144,13 +144,13 @@ export default function TaskForm({
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-title" className="text-[12px]">
-              Title <span className="text-negative">*</span>
+              {t('taskForm.title')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Design homepage mockup"
+              placeholder={t('taskForm.titlePh')}
               required
             />
           </div>
@@ -159,7 +159,7 @@ export default function TaskForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-status" className="text-[12px]">
-                Status <span className="text-negative">*</span>
+                {t('taskForm.status')} <span className="text-negative">*</span>
               </Label>
               <Select
                 value={status}
@@ -171,7 +171,7 @@ export default function TaskForm({
                 <SelectContent>
                   {STATUS_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -180,7 +180,7 @@ export default function TaskForm({
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-priority" className="text-[12px]">
-                Priority <span className="text-negative">*</span>
+                {t('taskForm.priority')} <span className="text-negative">*</span>
               </Label>
               <Select
                 value={priority}
@@ -192,7 +192,7 @@ export default function TaskForm({
                 <SelectContent>
                   {PRIORITY_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -203,7 +203,7 @@ export default function TaskForm({
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="task-start" className="text-[12px]">Start Date</Label>
+              <Label htmlFor="task-start" className="text-[12px]">{t('taskForm.startDate')}</Label>
               <Input
                 id="task-start"
                 type="date"
@@ -213,7 +213,7 @@ export default function TaskForm({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="task-due" className="text-[12px]">End Date</Label>
+              <Label htmlFor="task-due" className="text-[12px]">{t('taskForm.endDate')}</Label>
               <Input
                 id="task-due"
                 type="date"
@@ -227,13 +227,13 @@ export default function TaskForm({
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-desc" className="text-[12px]">
-              Description
+              {t('taskForm.description')}
             </Label>
             <textarea
               id="task-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional task details..."
+              placeholder={t('taskForm.descPh')}
               rows={3}
               className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
             />
@@ -246,10 +246,10 @@ export default function TaskForm({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId)}>
-              {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Task'}
+              {saving ? t('taskForm.saving') : isEdit ? t('taskForm.saveChanges') : t('taskForm.create')}
             </Button>
           </DialogFooter>
         </form>

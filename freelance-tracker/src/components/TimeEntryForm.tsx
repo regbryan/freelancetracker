@@ -9,6 +9,7 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select'
+import { useI18n } from '../lib/i18n'
 
 export interface TimeEntryFormData {
   projectId: string
@@ -35,6 +36,7 @@ function todayISO(): string {
 }
 
 export default function TimeEntryForm({ projectId, projects, tasks, onSave }: TimeEntryFormProps) {
+  const { t } = useI18n()
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? '')
   const [selectedTaskId, setSelectedTaskId] = useState<string>('')
   const [description, setDescription] = useState('')
@@ -83,11 +85,11 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {!projectId && projects && (
           <div className="flex flex-col gap-1 min-w-[160px]">
             <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Project
+              {t('tForm.project')}
             </label>
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
               <SelectTrigger className="h-9 text-[12px]">
-                <SelectValue placeholder="Select project" />
+                <SelectValue placeholder={t('tForm.selectProject')} />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((p) => (
@@ -104,26 +106,26 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {tasks && tasks.length > 0 && (
           <div className="flex flex-col gap-1 min-w-[160px]">
             <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Task (optional)
+              {t('tForm.taskOpt')}
             </label>
             <Select
               value={selectedTaskId}
               onValueChange={(val) => {
                 setSelectedTaskId(val)
                 if (val) {
-                  const task = tasks.find((t) => t.id === val)
+                  const task = tasks.find((tk) => tk.id === val)
                   if (task) setDescription(task.title)
                 }
               }}
             >
               <SelectTrigger className="h-9 text-[12px]">
-                <SelectValue placeholder="None" />
+                <SelectValue placeholder={t('tForm.none')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {tasks.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.title}
+                <SelectItem value="">{t('tForm.none')}</SelectItem>
+                {tasks.map((tk) => (
+                  <SelectItem key={tk.id} value={tk.id}>
+                    {tk.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -134,12 +136,12 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {/* Description */}
         <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
           <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Description
+            {t('tForm.description')}
           </label>
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What did you work on?"
+            placeholder={t('tForm.descPh')}
             required
             className="h-9 text-[12px]"
           />
@@ -148,7 +150,7 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {/* Hours */}
         <div className="flex flex-col gap-1 w-[80px]">
           <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Hours
+            {t('tForm.hours')}
           </label>
           <Input
             type="number"
@@ -165,7 +167,7 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {/* Date */}
         <div className="flex flex-col gap-1 w-[140px]">
           <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Date
+            {t('tForm.date')}
           </label>
           <Input
             type="date"
@@ -178,7 +180,7 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
         {/* Billable Toggle */}
         <div className="flex flex-col gap-1 items-center w-[60px]">
           <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Billable
+            {t('tForm.billable')}
           </label>
           <button
             type="button"
@@ -218,7 +220,7 @@ export default function TimeEntryForm({ projectId, projects, tasks, onSave }: Ti
           className="h-9"
         >
           <Plus size={14} />
-          {saving ? 'Adding...' : 'Add'}
+          {saving ? t('tForm.adding') : t('tForm.add')}
         </Button>
       </div>
     </form>

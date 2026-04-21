@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { syncEmails } from '@/lib/gmail';
 import { useGmail } from '@/hooks/useGmail';
 import { useCommunications } from '@/hooks/useCommunications';
+import { useI18n } from '../lib/i18n';
 
 interface EmailSyncButtonProps {
   projectId: string;
@@ -12,6 +13,7 @@ interface EmailSyncButtonProps {
 }
 
 export default function EmailSyncButton({ projectId, clientEmail, onSynced }: EmailSyncButtonProps) {
+  const { t } = useI18n();
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +61,8 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
 
       setMessage(
         newCount > 0
-          ? `${newCount} new email${newCount === 1 ? '' : 's'} synced`
-          : 'Already up to date'
+          ? t(newCount === 1 ? 'emailSync.newSynced' : 'emailSync.newSyncedPlural', { n: newCount })
+          : t('emailSync.upToDate')
       );
 
       onSynced?.();
@@ -68,21 +70,21 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
       // Clear message after 3 seconds
       setTimeout(() => setMessage(null), 3000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Sync failed';
+      const msg = err instanceof Error ? err.message : t('emailSync.failed');
       setError(msg);
       // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000);
     } finally {
       setSyncing(false);
     }
-  }, [clientEmail, projectId, communications, createCommunication, onSynced]);
+  }, [clientEmail, projectId, communications, createCommunication, onSynced, t]);
 
   async function handleConnect() {
     setError(null);
     try {
       await login();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to connect';
+      const msg = err instanceof Error ? err.message : t('emailSync.failedConnect');
       setError(msg);
     }
   }
@@ -92,7 +94,7 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={handleConnect}>
           <Mail className="h-3.5 w-3.5" />
-          <span className="text-[12px]">Connect Gmail first</span>
+          <span className="text-[12px]">{t('emailSync.connectFirst')}</span>
         </Button>
         {error && (
           <span className="text-[11px] text-negative">{error}</span>
@@ -112,12 +114,12 @@ export default function EmailSyncButton({ projectId, clientEmail, onSynced }: Em
         {syncing ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-[12px]">Syncing...</span>
+            <span className="text-[12px]">{t('emailSync.syncing')}</span>
           </>
         ) : (
           <>
             <RefreshCw className="h-3.5 w-3.5" />
-            <span className="text-[12px]">Sync Emails</span>
+            <span className="text-[12px]">{t('emailSync.sync')}</span>
           </>
         )}
       </Button>

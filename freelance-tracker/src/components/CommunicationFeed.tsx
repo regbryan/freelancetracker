@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Mail, Loader2, CornerUpLeft } from 'lucide-react';
 import type { Communication } from '@/hooks/useCommunications';
+import { useI18n } from '../lib/i18n';
 
 interface CommunicationFeedProps {
   communications: Communication[];
@@ -8,16 +9,15 @@ interface CommunicationFeedProps {
   onReply?: (comm: Communication) => void;
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, locale: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }) + ' at ' + date.toLocaleTimeString('en-US', {
+  }) + ' · ' + date.toLocaleTimeString(locale, {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
   });
 }
 
@@ -28,6 +28,8 @@ function truncateBody(body: string | null, maxLength: number = 100): string {
 }
 
 export default function CommunicationFeed({ communications, loading, onReply }: CommunicationFeedProps) {
+  const { t, lang } = useI18n();
+  const locale = lang === 'es' ? 'es-ES' : 'en-US';
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   function toggleExpand(id: string) {
@@ -51,7 +53,7 @@ export default function CommunicationFeed({ communications, loading, onReply }: 
     return (
       <div className="flex flex-col items-center justify-center py-10">
         <Loader2 className="h-5 w-5 animate-spin text-accent" />
-        <p className="mt-2 text-[12px] text-text-muted">Loading communications...</p>
+        <p className="mt-2 text-[12px] text-text-muted">{t('commFeed.loading')}</p>
       </div>
     );
   }
@@ -63,7 +65,7 @@ export default function CommunicationFeed({ communications, loading, onReply }: 
           <Mail className="h-5 w-5 text-text-muted" />
         </div>
         <p className="mt-3 text-[12px] text-text-muted text-center">
-          No communications yet. Send your first email above.
+          {t('commFeed.empty')}
         </p>
       </div>
     );
@@ -101,17 +103,17 @@ export default function CommunicationFeed({ communications, loading, onReply }: 
                     <ArrowDownLeft className="h-3.5 w-3.5 text-positive" />
                   )}
                   <span className={`text-[11px] font-medium ${isSent ? 'text-accent' : 'text-positive'}`}>
-                    {isSent ? 'Sent' : 'Received'}
+                    {isSent ? t('commFeed.sent') : t('commFeed.received')}
                   </span>
                 </div>
                 <span className="text-[11px] text-text-muted">
-                  {formatDate(comm.date)}
+                  {formatDate(comm.date, locale)}
                 </span>
               </div>
 
               {/* Subject */}
               <p className="text-[13px] font-semibold text-text-primary leading-snug">
-                {comm.subject || '(no subject)'}
+                {comm.subject || t('commFeed.noSubject')}
               </p>
 
               {/* Body preview / full */}
@@ -125,9 +127,9 @@ export default function CommunicationFeed({ communications, loading, onReply }: 
               {hasLongBody && (
                 <div className="mt-1.5 flex items-center gap-1 text-[11px] text-text-muted">
                   {isExpanded ? (
-                    <><ChevronUp className="h-3 w-3" /><span>Show less</span></>
+                    <><ChevronUp className="h-3 w-3" /><span>{t('commFeed.showLess')}</span></>
                   ) : (
-                    <><ChevronDown className="h-3 w-3" /><span>Show more</span></>
+                    <><ChevronDown className="h-3 w-3" /><span>{t('commFeed.showMore')}</span></>
                   )}
                 </div>
               )}
@@ -142,7 +144,7 @@ export default function CommunicationFeed({ communications, loading, onReply }: 
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
                 >
                   <CornerUpLeft className="h-3 w-3" />
-                  Reply
+                  {t('commFeed.reply')}
                 </button>
               </div>
             )}

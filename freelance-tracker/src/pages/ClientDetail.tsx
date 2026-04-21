@@ -10,30 +10,32 @@ import type { ClientFormData } from '../components/ClientForm'
 import ProjectForm from '../components/ProjectForm'
 import type { ProjectFormData } from '../components/ProjectForm'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { useI18n } from '../lib/i18n'
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  active: { label: 'Active', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
-  completed: { label: 'Completed', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
-  on_hold: { label: 'On Hold', bg: 'bg-status-hold-bg', text: 'text-status-hold-text' },
-  cancelled: { label: 'Cancelled', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+const STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
+  active: { labelKey: 'clientDetail.statusActive', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  completed: { labelKey: 'clientDetail.statusCompleted', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  on_hold: { labelKey: 'clientDetail.statusOnHold', bg: 'bg-status-hold-bg', text: 'text-status-hold-text' },
+  cancelled: { labelKey: 'clientDetail.statusCancelled', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
 }
 
-const INVOICE_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  draft: { label: 'Draft', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
-  sent: { label: 'Sent', bg: 'bg-status-scheduled-bg', text: 'text-status-scheduled-text' },
-  paid: { label: 'Paid', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
-  overdue: { label: 'Overdue', bg: 'bg-negative-bg', text: 'text-negative' },
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '--'
-  const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+const INVOICE_STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
+  draft: { labelKey: 'clientDetail.invStatusDraft', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  sent: { labelKey: 'clientDetail.invStatusSent', bg: 'bg-status-scheduled-bg', text: 'text-status-scheduled-text' },
+  paid: { labelKey: 'clientDetail.invStatusPaid', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  overdue: { labelKey: 'clientDetail.invStatusOverdue', bg: 'bg-negative-bg', text: 'text-negative' },
 }
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, lang } = useI18n()
+
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return '--'
+    const d = new Date(iso + 'T00:00:00')
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
 
   const { client, loading: clientLoading, error: clientError, refetch: refetchClient } = useClient(id)
   const { clients } = useClients()
@@ -54,12 +56,12 @@ export default function ClientDetail() {
 
   async function handleDeleteClient() {
     if (!client) return
-    if (!confirm(`Delete "${client.name}" and all associated data? This cannot be undone.`)) return
+    if (!confirm(t('clientDetail.confirmDelete', { name: client.name }))) return
     try {
       await deleteClient(client.id)
       navigate('/clients')
     } catch (err) {
-      alert(`Failed to delete client: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('clientDetail.failedDelete', { error: err instanceof Error ? err.message : t('clientDetail.unknownError') }))
     }
   }
 
@@ -123,7 +125,7 @@ export default function ClientDetail() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-[13px] font-medium">Loading client...</p>
+        <p className="text-[13px] font-medium">{t('clientDetail.loading')}</p>
       </div>
     )
   }
@@ -132,13 +134,13 @@ export default function ClientDetail() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
         <p className="text-[13px] font-medium text-negative">
-          {clientError ?? 'Client not found'}
+          {clientError ?? t('clientDetail.notFound')}
         </p>
         <button
           onClick={() => navigate('/clients')}
           className="text-accent text-[13px] hover:underline"
         >
-          Back to Clients
+          {t('clientDetail.back')}
         </button>
       </div>
     )
@@ -152,7 +154,7 @@ export default function ClientDetail() {
         className="flex items-center gap-1 text-accent text-[13px] font-medium hover:underline w-fit"
       >
         <ArrowLeft size={14} />
-        Back to Clients
+        {t('clientDetail.back')}
       </button>
 
       {/* Client info header */}
@@ -182,14 +184,14 @@ export default function ClientDetail() {
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
             >
               <Pencil size={12} />
-              Edit
+              {t('common.edit')}
             </button>
             <button
               onClick={handleDeleteClient}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
             >
               <Trash2 size={12} />
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </div>
@@ -220,10 +222,10 @@ export default function ClientDetail() {
       {/* Tabs */}
       <Tabs defaultValue="projects">
         <TabsList>
-          <TabsTrigger value="projects" className="text-[12px]">Projects</TabsTrigger>
-          <TabsTrigger value="meetings" className="text-[12px]">Meetings</TabsTrigger>
-          <TabsTrigger value="notes" className="text-[12px]">Notes</TabsTrigger>
-          <TabsTrigger value="invoices" className="text-[12px]">Invoices</TabsTrigger>
+          <TabsTrigger value="projects" className="text-[12px]">{t('clientDetail.tabProjects')}</TabsTrigger>
+          <TabsTrigger value="meetings" className="text-[12px]">{t('clientDetail.tabMeetings')}</TabsTrigger>
+          <TabsTrigger value="notes" className="text-[12px]">{t('clientDetail.tabNotes')}</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-[12px]">{t('clientDetail.tabInvoices')}</TabsTrigger>
         </TabsList>
 
         {/* Projects Tab */}
@@ -231,7 +233,7 @@ export default function ClientDetail() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Client Projects
+                {t('clientDetail.clientProjects')}
               </p>
               <button
                 onClick={() => setProjectFormOpen(true)}
@@ -239,7 +241,7 @@ export default function ClientDetail() {
                 style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
-                Add Project
+                {t('clientDetail.addProject')}
               </button>
             </div>
 
@@ -249,7 +251,7 @@ export default function ClientDetail() {
               </div>
             ) : projects.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-                <p className="text-text-muted text-[13px]">No projects yet for this client.</p>
+                <p className="text-text-muted text-[13px]">{t('clientDetail.noProjects')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -268,7 +270,7 @@ export default function ClientDetail() {
                         <span
                           className={`${status.bg} ${status.text} text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-2`}
                         >
-                          {status.label}
+                          {t(status.labelKey)}
                         </span>
                       </div>
                       {project.billing_type === 'monthly'
@@ -294,12 +296,12 @@ export default function ClientDetail() {
         <TabsContent value="meetings">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Meeting Notes</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{t('clientDetail.meetingNotes')}</p>
               <button
                 onClick={() => navigate('/meetings')}
                 className="text-accent text-[11px] font-semibold hover:underline"
               >
-                View All
+                {t('common.viewAll')}
               </button>
             </div>
 
@@ -310,7 +312,7 @@ export default function ClientDetail() {
             ) : meetingNotes.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex flex-col items-center justify-center gap-2">
                 <BookOpen size={20} className="text-text-muted/40" />
-                <p className="text-text-muted text-[13px]">No meeting notes for this client yet.</p>
+                <p className="text-text-muted text-[13px]">{t('clientDetail.noMeetings')}</p>
               </div>
             ) : (
               <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
@@ -333,7 +335,7 @@ export default function ClientDetail() {
                       </div>
                       <div className="flex items-center gap-1 text-text-muted text-[11px] shrink-0">
                         <Calendar size={10} />
-                        {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {meetDate.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     </button>
                   )
@@ -347,14 +349,14 @@ export default function ClientDetail() {
         <TabsContent value="notes">
           <div className="bg-surface rounded-[14px] shadow-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Client Notes</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{t('clientDetail.clientNotes')}</p>
               {notesText !== null && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setNotesText(null)}
                     className="text-[12px] text-text-muted hover:text-text-secondary px-2 py-1 rounded-lg hover:bg-input-bg transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleNotesSave}
@@ -362,7 +364,7 @@ export default function ClientDetail() {
                     className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
-                    {notesSaving ? 'Saving…' : 'Save'}
+                    {notesSaving ? t('clientDetail.saving') : t('common.save')}
                   </button>
                 </div>
               )}
@@ -371,7 +373,7 @@ export default function ClientDetail() {
             {notesText !== null ? (
               <textarea
                 className="w-full min-h-[180px] rounded-xl border border-border bg-input-bg px-4 py-3 text-[13px] text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
-                placeholder="Add notes about this client…"
+                placeholder={t('clientDetail.notesPlaceholder')}
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
                 autoFocus
@@ -382,14 +384,14 @@ export default function ClientDetail() {
                 onClick={() => setNotesText(client.notes ?? '')}
               >
                 <p className="text-text-secondary text-[13px] leading-relaxed whitespace-pre-wrap">{client.notes}</p>
-                <p className="text-text-muted text-[11px] mt-2">Click to edit</p>
+                <p className="text-text-muted text-[11px] mt-2">{t('clientDetail.clickToEdit')}</p>
               </div>
             ) : (
               <button
                 onClick={() => setNotesText('')}
                 className="flex items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed border-border text-text-muted text-[13px] hover:border-accent/40 hover:text-accent transition-colors"
               >
-                + Add notes for this client
+                {t('clientDetail.addNotesCta')}
               </button>
             )}
           </div>
@@ -399,7 +401,7 @@ export default function ClientDetail() {
         <TabsContent value="invoices">
           <div className="flex flex-col gap-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-              Client Invoices
+              {t('clientDetail.clientInvoices')}
             </p>
 
             {invoicesLoading ? (
@@ -408,7 +410,7 @@ export default function ClientDetail() {
               </div>
             ) : invoices.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-                <p className="text-text-muted text-[13px]">No invoices yet for this client.</p>
+                <p className="text-text-muted text-[13px]">{t('clientDetail.noInvoices')}</p>
               </div>
             ) : (
               <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
@@ -416,12 +418,12 @@ export default function ClientDetail() {
                   <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                        <th className="text-left px-5 py-3">Invoice #</th>
-                        <th className="text-left px-3 py-3">Project</th>
-                        <th className="text-right px-3 py-3">Amount</th>
-                        <th className="text-center px-3 py-3">Status</th>
-                        <th className="text-left px-3 py-3">Issued</th>
-                        <th className="text-left px-5 py-3">Due</th>
+                        <th className="text-left px-5 py-3">{t('clientDetail.colInvoiceNum')}</th>
+                        <th className="text-left px-3 py-3">{t('clientDetail.colProject')}</th>
+                        <th className="text-right px-3 py-3">{t('clientDetail.colAmount')}</th>
+                        <th className="text-center px-3 py-3">{t('clientDetail.colStatus')}</th>
+                        <th className="text-left px-3 py-3">{t('clientDetail.colIssued')}</th>
+                        <th className="text-left px-5 py-3">{t('clientDetail.colDue')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -445,7 +447,7 @@ export default function ClientDetail() {
                               <span
                                 className={`${invStatus.bg} ${invStatus.text} inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold`}
                               >
-                                {invStatus.label}
+                                {t(invStatus.labelKey)}
                               </span>
                             </td>
                             <td className="px-3 py-3 text-text-muted text-[12px]">

@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '../lib/i18n'
 
 export interface Client {
   id: string
@@ -40,6 +41,7 @@ interface ClientFormProps {
 }
 
 export default function ClientForm({ open, onOpenChange, client, onSave }: ClientFormProps) {
+  const { t } = useI18n()
   const isEdit = Boolean(client)
 
   const [name, setName] = useState('')
@@ -86,11 +88,9 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Client' : 'Add Client'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('clientForm.editTitle') : t('clientForm.addTitle')}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? 'Update the client details below.'
-              : 'Fill in the details to add a new client.'}
+            {isEdit ? t('clientForm.editDesc') : t('clientForm.addDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -98,13 +98,13 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
           {/* Name */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="client-name" className="text-[12px]">
-              Name <span className="text-negative">*</span>
+              {t('clientForm.name')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="client-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Client name"
+              placeholder={t('clientForm.namePlaceholder')}
               required
             />
           </div>
@@ -112,14 +112,14 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="client-email" className="text-[12px]">
-              Email <span className="text-negative">*</span>
+              {t('clientForm.email')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="client-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@example.com"
+              placeholder={t('clientForm.emailPlaceholder')}
               required
             />
           </div>
@@ -128,25 +128,25 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="client-company" className="text-[12px]">
-                Company
+                {t('clientForm.company')}
               </Label>
               <Input
                 id="client-company"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                placeholder="Company name"
+                placeholder={t('clientForm.companyPlaceholder')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="client-phone" className="text-[12px]">
-                Phone
+                {t('clientForm.phone')}
               </Label>
               <Input
                 id="client-phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder={t('clientForm.phonePlaceholder')}
               />
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
           {/* Hourly Rate */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="client-rate" className="text-[12px]">
-              Default Hourly Rate
+              {t('clientForm.hourlyRate')}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[13px]">
@@ -175,7 +175,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
 
           {/* Status */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-[12px]">Status</Label>
+            <Label className="text-[12px]">{t('clientForm.status')}</Label>
             <div className="flex gap-2">
               {(['active', 'inactive'] as const).map((s) => (
                 <button
@@ -190,7 +190,7 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
                       : 'bg-transparent text-text-muted border-border hover:bg-input-bg'
                   }`}
                 >
-                  {s === 'active' ? 'Retained' : 'Inactive'}
+                  {s === 'active' ? t('clientForm.retained') : t('clientForm.inactive')}
                 </button>
               ))}
             </div>
@@ -199,13 +199,13 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
           {/* Notes */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="client-notes" className="text-[12px]">
-              Notes
+              {t('clientForm.notes')}
             </Label>
             <textarea
               id="client-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional notes..."
+              placeholder={t('clientForm.notesPlaceholder')}
               rows={3}
               className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
             />
@@ -218,10 +218,10 @@ export default function ClientForm({ open, onOpenChange, client, onSave }: Clien
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="gradient" disabled={saving}>
-              {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Client'}
+              {saving ? t('clientForm.saving') : isEdit ? t('clientForm.saveChanges') : t('clientForm.add')}
             </Button>
           </DialogFooter>
         </form>

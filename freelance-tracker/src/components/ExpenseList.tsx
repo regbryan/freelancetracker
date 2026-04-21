@@ -1,3 +1,5 @@
+import { useI18n } from '../lib/i18n'
+
 export interface ExpenseRow {
   id: string
   projectId: string
@@ -17,9 +19,9 @@ interface ExpenseListProps {
   onDelete: (id: string) => void
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 }
 
 function formatCurrency(amount: number): string {
@@ -39,12 +41,15 @@ export default function ExpenseList({
   onEdit,
   onDelete,
 }: ExpenseListProps) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+
   if (loading) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-text-muted text-[12px]">Loading expenses...</p>
+          <p className="text-text-muted text-[12px]">{t('expenseList.loading')}</p>
         </div>
       </div>
     )
@@ -53,7 +58,7 @@ export default function ExpenseList({
   if (expenses.length === 0) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-        <p className="text-text-muted text-[13px]">No expenses yet.</p>
+        <p className="text-text-muted text-[13px]">{t('expenseList.empty')}</p>
       </div>
     )
   }
@@ -64,12 +69,12 @@ export default function ExpenseList({
         <table className="w-full min-w-[500px]">
           <thead>
             <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-              <th className="text-left px-5 py-3">Date</th>
-              {showProject && <th className="text-left px-3 py-3">Project</th>}
-              <th className="text-left px-3 py-3">Description</th>
-              <th className="text-left px-3 py-3">Category</th>
-              <th className="text-right px-3 py-3">Amount</th>
-              <th className="text-right px-5 py-3">Actions</th>
+              <th className="text-left px-5 py-3">{t('expenseList.date')}</th>
+              {showProject && <th className="text-left px-3 py-3">{t('expenseList.project')}</th>}
+              <th className="text-left px-3 py-3">{t('expenseList.description')}</th>
+              <th className="text-left px-3 py-3">{t('expenseList.category')}</th>
+              <th className="text-right px-3 py-3">{t('expenseList.amount')}</th>
+              <th className="text-right px-5 py-3">{t('expenseList.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -79,11 +84,11 @@ export default function ExpenseList({
                 className="border-b border-border/50 last:border-0 hover:bg-input-bg/50 transition-colors"
               >
                 <td className="px-5 py-3 text-text-muted text-[12px]">
-                  {formatDate(exp.date)}
+                  {formatDate(exp.date, locale)}
                 </td>
                 {showProject && (
                   <td className="px-3 py-3 text-accent text-[12px] font-semibold">
-                    {projectNameMap?.get(exp.projectId) ?? 'Unknown'}
+                    {projectNameMap?.get(exp.projectId) ?? t('expenseList.unknown')}
                   </td>
                 )}
                 <td className="px-3 py-3 text-text-secondary text-[12px]">
@@ -102,7 +107,7 @@ export default function ExpenseList({
                     <button
                       onClick={() => onEdit(exp)}
                       className="p-1.5 rounded hover:bg-border transition-colors"
-                      aria-label="Edit expense"
+                      aria-label={t('expenseList.editAria')}
                     >
                       <svg
                         width="12"
@@ -122,7 +127,7 @@ export default function ExpenseList({
                     <button
                       onClick={() => onDelete(exp.id)}
                       className="p-1.5 rounded hover:bg-border transition-colors"
-                      aria-label="Delete expense"
+                      aria-label={t('expenseList.deleteAria')}
                     >
                       <svg
                         width="12"

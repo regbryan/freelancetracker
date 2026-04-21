@@ -17,39 +17,10 @@ import { useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import MeetingNoteForm from '../components/MeetingNoteForm'
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatTime(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
-
-function getDateGroup(dateStr: string): string {
-  const d = new Date(dateStr)
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const weekAgo = new Date(today)
-  weekAgo.setDate(weekAgo.getDate() - 7)
-
-  if (d >= today) return 'Today'
-  if (d >= yesterday) return 'Yesterday'
-  if (d >= weekAgo) return 'This Week'
-  return 'Earlier'
-}
-
-const STATUS_CONFIG = {
-  draft: { label: 'Draft', icon: Circle, style: 'bg-status-hold-bg text-status-hold-text' },
-  reviewed: { label: 'Reviewed', icon: CheckCircle2, style: 'bg-status-active-bg text-status-active-text' },
-  archived: { label: 'Archived', icon: Archive, style: 'bg-status-completed-bg text-status-completed-text' },
-}
+import { useI18n } from '../lib/i18n'
 
 export default function MeetingNotes() {
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
   const { meetingNotes, loading, createMeetingNote } = useMeetingNotes()
   const { clients } = useClients()
@@ -60,18 +31,58 @@ export default function MeetingNotes() {
   const [filterClient, setFilterClient] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
 
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+
+  function formatDate(dateStr: string): string {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  function formatTime(dateStr: string): string {
+    const d = new Date(dateStr)
+    return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
+  }
+
+  function getDateGroup(dateStr: string): string {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const weekAgo = new Date(today)
+    weekAgo.setDate(weekAgo.getDate() - 7)
+
+    if (d >= today) return 'Today'
+    if (d >= yesterday) return 'Yesterday'
+    if (d >= weekAgo) return 'This Week'
+    return 'Earlier'
+  }
+
+  const STATUS_CONFIG = {
+    draft: { label: t('meetings.statusDraft'), icon: Circle, style: 'bg-status-hold-bg text-status-hold-text' },
+    reviewed: { label: t('meetings.statusReviewed'), icon: CheckCircle2, style: 'bg-status-active-bg text-status-active-text' },
+    archived: { label: t('meetings.statusArchived'), icon: Archive, style: 'bg-status-completed-bg text-status-completed-text' },
+  }
+
+  const groupLabels: Record<string, string> = {
+    Today: t('meetings.groupToday'),
+    Yesterday: t('meetings.groupYesterday'),
+    'This Week': t('meetings.groupThisWeek'),
+    Earlier: t('meetings.groupEarlier'),
+  }
+
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects])
 
   // Count action items per meeting note
   const actionItemCounts = useMemo(() => {
     const counts = new Map<string, { total: number; done: number }>()
-    for (const t of tasks) {
-      if (t.meeting_note_id) {
-        const existing = counts.get(t.meeting_note_id) || { total: 0, done: 0 }
+    for (const tk of tasks) {
+      if (tk.meeting_note_id) {
+        const existing = counts.get(tk.meeting_note_id) || { total: 0, done: 0 }
         existing.total++
-        if (t.status === 'done') existing.done++
-        counts.set(t.meeting_note_id, existing)
+        if (tk.status === 'done') existing.done++
+        counts.set(tk.meeting_note_id, existing)
       }
     }
     return counts
@@ -113,7 +124,7 @@ export default function MeetingNotes() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-text-muted text-[13px]">Loading meeting notes...</p>
+        <p className="text-text-muted text-[13px]">{t('meetings.loading')}</p>
       </div>
     )
   }
@@ -125,10 +136,12 @@ export default function MeetingNotes() {
         <div>
           <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] flex items-center gap-2">
             <BookOpen size={20} className="text-accent" />
-            Meeting Notes
+            {t('meetings.title')}
           </h2>
           <p className="text-text-muted text-[12px] mt-0.5">
-            {meetingNotes.length} meeting{meetingNotes.length !== 1 ? 's' : ''} recorded
+            {meetingNotes.length === 1
+              ? t('meetings.recordedSingular', { n: meetingNotes.length })
+              : t('meetings.recordedPlural', { n: meetingNotes.length })}
           </p>
         </div>
         <button
@@ -136,7 +149,7 @@ export default function MeetingNotes() {
           className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-white text-[12px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
-          <Plus size={14} /> New Meeting Note
+          <Plus size={14} /> {t('meetings.newMeeting')}
         </button>
       </div>
 
@@ -148,7 +161,7 @@ export default function MeetingNotes() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search notes..."
+            placeholder={t('meetings.searchNotes')}
             className="w-full h-9 pl-8 pr-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
           />
         </div>
@@ -157,7 +170,7 @@ export default function MeetingNotes() {
           onChange={e => setFilterClient(e.target.value)}
           className="h-9 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] focus:outline-none focus:border-accent transition-all"
         >
-          <option value="">All Clients</option>
+          <option value="">{t('meetings.allClients')}</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select
@@ -165,10 +178,10 @@ export default function MeetingNotes() {
           onChange={e => setFilterStatus(e.target.value)}
           className="h-9 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] focus:outline-none focus:border-accent transition-all"
         >
-          <option value="">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="reviewed">Reviewed</option>
-          <option value="archived">Archived</option>
+          <option value="">{t('meetings.allStatus')}</option>
+          <option value="draft">{t('meetings.statusDraft')}</option>
+          <option value="reviewed">{t('meetings.statusReviewed')}</option>
+          <option value="archived">{t('meetings.statusArchived')}</option>
         </select>
       </div>
 
@@ -178,8 +191,8 @@ export default function MeetingNotes() {
           <FileText size={32} className="text-text-muted/40" />
           <p className="text-text-muted text-[13px]">
             {meetingNotes.length === 0
-              ? 'No meeting notes yet. Create your first one!'
-              : 'No meetings match your filters.'}
+              ? t('meetings.emptyCreate')
+              : t('meetings.emptyFilter')}
           </p>
         </div>
       ) : (
@@ -187,7 +200,7 @@ export default function MeetingNotes() {
           {grouped.map(group => (
             <div key={group.label}>
               <h3 className="text-text-muted text-[11px] font-semibold uppercase tracking-wide mb-2">
-                {group.label}
+                {groupLabels[group.label] ?? group.label}
               </h3>
               <div className="flex flex-col gap-2">
                 {group.notes.map(note => {
@@ -239,7 +252,7 @@ export default function MeetingNotes() {
                             </span>
                           )}
                           {note.attendees.length > 0 && (
-                            <span>{note.attendees.length} attendee{note.attendees.length !== 1 ? 's' : ''}</span>
+                            <span>{note.attendees.length === 1 ? t('meetings.attendeeSingular', { n: note.attendees.length }) : t('meetings.attendeePlural', { n: note.attendees.length })}</span>
                           )}
                         </div>
                       </div>
@@ -248,7 +261,7 @@ export default function MeetingNotes() {
                       {counts && counts.total > 0 && (
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           <span className="text-text-muted text-[11px]">
-                            {counts.done}/{counts.total} done
+                            {t('meetings.doneCount', { done: counts.done, total: counts.total })}
                           </span>
                           <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
                             <div

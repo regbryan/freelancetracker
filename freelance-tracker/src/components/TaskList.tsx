@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Pencil, Trash2, Play, Square, Clock, X } from 'lucide-react'
-
-function formatHours(h: number): string {
-  const rounded = Math.round(h * 100) / 100
-  return `${rounded}h logged`
-}
+import { useI18n } from '../lib/i18n'
 
 export interface TaskRow {
   id: string
@@ -47,12 +43,18 @@ function isOverdue(dueDate: string | null | undefined, status: string): boolean 
   return due < today
 }
 
-function formatDate(date: string): string {
+function formatDate(date: string, locale: string): string {
   const d = new Date(date + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onTimerSave, onLogTime, timeByTaskId }: TaskListProps) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+  const formatHours = (h: number): string => {
+    const rounded = Math.round(h * 100) / 100
+    return t('taskList.hoursLogged', { h: rounded })
+  }
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
@@ -130,7 +132,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-text-muted text-[12px]">Loading tasks...</p>
+          <p className="text-text-muted text-[12px]">{t('taskList.loading')}</p>
         </div>
       </div>
     )
@@ -139,12 +141,12 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
   if (tasks.length === 0) {
     return (
       <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-        <p className="text-text-muted text-[13px]">No tasks yet.</p>
+        <p className="text-text-muted text-[13px]">{t('taskList.empty')}</p>
       </div>
     )
   }
 
-  const doneCount = tasks.filter((t) => t.status === 'done').length
+  const doneCount = tasks.filter((tk) => tk.status === 'done').length
   const pct = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0
 
   return (
@@ -153,7 +155,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
       <div className="bg-surface rounded-[14px] shadow-card px-4 py-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-text-muted text-[11px]">
-            {doneCount}/{tasks.length} completed ({pct}%)
+            {t('taskList.completed', { done: doneCount, total: tasks.length, pct })}
           </span>
         </div>
         <div className="w-full h-2 bg-border rounded-full overflow-hidden">
@@ -185,7 +187,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                 onClick={() => onToggle(task.id, task.status)}
                 className="flex-shrink-0 w-5 h-5 rounded-md border-2 border-border flex items-center justify-center transition-colors hover:border-accent"
                 style={done ? { backgroundColor: '#3e6b5a', borderColor: '#3e6b5a' } : undefined}
-                aria-label={done ? 'Mark as todo' : 'Mark as done'}
+                aria-label={done ? t('taskList.markAsTodo') : t('taskList.markAsDone')}
               >
                 {done && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -226,17 +228,17 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {/* Priority badge */}
                 {task.priority === 'high' && (
-                  <span className="text-[10px] font-semibold text-negative">High</span>
+                  <span className="text-[10px] font-semibold text-negative">{t('taskList.high')}</span>
                 )}
                 {task.priority === 'medium' && (
-                  <span className="text-[10px] font-semibold text-status-medium-text">Medium</span>
+                  <span className="text-[10px] font-semibold text-status-medium-text">{t('taskList.medium')}</span>
                 )}
                 {task.priority === 'low' && (
-                  <span className="text-[10px] font-semibold text-text-muted">Low</span>
+                  <span className="text-[10px] font-semibold text-text-muted">{t('taskList.low')}</span>
                 )}
 
                 {task.status === 'in_progress' && (
-                  <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>
+                  <span className="text-[10px] font-semibold text-status-scheduled-text">{t('taskList.inProgress')}</span>
                 )}
 
                 {/* Due date */}
@@ -246,7 +248,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                       overdue ? 'text-negative font-medium' : 'text-text-muted'
                     }`}
                   >
-                    {formatDate(task.dueDate)}
+                    {formatDate(task.dueDate, locale)}
                   </span>
                 )}
               </div>
@@ -265,7 +267,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                           type="button"
                           onClick={() => handleStop(task.id, task.title)}
                           disabled={isSaving}
-                          aria-label="Stop timer and save entry"
+                          aria-label={t('taskList.stopTimer')}
                           className="p-1 rounded hover:bg-input-bg transition-colors disabled:opacity-50"
                         >
                           <Square size={12} className="text-negative" />
@@ -276,7 +278,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                         type="button"
                         onClick={() => handleStart(task.id)}
                         disabled={activeTaskId !== null || isSaving}
-                        aria-label="Start timer"
+                        aria-label={t('taskList.startTimer')}
                         className="p-1 rounded hover:bg-input-bg transition-colors disabled:opacity-30"
                       >
                         <Play size={12} className="text-accent" />
@@ -289,8 +291,8 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                   <button
                     type="button"
                     onClick={() => loggingTaskId === task.id ? setLoggingTaskId(null) : openLogForm(task.id)}
-                    aria-label="Log time"
-                    title="Log time"
+                    aria-label={t('taskList.logTime')}
+                    title={t('taskList.logTime')}
                     className="p-1 rounded hover:bg-input-bg transition-colors"
                   >
                     <Clock size={12} className={loggingTaskId === task.id ? 'text-accent' : 'text-text-muted'} />
@@ -299,7 +301,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                 <button
                   type="button"
                   onClick={() => onEdit(task)}
-                  aria-label="Edit task"
+                  aria-label={t('taskList.editTask')}
                   className="p-1 rounded hover:bg-input-bg transition-colors"
                 >
                   <Pencil size={12} className="text-text-muted" />
@@ -307,7 +309,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                 <button
                   type="button"
                   onClick={() => onDelete(task.id)}
-                  aria-label="Delete task"
+                  aria-label={t('taskList.deleteTask')}
                   className="p-1 rounded hover:bg-input-bg transition-colors"
                 >
                   <Trash2 size={12} className="text-negative" />
@@ -319,11 +321,11 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
             {loggingTaskId === task.id && (
               <div className="px-4 pb-3 pt-2 border-t border-border/50">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
-                  Log time — {task.title}
+                  {t('taskList.logTimeFor', { title: task.title })}
                 </p>
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-text-muted">Hours</label>
+                    <label className="text-[10px] text-text-muted">{t('taskList.hours')}</label>
                     <input
                       type="number"
                       min="0.25"
@@ -335,7 +337,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-text-muted">Date</label>
+                    <label className="text-[10px] text-text-muted">{t('taskList.date')}</label>
                     <input
                       type="date"
                       value={logDate}
@@ -344,7 +346,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                     />
                   </div>
                   <div className="flex flex-col gap-1 items-center">
-                    <label className="text-[10px] text-text-muted">Billable</label>
+                    <label className="text-[10px] text-text-muted">{t('taskList.billable')}</label>
                     <button
                       type="button"
                       role="checkbox"
@@ -366,7 +368,7 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
                     className="h-8 px-3 rounded-[8px] text-[12px] font-semibold text-white disabled:opacity-50 transition-all"
                     style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
-                    {logSaving ? 'Saving...' : 'Save'}
+                    {logSaving ? t('taskList.saving') : t('taskList.save')}
                   </button>
                   <button
                     type="button"

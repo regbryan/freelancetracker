@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Settings2 } from 'lucide-react'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface SettingsInsightProps {
   profile: { name: string; email: string; address: string; phone: string }
@@ -21,40 +22,33 @@ export default function SettingsInsight({
   gmailConnected,
   calendarConnected,
 }: SettingsInsightProps) {
+  const { t } = useI18n()
   const insight = useMemo<Insight | null>(() => {
-    // 1) Identity missing — can't invoice without a name
     if (!profile.name.trim() || !profile.email.trim()) {
       return {
         message: (
           <>
-            Your invoices need a <strong>name and email</strong> to look
-            professional. Fill your freelancer details below — it's the first
-            thing a client sees on every invoice.
+            {t('settingsInsight.identityMissingPre')} <strong>{t('settingsInsight.nameEmail')}</strong>{t('settingsInsight.identityMissingTail')}
           </>
         ),
       }
     }
 
-    // 2) No payment terms — invoices will be ambiguous
     if (!defaults.paymentTerms.trim()) {
       return {
         message: (
           <>
-            No default <strong>payment terms</strong> set. Net 30 is the common
-            norm — lock it in once and every invoice inherits it.
+            {t('settingsInsight.noTermsPre')} <strong>{t('settingsInsight.paymentTerms')}</strong>{t('settingsInsight.noTermsTail')}
           </>
         ),
       }
     }
 
-    // 3) Integrations dormant
     if (!gmailConnected && !calendarConnected) {
       return {
         message: (
           <>
-            <strong>Gmail and Calendar aren't connected.</strong> Hook both up
-            to auto-pull meeting notes, client threads, and event context into
-            your tracker.
+            <strong>{t('settingsInsight.bothOff')}</strong>{t('settingsInsight.bothOffTail')}
           </>
         ),
       }
@@ -63,8 +57,7 @@ export default function SettingsInsight({
       return {
         message: (
           <>
-            Calendar is linked but <strong>Gmail isn't</strong>. Connect it so
-            client email threads surface next to the projects they touch.
+            {t('settingsInsight.gmailOffPre')} <strong>{t('settingsInsight.gmailOff')}</strong>{t('settingsInsight.gmailOffTail')}
           </>
         ),
       }
@@ -73,47 +66,42 @@ export default function SettingsInsight({
       return {
         message: (
           <>
-            Gmail is linked but <strong>Calendar isn't</strong>. Connect it so
-            meetings with clients land on your tracker timeline automatically.
+            {t('settingsInsight.calOffPre')} <strong>{t('settingsInsight.calOff')}</strong>{t('settingsInsight.calOffTail')}
           </>
         ),
       }
     }
 
-    // 4) Polish missing — logo / photo
     if (!businessLogo || !profilePhoto) {
       const missing = [
-        !businessLogo ? 'business logo' : null,
-        !profilePhoto ? 'profile photo' : null,
+        !businessLogo ? t('settingsInsight.businessLogo') : null,
+        !profilePhoto ? t('settingsInsight.profilePhoto') : null,
       ].filter(Boolean)
       return {
         message: (
           <>
-            Add your <strong>{missing.join(' and ')}</strong> to polish the
-            little surfaces — invoices, nav, and shared links all use them.
+            {t('settingsInsight.polishPre')} <strong>{missing.join(t('settingsInsight.and'))}</strong>{t('settingsInsight.polishTail')}
           </>
         ),
       }
     }
 
-    // 5) Baseline — everything set
     const termDays = parseInt(defaults.paymentTerms, 10)
+    const termStr = isNaN(termDays) ? defaults.paymentTerms : termDays
     return {
       message: (
         <>
-          Profile set. Every field here is what clients see — invoices go out
-          on <strong>net {isNaN(termDays) ? defaults.paymentTerms : termDays}</strong>,
-          signed <strong>{profile.name}</strong>.
+          {t('settingsInsight.baselinePre')} <strong>{t('settingsInsight.netTerm', { term: termStr })}</strong>, {t('settingsInsight.signed')} <strong>{profile.name}</strong>.
         </>
       ),
     }
-  }, [profile, defaults, profilePhoto, businessLogo, gmailConnected, calendarConnected])
+  }, [profile, defaults, profilePhoto, businessLogo, gmailConnected, calendarConnected, t])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Account Setup"
+      label={t('settingsInsight.label')}
       variant="smart"
       icon={Settings2}
       message={insight.message}

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, X, type LucideIcon } from 'lucide-react'
+import { useI18n } from '../lib/i18n'
 
 export type InsightVariant = 'smart' | 'forecast' | 'curator' | 'collection'
 
@@ -71,6 +72,7 @@ export default function InsightBanner({
   accessory,
 }: InsightBannerProps) {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const style = VARIANTS[variant]
 
   const handleCta = () => {
@@ -119,7 +121,7 @@ export default function InsightBanner({
                 className="h-8 px-3 rounded-lg text-text-secondary text-[12px] font-semibold hover:bg-white/70 transition-colors flex items-center gap-1"
               >
                 <X size={12} />
-                Dismiss
+                {t('insight.dismiss')}
               </button>
             )}
             {cta && (

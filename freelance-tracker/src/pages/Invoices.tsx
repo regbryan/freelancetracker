@@ -6,57 +6,13 @@ import { supabase } from '../lib/supabase'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import InvoiceEditDialog from '../components/InvoiceEditDialog'
 import InvoiceInsight from '../components/InvoiceInsight'
+import { useI18n } from '../lib/i18n'
 
 const STATUS_FLOW: Record<string, Invoice['status'] | null> = {
   draft: 'sent',
   sent: 'paid',
   paid: null,
   overdue: 'paid',
-}
-
-function statusBadge(
-  status: string,
-  onClick?: () => void,
-  hasNext?: boolean,
-) {
-  const styles: Record<string, string> = {
-    paid: 'bg-status-active-bg text-status-active-text',
-    sent: 'bg-status-scheduled-bg text-status-scheduled-text',
-    draft: 'bg-status-completed-bg text-status-completed-text',
-    overdue: 'bg-negative-bg text-negative',
-  }
-
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
-
-  if (!hasNext) {
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[status] || ''}`}
-      >
-        {label}
-      </span>
-    )
-  }
-
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick?.()
-      }}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${styles[status] || ''}`}
-      title={`Click to advance to "${STATUS_FLOW[status]}"`}
-    >
-      {label}
-      <ChevronDown size={10} />
-    </button>
-  )
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '--'
-  const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function formatCurrency(amount: number): string {
@@ -69,6 +25,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function Invoices() {
+  const { t, lang } = useI18n()
   const { invoices, loading, error, updateInvoiceStatus, refetch } = useInvoices()
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [showNewInvoiceMsg, setShowNewInvoiceMsg] = useState(false)
@@ -78,6 +35,57 @@ export default function Invoices() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
   const previewBlobRef = useRef<string | null>(null)
+
+  function formatDate(iso: string | null): string {
+    if (!iso) return '--'
+    const d = new Date(iso + 'T00:00:00')
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })
+  }
+
+  function statusBadge(
+    status: string,
+    onClick?: () => void,
+    hasNext?: boolean,
+  ) {
+    const styles: Record<string, string> = {
+      paid: 'bg-status-active-bg text-status-active-text',
+      sent: 'bg-status-scheduled-bg text-status-scheduled-text',
+      draft: 'bg-status-completed-bg text-status-completed-text',
+      overdue: 'bg-negative-bg text-negative',
+    }
+
+    const labelMap: Record<string, string> = {
+      draft: t('invoices.statusDraft'),
+      sent: t('invoices.statusSent'),
+      paid: t('invoices.statusPaid'),
+      overdue: t('invoices.statusOverdue'),
+    }
+    const label = labelMap[status] ?? status
+
+    if (!hasNext) {
+      return (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[status] || ''}`}
+        >
+          {label}
+        </span>
+      )
+    }
+
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick?.()
+        }}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${styles[status] || ''}`}
+        title={t('invoices.advanceTo', { status: String(STATUS_FLOW[status] ?? '') })}
+      >
+        {label}
+        <ChevronDown size={10} />
+      </button>
+    )
+  }
 
   const filteredInvoices = useMemo(() => {
     if (statusFilter === 'all') return invoices
@@ -104,7 +112,7 @@ export default function Invoices() {
       .select('*')
       .eq('invoice_id', invoice.id)
 
-    if (itemsError) throw new Error(`Failed to load invoice items: ${itemsError.message}`)
+    if (itemsError) throw new Error(t('invoices.failedLoadItems', { error: itemsError.message }))
 
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -112,7 +120,7 @@ export default function Invoices() {
       .eq('id', invoice.project_id)
       .single()
 
-    if (projectError || !project) throw new Error('Failed to load project details')
+    if (projectError || !project) throw new Error(t('invoices.failedLoadProject'))
 
     const client = Array.isArray(project.clients) ? project.clients[0] : project.clients
     const clientInfo = {
@@ -122,8 +130,8 @@ export default function Invoices() {
       company: client?.company,
     }
 
-    return generateInvoicePDF(invoice, (items as InvoiceItem[]) ?? [], project, clientInfo)
-  }, [])
+    return generateInvoicePDF(invoice, (items as InvoiceItem[]) ?? [], project, clientInfo, lang)
+  }, [t, lang])
 
   function cleanupPreview() {
     if (previewBlobRef.current) {
@@ -140,9 +148,9 @@ export default function Invoices() {
       doc.save(`${invoice.invoice_number}.pdf`)
     } catch (err) {
       console.error('Failed to generate PDF:', err)
-      alert(`Failed to download invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('invoices.failedDownload', { error: err instanceof Error ? err.message : t('invoices.unknownError') }))
     }
-  }, [buildPDF])
+  }, [buildPDF, t])
 
   const handlePreviewPDF = useCallback(async (invoice: Invoice) => {
     try {
@@ -155,9 +163,9 @@ export default function Invoices() {
       setPreviewInvoice(invoice)
     } catch (err) {
       console.error('Failed to preview PDF:', err)
-      alert(`Failed to preview invoice: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('invoices.failedPreview', { error: err instanceof Error ? err.message : t('invoices.unknownError') }))
     }
-  }, [buildPDF])
+  }, [buildPDF, t])
 
   const handleStatusAdvance = useCallback(
     async (invoice: Invoice) => {
@@ -182,13 +190,12 @@ export default function Invoices() {
   const handleGetPayLink = useCallback(async (invoice: Invoice) => {
     const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
     if (!apiUrl) {
-      alert('Payment API not configured')
+      alert(t('invoices.paymentApiNotConfigured'))
       return
     }
 
     setPaymentLoading(invoice.id)
     try {
-      const clientEmail = invoice.projects?.clients?.name // We don't have email in the join, just name
       const res = await fetch(`${apiUrl}/api/create-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,7 +208,7 @@ export default function Invoices() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create payment link')
+      if (!res.ok) throw new Error(data.error || t('invoices.failedCreatePayLink', { error: '' }))
 
       // Copy payment URL to clipboard
       await navigator.clipboard.writeText(data.url)
@@ -214,18 +221,18 @@ export default function Invoices() {
         .update({ payment_url: data.url })
         .eq('id', invoice.id)
     } catch (err) {
-      alert(`Failed to create payment link: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('invoices.failedCreatePayLink', { error: err instanceof Error ? err.message : t('invoices.unknownError') }))
     } finally {
       setPaymentLoading(null)
     }
-  }, [])
+  }, [t])
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">Billing</p>
-          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">Invoices</h2>
+          <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('invoices.billing')}</p>
+          <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">{t('invoices.title')}</h2>
         </div>
 
         <div className="relative" ref={msgRef}>
@@ -235,14 +242,13 @@ export default function Invoices() {
             style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             <Plus size={12} />
-            New Invoice
+            {t('invoices.createInvoice')}
           </button>
 
           {showNewInvoiceMsg && (
             <div className="absolute right-0 top-full mt-2 w-64 bg-surface rounded-[10px] shadow-card p-3 z-10 border border-border">
               <p className="text-text-secondary text-[12px] leading-relaxed">
-                Create invoices from the <span className="font-semibold text-accent">Project Detail</span> page,
-                where you can select specific time entries to bill.
+                {t('invoices.newInvoiceTip')} <span className="font-semibold text-accent">{t('invoices.projectDetailLabel')}</span>{t('invoices.newInvoiceTipSuffix')}
               </p>
             </div>
           )}
@@ -255,9 +261,9 @@ export default function Invoices() {
       {/* Error state */}
       {error && (
         <div className="bg-negative-bg rounded-[14px] p-4 text-negative text-[12px]">
-          Failed to load invoices: {error}
+          {t('invoices.failedToLoad', { error: String(error) })}
           <button onClick={refetch} className="ml-3 underline font-semibold">
-            Retry
+            {t('invoices.retry')}
           </button>
         </div>
       )}
@@ -266,7 +272,13 @@ export default function Invoices() {
       {!loading && invoices.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {(['all', 'draft', 'sent', 'paid', 'overdue'] as const).map((status) => {
-            const labels: Record<string, string> = { all: 'All', draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' }
+            const labels: Record<string, string> = {
+              all: t('invoices.filterAll'),
+              draft: t('invoices.filterDraft'),
+              sent: t('invoices.filterSent'),
+              paid: t('invoices.filterPaid'),
+              overdue: t('invoices.filterOverdue'),
+            }
             const isActive = statusFilter === status
             return (
               <button
@@ -290,16 +302,16 @@ export default function Invoices() {
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            <p className="text-text-muted text-[12px]">Loading invoices...</p>
+            <p className="text-text-muted text-[12px]">{t('invoices.loading')}</p>
           </div>
         </div>
       ) : invoices.length === 0 ? (
         /* Empty state */
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-text-muted text-[13px]">No invoices yet.</p>
+            <p className="text-text-muted text-[13px]">{t('invoices.noInvoices')}</p>
             <p className="text-text-muted text-[11px]">
-              Create your first invoice from a Project Detail page.
+              {t('invoices.createFirstProject')}
             </p>
           </div>
         </div>
@@ -307,12 +319,12 @@ export default function Invoices() {
         /* No filter results */
         <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-text-muted text-[13px] font-medium">No invoices with status "{statusFilter}".</p>
+            <p className="text-text-muted text-[13px] font-medium">{t('invoices.noMatch', { status: statusFilter })}</p>
             <button
               onClick={() => setStatusFilter('all')}
               className="text-accent text-[12px] font-semibold hover:underline"
             >
-              Show all invoices
+              {t('invoices.showAll')}
             </button>
           </div>
         </div>
@@ -323,14 +335,14 @@ export default function Invoices() {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                  <th className="text-left px-5 py-3">Invoice #</th>
-                  <th className="text-left px-3 py-3">Client</th>
-                  <th className="text-left px-3 py-3">Project</th>
-                  <th className="text-right px-3 py-3">Amount</th>
-                  <th className="text-center px-3 py-3">Status</th>
-                  <th className="text-left px-3 py-3">Issued</th>
-                  <th className="text-left px-3 py-3">Due</th>
-                  <th className="text-right px-5 py-3">Actions</th>
+                  <th className="text-left px-5 py-3">{t('invoices.colInvoiceNum')}</th>
+                  <th className="text-left px-3 py-3">{t('invoices.colClient')}</th>
+                  <th className="text-left px-3 py-3">{t('invoices.colProject')}</th>
+                  <th className="text-right px-3 py-3">{t('invoices.colAmount')}</th>
+                  <th className="text-center px-3 py-3">{t('invoices.colStatus')}</th>
+                  <th className="text-left px-3 py-3">{t('invoices.colIssued')}</th>
+                  <th className="text-left px-3 py-3">{t('invoices.colDue')}</th>
+                  <th className="text-right px-5 py-3">{t('invoices.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -353,7 +365,7 @@ export default function Invoices() {
                             handlePreviewPDF(inv)
                           }}
                           className="text-accent text-[12px] font-semibold hover:underline"
-                          title="Preview invoice"
+                          title={t('invoices.previewInvoice')}
                         >
                           {inv.invoice_number}
                         </button>
@@ -394,8 +406,8 @@ export default function Invoices() {
                               handlePreviewPDF(inv)
                             }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
-                            aria-label="Preview invoice"
-                            title="Preview"
+                            aria-label={t('invoices.previewInvoice')}
+                            title={t('invoices.previewTitle')}
                           >
                             <Eye size={12} className="text-text-muted" />
                           </button>
@@ -405,8 +417,8 @@ export default function Invoices() {
                               handleDownloadPDF(inv)
                             }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
-                            aria-label="Download invoice"
-                            title="Download"
+                            aria-label={t('invoices.downloadInvoice')}
+                            title={t('invoices.downloadTitle')}
                           >
                             <Download size={12} className="text-text-muted" />
                           </button>
@@ -416,8 +428,8 @@ export default function Invoices() {
                               setEditingInvoice(inv)
                             }}
                             className="p-1.5 rounded hover:bg-border transition-colors"
-                            aria-label="Edit invoice"
-                            title="Edit"
+                            aria-label={t('invoices.editInvoice')}
+                            title={t('invoices.editTitle')}
                           >
                             <Pencil size={12} className="text-text-muted" />
                           </button>
@@ -429,8 +441,8 @@ export default function Invoices() {
                               }}
                               disabled={paymentLoading === inv.id}
                               className="p-1.5 rounded hover:bg-border transition-colors"
-                              aria-label="Get payment link"
-                              title={copiedId === inv.id ? 'Link copied!' : 'Get pay link'}
+                              aria-label={t('invoices.getPaymentLink')}
+                              title={copiedId === inv.id ? t('invoices.linkCopied') : t('invoices.getPayLink')}
                             >
                               {paymentLoading === inv.id ? (
                                 <div className="w-3 h-3 border border-accent border-t-transparent rounded-full animate-spin" />
@@ -472,12 +484,12 @@ export default function Invoices() {
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
                 >
                   <Download size={12} />
-                  Download
+                  {t('invoices.downloadTitle')}
                 </button>
                 <button
                   onClick={cleanupPreview}
                   className="p-1.5 rounded hover:bg-border transition-colors"
-                  aria-label="Close preview"
+                  aria-label={t('invoices.closePreview')}
                 >
                   <X size={14} className="text-text-muted" />
                 </button>
@@ -487,7 +499,7 @@ export default function Invoices() {
               <iframe
                 src={previewUrl}
                 className="w-full h-full border-0"
-                title={`Preview ${previewInvoice.invoice_number}`}
+                title={t('invoices.previewLabel', { num: previewInvoice.invoice_number })}
               />
             </div>
           </div>

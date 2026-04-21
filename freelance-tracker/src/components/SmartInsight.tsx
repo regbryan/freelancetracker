@@ -4,6 +4,7 @@ import type { Task } from '../hooks/useTasks'
 import type { TimeEntry } from '../hooks/useTimeEntries'
 import type { Invoice } from '../hooks/useInvoices'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface SmartInsightProps {
   projects: Project[]
@@ -41,13 +42,14 @@ function saveDismissed(dismissed: Record<string, number>) {
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export default function SmartInsight({ projects, tasks, entries, invoices }: SmartInsightProps) {
+  const { t } = useI18n()
   const [dismissed, setDismissed] = useState<Record<string, number>>(() => loadDismissed())
 
   // Clean up stale dismissals on mount
   useEffect(() => {
     const now = Date.now()
     const cleaned = Object.fromEntries(
-      Object.entries(dismissed).filter(([, t]) => now - t < DISMISS_TTL_MS)
+      Object.entries(dismissed).filter(([, at]) => now - at < DISMISS_TTL_MS)
     )
     if (Object.keys(cleaned).length !== Object.keys(dismissed).length) {
       setDismissed(cleaned)
@@ -76,11 +78,11 @@ export default function SmartInsight({ projects, tasks, entries, invoices }: Sma
         id: `unbilled-${topUnbilled.project.id}`,
         message: (
           <>
-            You have <strong>{topUnbilled.hours.toFixed(1)} unbilled hours</strong> for{' '}
-            <strong>"{topUnbilled.project.name}"</strong> that could be invoiced now. Ready to generate a draft?
+            {t('smart.unbilledHours')} <strong>{t('smart.hoursForProject', { h: topUnbilled.hours.toFixed(1) })}</strong>{' '}
+            <strong>"{topUnbilled.project.name}"</strong> {t('smart.unbilledTail')}
           </>
         ),
-        ctaLabel: 'Create Draft',
+        ctaLabel: t('smart.createDraft'),
         ctaTo: `/projects/${topUnbilled.project.id}`,
       })
     }
@@ -92,32 +94,33 @@ export default function SmartInsight({ projects, tasks, entries, invoices }: Sma
     )
     if (overdueInvoices.length > 0) {
       const total = overdueInvoices.reduce((s, i) => s + i.total, 0)
+      const countKey = overdueInvoices.length === 1 ? 'smart.invoicesCount' : 'smart.invoicesCountPlural'
       candidates.push({
         id: `overdue-inv-${overdueInvoices.length}-${total}`,
         message: (
           <>
-            You have <strong>{overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? 's' : ''}</strong>{' '}
-            totaling <strong>${total.toLocaleString()}</strong>. Send a reminder to keep cash flow healthy.
+            {t('smart.overdueInvoices')} <strong>{t(countKey, { n: overdueInvoices.length })}</strong>{' '}
+            {t('smart.totaling')} <strong>${total.toLocaleString()}</strong>{t('smart.overdueTail')}
           </>
         ),
-        ctaLabel: 'Review Invoices',
+        ctaLabel: t('smart.reviewInvoices'),
         ctaTo: '/invoices',
       })
     }
 
     // 3) Overdue tasks
     const overdueTasks = tasks.filter(
-      t => t.status !== 'done' && t.due_date && t.due_date < today
+      tk => tk.status !== 'done' && tk.due_date && tk.due_date < today
     )
     if (overdueTasks.length >= 3) {
       candidates.push({
         id: `overdue-tasks-${overdueTasks.length}`,
         message: (
           <>
-            <strong>{overdueTasks.length} tasks</strong> are past due. A quick review will keep projects on track.
+            <strong>{t('smart.tasksPre', { n: overdueTasks.length })}</strong>{t('smart.pastDueTail')}
           </>
         ),
-        ctaLabel: 'Review Tasks',
+        ctaLabel: t('smart.reviewTasks'),
         ctaTo: '/tasks',
       })
     }
@@ -133,14 +136,15 @@ export default function SmartInsight({ projects, tasks, entries, invoices }: Sma
       )
       const staleActive = projects.filter(p => p.status === 'active' && !recentProjectIds.has(p.id))
       if (staleActive.length > 0) {
+        const staleKey = staleActive.length === 1 ? 'smart.stalePre' : 'smart.stalePrePlural'
         candidates.push({
           id: `stale-${staleActive.length}`,
           message: (
             <>
-              <strong>{staleActive.length} active project{staleActive.length > 1 ? 's have' : ' has'}</strong> no time logged in the last 2 weeks. Time to re-engage or mark as on-hold?
+              <strong>{t(staleKey, { n: staleActive.length })}</strong>{t('smart.staleTail')}
             </>
           ),
-          ctaLabel: 'View Projects',
+          ctaLabel: t('smart.viewProjects'),
           ctaTo: '/projects',
         })
       }
@@ -164,7 +168,7 @@ export default function SmartInsight({ projects, tasks, entries, invoices }: Sma
 
   return (
     <InsightBanner
-      label="Smart Insight"
+      label={t('smart.label')}
       variant="smart"
       message={insight.message}
       cta={{ label: insight.ctaLabel, to: insight.ctaTo }}

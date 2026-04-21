@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Plus, Trash2, GripVertical } from 'lucide-react'
 import type { MeetingTopic, MeetingTopicUpdate } from '../hooks/useMeetingNotes'
+import { useI18n } from '../lib/i18n'
 
 interface MeetingTopicEditorProps {
   topics: MeetingTopic[]
@@ -15,7 +16,8 @@ export default function MeetingTopicEditor({
   onUpdateTopic,
   onDeleteTopic,
 }: MeetingTopicEditorProps) {
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(topics.map(t => t.id)))
+  const { t } = useI18n()
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(topics.map(tk => tk.id)))
   const [editingHeading, setEditingHeading] = useState<string | null>(null)
   const [newTopicTitle, setNewTopicTitle] = useState('')
   const [showNewTopic, setShowNewTopic] = useState(false)
@@ -108,7 +110,7 @@ export default function MeetingTopicEditor({
                 <textarea
                   value={topic.notes}
                   onChange={e => onUpdateTopic(topic.id, { notes: e.target.value })}
-                  placeholder="Add notes for this topic..."
+                  placeholder={t('topicEditor.notesPh')}
                   rows={3}
                   className="w-full px-3 py-2 rounded-lg border border-border/50 bg-input-bg/50 text-text-primary text-[12px] placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-all resize-y"
                 />
@@ -130,7 +132,7 @@ export default function MeetingTopicEditor({
               if (e.key === 'Enter') handleAddTopic()
               if (e.key === 'Escape') { setShowNewTopic(false); setNewTopicTitle('') }
             }}
-            placeholder="Topic heading..."
+            placeholder={t('topicEditor.headingPh')}
             className="flex-1 h-9 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
           />
           <button
@@ -139,14 +141,14 @@ export default function MeetingTopicEditor({
             className="h-9 px-3 rounded-lg text-white text-[11px] font-semibold hover:opacity-90 transition-all"
             style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
-            Add
+            {t('topicEditor.add')}
           </button>
           <button
             type="button"
             onClick={() => { setShowNewTopic(false); setNewTopicTitle('') }}
             className="h-9 px-3 rounded-lg border border-border text-text-muted text-[11px] hover:bg-input-bg transition-all"
           >
-            Cancel
+            {t('topicEditor.cancel')}
           </button>
         </div>
       ) : (
@@ -155,7 +157,7 @@ export default function MeetingTopicEditor({
           onClick={() => setShowNewTopic(true)}
           className="flex items-center gap-1.5 text-accent text-[12px] font-medium hover:text-accent/80 transition-colors py-1"
         >
-          <Plus size={14} /> Add Topic
+          <Plus size={14} /> {t('topicEditor.addTopic')}
         </button>
       )}
     </div>

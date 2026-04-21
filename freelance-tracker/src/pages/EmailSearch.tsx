@@ -22,19 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }) + ' at ' + date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
+import { useI18n } from '../lib/i18n'
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim()) return <>{text}</>
@@ -52,7 +40,23 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 }
 
 export default function EmailSearch() {
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString)
+    const locale = lang === 'es' ? 'es-ES' : 'en-US'
+    return date.toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }) + ' · ' + date.toLocaleTimeString(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
   const { communications, loading, refetch } = useAllCommunications()
   const { projects } = useProjects()
   const { invoices } = useInvoices()
@@ -96,10 +100,10 @@ export default function EmailSearch() {
         body: JSON.stringify(payload),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'AI search failed')
+      if (!res.ok) throw new Error(data.error || t('emails.aiSearchFailed'))
       setAiResults({ summary: data.summary || '', matches: data.matches || [] })
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'AI search failed')
+      setAiError(err instanceof Error ? err.message : t('emails.aiSearchFailed'))
     } finally {
       setAiLoading(false)
     }
@@ -157,7 +161,7 @@ export default function EmailSearch() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-text-muted text-[13px]">Loading emails...</p>
+        <p className="text-text-muted text-[13px]">{t('emails.loading')}</p>
       </div>
     )
   }
@@ -169,10 +173,12 @@ export default function EmailSearch() {
         <div>
           <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] flex items-center gap-2">
             <Mail size={20} className="text-accent" />
-            Email Search
+            {t('emails.title')}
           </h2>
           <p className="text-text-muted text-[12px] mt-0.5">
-            Search across {communications.length} synced email{communications.length !== 1 ? 's' : ''} from all projects
+            {communications.length === 1
+              ? t('emails.subtitleCountSingular', { n: communications.length })
+              : t('emails.subtitleCountPlural', { n: communications.length })}
           </p>
         </div>
         <button
@@ -182,7 +188,7 @@ export default function EmailSearch() {
           style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
         >
           <PenSquare size={13} />
-          Compose
+          {t('emails.compose')}
         </button>
       </div>
 
@@ -199,9 +205,7 @@ export default function EmailSearch() {
             value={search}
             onChange={e => { setSearch(e.target.value); if (aiMode) setAiResults(null) }}
             onKeyDown={e => { if (aiMode && e.key === 'Enter') runAiSearch() }}
-            placeholder={aiMode
-              ? "Ask anything... e.g., 'who asked about logo revisions last week?'"
-              : 'Search by subject, body, sender, or recipient...'}
+            placeholder={aiMode ? t('emails.searchPlaceholderAi') : t('emails.searchPlaceholderKeyword')}
             className={`w-full h-10 pl-9 pr-3 rounded-lg border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:ring-1 transition-all ${
               aiMode
                 ? 'border-accent/40 focus:border-accent focus:ring-accent/30'
@@ -223,10 +227,10 @@ export default function EmailSearch() {
               ? 'bg-accent text-white border-accent hover:opacity-90'
               : 'bg-input-bg text-text-primary border-border hover:border-accent/40'
           }`}
-          title={aiMode ? 'Switch to keyword search' : 'Switch to AI-powered search'}
+          title={aiMode ? t('emails.switchToKeyword') : t('emails.switchToAi')}
         >
           <Sparkles size={13} />
-          Ask AI
+          {t('emails.askAi')}
         </button>
         {aiMode && (
           <button
@@ -236,7 +240,7 @@ export default function EmailSearch() {
             className="h-10 px-3 rounded-lg bg-accent text-white text-[12px] font-semibold disabled:opacity-50 hover:opacity-90 transition-all flex items-center gap-1.5"
           >
             {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
-            {aiLoading ? 'Searching...' : 'Search'}
+            {aiLoading ? t('emails.searching') : t('emails.search')}
           </button>
         )}
         <select
@@ -244,16 +248,16 @@ export default function EmailSearch() {
           onChange={e => setFilterDirection(e.target.value as '' | 'sent' | 'received')}
           className="h-10 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] focus:outline-none focus:border-accent transition-all"
         >
-          <option value="">All Directions</option>
-          <option value="sent">Sent</option>
-          <option value="received">Received</option>
+          <option value="">{t('emails.allDirections')}</option>
+          <option value="sent">{t('emails.sent')}</option>
+          <option value="received">{t('emails.received')}</option>
         </select>
         <select
           value={filterProject}
           onChange={e => setFilterProject(e.target.value)}
           className="h-10 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] focus:outline-none focus:border-accent transition-all"
         >
-          <option value="">All Projects</option>
+          <option value="">{t('emails.allProjects')}</option>
           {projectsWithEmails.map(p => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
@@ -265,8 +269,8 @@ export default function EmailSearch() {
         <div className="bg-accent-bg border border-accent/30 rounded-xl p-4 flex items-start gap-3">
           <Sparkles size={16} className="text-accent shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-accent uppercase tracking-wide mb-0.5">AI Answer</p>
-            <p className="text-[13px] text-text-primary leading-relaxed">{aiResults.summary || 'No summary available.'}</p>
+            <p className="text-[11px] font-semibold text-accent uppercase tracking-wide mb-0.5">{t('emails.aiAnswer')}</p>
+            <p className="text-[13px] text-text-primary leading-relaxed">{aiResults.summary || t('emails.noSummary')}</p>
           </div>
         </div>
       )}
@@ -279,7 +283,9 @@ export default function EmailSearch() {
       {/* Results count */}
       {((aiMode && aiResults) || (!aiMode && search.trim())) && (
         <p className="text-text-muted text-[12px]">
-          {filtered.length} result{filtered.length !== 1 ? 's' : ''} found
+          {filtered.length === 1
+            ? t('emails.resultsSingular', { n: filtered.length })
+            : t('emails.resultsPlural', { n: filtered.length })}
         </p>
       )}
 
@@ -289,8 +295,8 @@ export default function EmailSearch() {
           <Mail size={32} className="text-text-muted/30" />
           <p className="text-text-muted text-[13px]">
             {communications.length === 0
-              ? 'No emails synced yet. Sync emails from a project\'s Communications tab.'
-              : 'No emails match your search.'}
+              ? t('emails.emptyNoSync')
+              : t('emails.noResults')}
           </p>
         </div>
       ) : (
@@ -322,7 +328,7 @@ export default function EmailSearch() {
                           <ArrowDownLeft className="h-3.5 w-3.5 text-positive" />
                         )}
                         <span className={`text-[11px] font-medium ${isSent ? 'text-accent' : 'text-positive'}`}>
-                          {isSent ? 'Sent' : 'Received'}
+                          {isSent ? t('emails.sent') : t('emails.received')}
                         </span>
                       </div>
                       {proj && (
@@ -343,16 +349,16 @@ export default function EmailSearch() {
                   {/* From / To */}
                   <div className="flex items-center gap-3 text-[11px] text-text-muted mb-1">
                     {comm.from_email && (
-                      <span>From: {q ? highlightMatch(comm.from_email, q) : comm.from_email}</span>
+                      <span>{t('emails.from')}: {q ? highlightMatch(comm.from_email, q) : comm.from_email}</span>
                     )}
                     {comm.to_email && (
-                      <span>To: {q ? highlightMatch(comm.to_email, q) : comm.to_email}</span>
+                      <span>{t('emails.to')}: {q ? highlightMatch(comm.to_email, q) : comm.to_email}</span>
                     )}
                   </div>
 
                   {/* Subject */}
                   <p className="text-[13px] font-semibold text-text-primary leading-snug">
-                    {q && !aiMode && comm.subject ? highlightMatch(comm.subject, q) : (comm.subject || '(no subject)')}
+                    {q && !aiMode && comm.subject ? highlightMatch(comm.subject, q) : (comm.subject || t('emails.noSubject'))}
                   </p>
 
                   {/* AI relevance reason */}
@@ -383,9 +389,9 @@ export default function EmailSearch() {
                       className="mt-1.5 flex items-center gap-1 text-[11px] text-accent font-medium hover:underline"
                     >
                       {isExpanded ? (
-                        <><ChevronUp className="h-3 w-3" /> Show less</>
+                        <><ChevronUp className="h-3 w-3" /> {t('emails.showLess')}</>
                       ) : (
-                        <><ChevronDown className="h-3 w-3" /> Show more</>
+                        <><ChevronDown className="h-3 w-3" /> {t('emails.showMore')}</>
                       )}
                     </button>
                   )}
@@ -401,7 +407,7 @@ export default function EmailSearch() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PenSquare size={16} className="text-accent" />
-              New Email
+              {t('emails.newEmail')}
             </DialogTitle>
           </DialogHeader>
           <EmailComposer

@@ -7,8 +7,10 @@ import TimeEntryList from '../components/TimeEntryList'
 import TimeEntryEditDialog from '../components/TimeEntryEditDialog'
 import CuratorInsight from '../components/CuratorInsight'
 import type { TimeEntry as ListTimeEntry } from '../components/TimeEntryList'
+import { useI18n } from '../lib/i18n'
 
 export default function TimeTracker() {
+  const { t, lang } = useI18n()
   const { entries, loading, error, createEntry, updateEntry, deleteEntry, refetch } = useTimeEntries()
   const { projects, loading: projectsLoading } = useProjects()
   const [showManualForm, setShowManualForm] = useState(false)
@@ -57,6 +59,11 @@ export default function TimeTracker() {
     date: e.date,
     billable: e.billable,
   }))
+
+  const formatDate = useCallback((iso: string): string => {
+    const d = new Date(iso + 'T00:00:00')
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })
+  }, [lang])
 
   const filteredEntries = useMemo(() => {
     if (dateRange === 'all') return mappedEntries
@@ -109,8 +116,8 @@ export default function TimeTracker() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">Tracking</p>
-        <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">Time Tracker</h2>
+        <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('timeTracker.tracking')}</p>
+        <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">{t('timeTracker.title')}</h2>
       </div>
 
       {/* Curator's Insight */}
@@ -125,7 +132,7 @@ export default function TimeTracker() {
           onClick={() => setShowManualForm((prev) => !prev)}
           className="text-accent text-[12px] font-semibold hover:underline transition-all"
         >
-          {showManualForm ? 'Hide Manual Entry' : '+ Add Manual Entry'}
+          {showManualForm ? t('timeTracker.hideManual') : t('timeTracker.addManual')}
         </button>
       </div>
 
@@ -137,12 +144,12 @@ export default function TimeTracker() {
       {/* Error state */}
       {error && (
         <div className="bg-negative-bg rounded-[14px] p-4 text-negative text-[12px]">
-          Failed to load entries: {error}
+          {t('timeTracker.failedToLoad', { error: String(error) })}
           <button
             onClick={refetch}
             className="ml-3 underline font-semibold"
           >
-            Retry
+            {t('timeTracker.retry')}
           </button>
         </div>
       )}
@@ -150,9 +157,10 @@ export default function TimeTracker() {
       {/* Recent Entries */}
       <div>
         <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-text-primary text-[14px] font-bold">Recent Entries</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('timeTracker.recentEntries')}</h3>
           <div className="flex items-center gap-1.5">
-            {([['7', 'Last 7 Days'], ['30', 'Last 30 Days'], ['all', 'All']] as const).map(([value, label]) => {
+            {(['7', '30', 'all'] as const).map((value) => {
+              const label = value === '7' ? t('timeTracker.last7') : value === '30' ? t('timeTracker.last30') : t('timeTracker.allTime')
               const isActive = dateRange === value
               return (
                 <button
@@ -175,7 +183,7 @@ export default function TimeTracker() {
           <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-text-muted text-[12px]">Loading time entries...</p>
+              <p className="text-text-muted text-[12px]">{t('timeTracker.loadingEntries')}</p>
             </div>
           </div>
         ) : (
@@ -184,7 +192,7 @@ export default function TimeTracker() {
             {filteredEntries.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
                 <p className="text-text-muted text-[13px]">
-                  No time entries yet. Start the timer or add a manual entry above.
+                  {t('timeTracker.noEntries')}
                 </p>
               </div>
             ) : (
@@ -193,12 +201,12 @@ export default function TimeTracker() {
                   <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                        <th className="text-left px-5 py-3">Date</th>
-                        <th className="text-left px-3 py-3">Project</th>
-                        <th className="text-left px-3 py-3">Description</th>
-                        <th className="text-right px-3 py-3">Hours</th>
-                        <th className="text-center px-3 py-3">Billable</th>
-                        <th className="text-right px-5 py-3">Actions</th>
+                        <th className="text-left px-5 py-3">{t('timeTracker.colDate')}</th>
+                        <th className="text-left px-3 py-3">{t('timeTracker.colProject')}</th>
+                        <th className="text-left px-3 py-3">{t('timeTracker.colDescription')}</th>
+                        <th className="text-right px-3 py-3">{t('timeTracker.colHours')}</th>
+                        <th className="text-center px-3 py-3">{t('timeTracker.colBillable')}</th>
+                        <th className="text-right px-5 py-3">{t('timeTracker.colActions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -211,7 +219,7 @@ export default function TimeTracker() {
                             {formatDate(entry.date)}
                           </td>
                           <td className="px-3 py-3 text-accent text-[12px] font-semibold">
-                            {projectNameMap.get(entry.projectId) ?? 'Unknown'}
+                            {projectNameMap.get(entry.projectId) ?? t('timeTracker.unknown')}
                           </td>
                           <td className="px-3 py-3 text-text-secondary text-[12px]">
                             {entry.description}
@@ -227,7 +235,7 @@ export default function TimeTracker() {
                                   : 'bg-status-completed-bg text-status-completed-text'
                               }`}
                             >
-                              {entry.billable ? 'Yes' : 'No'}
+                              {entry.billable ? t('timeTracker.yes') : t('timeTracker.no')}
                             </span>
                           </td>
                           <td className="px-5 py-3 text-right">
@@ -235,8 +243,8 @@ export default function TimeTracker() {
                               <button
                                 onClick={() => handleClone(entry)}
                                 className="p-1.5 rounded hover:bg-border transition-colors"
-                                aria-label="Clone entry"
-                                title="Clone to today"
+                                aria-label={t('timeTracker.cloneEntry')}
+                                title={t('timeTracker.cloneToToday')}
                               >
                                 <svg
                                   width="12"
@@ -256,7 +264,7 @@ export default function TimeTracker() {
                               <button
                                 onClick={() => handleEdit(entry)}
                                 className="p-1.5 rounded hover:bg-border transition-colors"
-                                aria-label="Edit entry"
+                                aria-label={t('timeTracker.editEntry')}
                               >
                                 <svg
                                   width="12"
@@ -276,7 +284,7 @@ export default function TimeTracker() {
                               <button
                                 onClick={() => handleDelete(entry.id)}
                                 className="p-1.5 rounded hover:bg-border transition-colors"
-                                aria-label="Delete entry"
+                                aria-label={t('timeTracker.deleteEntry')}
                               >
                                 <svg
                                   width="12"
@@ -315,9 +323,4 @@ export default function TimeTracker() {
       />
     </div>
   )
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

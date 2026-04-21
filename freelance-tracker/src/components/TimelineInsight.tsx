@@ -3,6 +3,7 @@ import { CalendarClock } from 'lucide-react'
 import type { Project } from '../hooks/useProjects'
 import type { Task } from '../hooks/useTasks'
 import InsightBanner from './InsightBanner'
+import { useI18n } from '../lib/i18n'
 
 interface TimelineInsightProps {
   projects: Project[]
@@ -28,6 +29,7 @@ function overlapDays(aStart: string, aEnd: string, bStart: string, bEnd: string)
 }
 
 export default function TimelineInsight({ projects, tasks }: TimelineInsightProps) {
+  const { t } = useI18n()
   const insight = useMemo<Insight | null>(() => {
     const active = projects.filter(
       p => p.status === 'active' && p.start_date && p.end_date,
@@ -45,13 +47,14 @@ export default function TimelineInsight({ projects, tasks }: TimelineInsightProp
       const firstEnd = daysUntil(endingSoon[0].end_date!)
       const lastEnd = daysUntil(endingSoon[endingSoon.length - 1].end_date!)
       if (lastEnd - firstEnd <= 7) {
+        const firstEndAbs = Math.max(0, firstEnd)
+        const daysKey = firstEndAbs === 1 ? 'tlInsight.pileupDays' : 'tlInsight.pileupDaysPlural'
         return {
           message: (
             <>
-              <strong>{endingSoon.length} active projects</strong> land within a{' '}
-              <strong>{Math.max(1, lastEnd - firstEnd)}-day</strong> window — starting in{' '}
-              <strong>{Math.max(0, firstEnd)} day{firstEnd === 1 ? '' : 's'}</strong>.
-              Plan the handoff sequence before the crunch hits.
+              <strong>{t('tlInsight.pileupPre', { n: endingSoon.length })}</strong>{t('tlInsight.pileupMid')}{' '}
+              <strong>{t('tlInsight.pileupWindow', { n: Math.max(1, lastEnd - firstEnd) })}</strong>{t('tlInsight.pileupTail')}{' '}
+              <strong>{t(daysKey, { n: firstEndAbs })}</strong>{t('tlInsight.pileupEnd')}
             </>
           ),
         }
@@ -68,9 +71,8 @@ export default function TimelineInsight({ projects, tasks }: TimelineInsightProp
           return {
             message: (
               <>
-                <strong>"{a.name}"</strong> and <strong>"{b.name}"</strong> overlap by{' '}
-                <strong>{d} days</strong>. Double-book your calendar intentionally —
-                or negotiate one of them.
+                <strong>"{a.name}"</strong> {t('tlInsight.overlapMid')} <strong>"{b.name}"</strong> {t('tlInsight.overlapBy')}{' '}
+                <strong>{t('tlInsight.overlapDays', { n: d })}</strong>{t('tlInsight.overlapTail')}
               </>
             ),
           }
@@ -86,20 +88,21 @@ export default function TimelineInsight({ projects, tasks }: TimelineInsightProp
 
     if (nearest) {
       const taskCount = tasks.filter(
-        t => t.project_id === nearest.project.id && t.status !== 'done',
+        tk => tk.project_id === nearest.project.id && tk.status !== 'done',
       ).length
+      const wrapsKey = nearest.days === 1 ? 'tlInsight.wrapsDay' : 'tlInsight.wrapsDays'
+      const tasksKey = taskCount === 1 ? 'tlInsight.openTasks' : 'tlInsight.openTasksPlural'
       return {
         message: (
           <>
-            <strong>"{nearest.project.name}"</strong> wraps in{' '}
-            <strong>{nearest.days} day{nearest.days === 1 ? '' : 's'}</strong>
+            <strong>"{nearest.project.name}"</strong> {t('tlInsight.wrapsIn')}{' '}
+            <strong>{t(wrapsKey, { n: nearest.days })}</strong>
             {taskCount > 0 ? (
               <>
-                {' '}with <strong>{taskCount} open task{taskCount === 1 ? '' : 's'}</strong>.
-                The last week decides the perception.
+                {t('tlInsight.withOpen')} <strong>{t(tasksKey, { n: taskCount })}</strong>{t('tlInsight.openTasksTail')}
               </>
             ) : (
-              <>. Clear runway — protect it from surprise scope.</>
+              <>{t('tlInsight.clearRunway')}</>
             )}
           </>
         ),
@@ -111,21 +114,20 @@ export default function TimelineInsight({ projects, tasks }: TimelineInsightProp
       return {
         message: (
           <>
-            <strong>{active.length} concurrent projects</strong> on the runway. The Gantt
-            view below shows where they thin out — aim your energy at the narrow weeks.
+            <strong>{t('tlInsight.parallelPre', { n: active.length })}</strong>{t('tlInsight.parallelTail')}
           </>
         ),
       }
     }
 
     return null
-  }, [projects, tasks])
+  }, [projects, tasks, t])
 
   if (!insight) return null
 
   return (
     <InsightBanner
-      label="Runway View"
+      label={t('tlInsight.label')}
       variant="forecast"
       icon={CalendarClock}
       message={insight.message}
