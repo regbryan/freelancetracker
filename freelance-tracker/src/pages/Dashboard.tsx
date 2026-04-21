@@ -12,6 +12,9 @@ import {
   CheckSquare,
   Circle,
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
 } from 'lucide-react'
 import StatCard from '../components/StatCard'
 import MilestoneWidget from '../components/MilestoneWidget'
@@ -48,6 +51,23 @@ export default function Dashboard() {
   const { invoices, loading: iLoading } = useInvoices()
   const { tasks, loading: taskLoading } = useTasks()
   const { meetingNotes, loading: mnLoading } = useMeetingNotes()
+
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  const toggleProjectCollapse = (pid: string) => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev)
+      if (next.has(pid)) next.delete(pid); else next.add(pid)
+      return next
+    })
+  }
+  const toggleDateCollapse = (key: string) => {
+    setCollapsedDates(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
 
   const [profileName] = useState(() => {
     try {
@@ -342,33 +362,56 @@ export default function Dashboard() {
                   </p>
                 </div>
               ) : (
-                projectGroups.map(pg => (
+                projectGroups.map(pg => {
+                  const isProjectCollapsed = collapsedProjects.has(pg.projectId)
+                  return (
                   <div key={pg.projectId}>
                     {/* Project header */}
-                    <button
-                      onClick={() => pg.projectId !== 'none' ? navigate(`/projects/${pg.projectId}`) : undefined}
-                      className="w-full flex items-center gap-2 px-5 py-2 border-b border-border bg-accent/5 hover:bg-accent/10 transition-colors text-left"
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pg.projectId === 'none' ? 'bg-border' : 'bg-accent'}`} />
-                      <span className="text-[12px] font-bold text-text-primary">{pg.projectName}</span>
-                      <span className="text-[10px] text-text-muted ml-1">
-                        {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
-                      </span>
-                    </button>
+                    <div className="w-full flex items-center gap-2 px-5 py-2 border-b border-border bg-accent/5 hover:bg-accent/10 transition-colors">
+                      <button
+                        onClick={() => toggleProjectCollapse(pg.projectId)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                        aria-expanded={!isProjectCollapsed}
+                      >
+                        {isProjectCollapsed ? <ChevronRight size={11} className="text-text-muted shrink-0" /> : <ChevronDown size={11} className="text-text-muted shrink-0" />}
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pg.projectId === 'none' ? 'bg-border' : 'bg-accent'}`} />
+                        <span className="text-[12px] font-bold text-text-primary truncate">{pg.projectName}</span>
+                        <span className="text-[10px] text-text-muted ml-1 shrink-0">
+                          {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
+                        </span>
+                      </button>
+                      {pg.projectId !== 'none' && (
+                        <button
+                          onClick={() => navigate(`/projects/${pg.projectId}`)}
+                          className="p-1 rounded hover:bg-input-bg text-text-muted hover:text-accent transition-colors shrink-0"
+                          title="Open project"
+                        >
+                          <ExternalLink size={11} />
+                        </button>
+                      )}
+                    </div>
 
-                    {pg.dateGroups.map(group => (
-                      <div key={`${pg.projectId}-${group.key}`}>
+                    {!isProjectCollapsed && pg.dateGroups.map(group => {
+                      const dateKey = `${pg.projectId}-${group.key}`
+                      const isDateCollapsed = collapsedDates.has(dateKey)
+                      return (
+                      <div key={dateKey}>
                         {/* Date sub-header */}
-                        <div className="flex items-center gap-2 pl-8 pr-5 py-1 border-b border-border/60 bg-input-bg/30">
+                        <button
+                          onClick={() => toggleDateCollapse(dateKey)}
+                          className="w-full flex items-center gap-2 pl-8 pr-5 py-1 border-b border-border/60 bg-input-bg/30 hover:bg-input-bg/60 transition-colors text-left"
+                          aria-expanded={!isDateCollapsed}
+                        >
+                          {isDateCollapsed ? <ChevronRight size={10} className="text-text-muted shrink-0" /> : <ChevronDown size={10} className="text-text-muted shrink-0" />}
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${group.isOverdueGroup ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
                           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
                             {group.label}
                           </span>
                           <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
-                        </div>
+                        </button>
 
                         {/* Tasks in group */}
-                        {group.tasks.map(task => {
+                        {!isDateCollapsed && group.tasks.map(task => {
                           const proj = projectMap.get(task.project_id)
                           const isOverdue = group.isOverdueGroup
                           return (
@@ -403,9 +446,11 @@ export default function Dashboard() {
                           )
                         })}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
