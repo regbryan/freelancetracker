@@ -75,6 +75,21 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
     return data;
   }, [fetchTasks]);
 
+  const createTasks = useCallback(async (taskList: TaskInsert[]): Promise<Task[]> => {
+    if (taskList.length === 0) return []
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error: insertError } = await supabase
+      .from('tasks')
+      .insert(taskList.map(t => ({ ...t, user_id: user.id })))
+      .select();
+
+    if (insertError) throw insertError;
+    await fetchTasks();
+    return data ?? [];
+  }, [fetchTasks]);
+
   const updateTask = useCallback(async (id: string, updates: TaskUpdate): Promise<Task> => {
     const { data, error: updateError } = await supabase
       .from('tasks')
@@ -98,5 +113,5 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
     await fetchTasks();
   }, [fetchTasks]);
 
-  return { tasks, loading, error, createTask, updateTask, deleteTask, refetch: fetchTasks };
+  return { tasks, loading, error, createTask, createTasks, updateTask, deleteTask, refetch: fetchTasks };
 }

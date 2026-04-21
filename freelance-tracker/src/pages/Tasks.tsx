@@ -18,9 +18,44 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function expandRecurrence(
+  startDate: string | undefined,
+  dueDate: string | undefined,
+  kind: 'daily' | 'weekly' | 'monthly',
+  endDate: string,
+): { start: string | null; due: string | null }[] {
+  const anchor = dueDate || startDate
+  if (!anchor) return []
+  const end = new Date(endDate + 'T00:00:00')
+  const anchorDate = new Date(anchor + 'T00:00:00')
+  const startD = startDate ? new Date(startDate + 'T00:00:00') : null
+  const deltaMs = startD ? anchorDate.getTime() - startD.getTime() : 0
+
+  const results: { start: string | null; due: string | null }[] = []
+  const cursor = new Date(anchorDate)
+  let i = 0
+  while (cursor.getTime() <= end.getTime() && i < 500) {
+    const dueStr = toISO(cursor)
+    const startStr = startD ? toISO(new Date(cursor.getTime() - deltaMs)) : null
+    results.push({ start: startStr, due: dueDate ? dueStr : null })
+    if (!dueDate && startStr) {
+      results[results.length - 1] = { start: startStr, due: null }
+    }
+    if (kind === 'daily') cursor.setDate(cursor.getDate() + 1)
+    else if (kind === 'weekly') cursor.setDate(cursor.getDate() + 7)
+    else cursor.setMonth(cursor.getMonth() + 1)
+    i++
+  }
+  return results
+}
+
 export default function Tasks() {
   const { t, lang } = useI18n()
-  const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks()
+  const { tasks, loading: tasksLoading, createTask, createTasks, updateTask, deleteTask } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
   const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
 
@@ -820,7 +855,13 @@ export default function Tasks() {
             await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
             setEditingTask(null)
           } else {
-            await createTask({ project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })
+            const base = { project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, meeting_note_id: null, assignee: 'me' as const }
+            if (data.recurrence && data.recurrence !== 'none' && data.recurrenceEnd) {
+              const occurrences = expandRecurrence(data.startDate, data.dueDate, data.recurrence, data.recurrenceEnd)
+              await createTasks(occurrences.map(o => ({ ...base, start_date: o.start, due_date: o.due })))
+            } else {
+              await createTask({ ...base, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
+            }
           }
         }}
       />

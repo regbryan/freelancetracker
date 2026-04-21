@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select'
 import { useI18n } from '../lib/i18n'
 
+export type RecurrenceKind = 'none' | 'daily' | 'weekly' | 'monthly'
+
 export interface TaskFormData {
   title: string
   description?: string
@@ -27,6 +29,8 @@ export interface TaskFormData {
   startDate?: string
   dueDate?: string
   projectId?: string
+  recurrence?: RecurrenceKind
+  recurrenceEnd?: string
 }
 
 interface TaskFormProps {
@@ -75,6 +79,8 @@ export default function TaskForm({
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [projectId, setProjectId] = useState('')
+  const [recurrence, setRecurrence] = useState<RecurrenceKind>('none')
+  const [recurrenceEnd, setRecurrenceEnd] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -86,6 +92,8 @@ export default function TaskForm({
       setStartDate(task?.startDate ?? '')
       setDueDate(task?.dueDate ?? '')
       setProjectId('')
+      setRecurrence('none')
+      setRecurrenceEnd('')
     }
   }, [open, task])
 
@@ -102,6 +110,8 @@ export default function TaskForm({
         startDate: startDate || undefined,
         dueDate: dueDate || undefined,
         projectId: projectId || undefined,
+        recurrence: isEdit ? 'none' : recurrence,
+        recurrenceEnd: !isEdit && recurrence !== 'none' ? (recurrenceEnd || undefined) : undefined,
       })
       onOpenChange(false)
     } finally {
@@ -224,6 +234,41 @@ export default function TaskForm({
             </div>
           </div>
 
+          {/* Recurrence — only when creating */}
+          {!isEdit && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="task-recurrence" className="text-[12px]">Repeats</Label>
+                <Select value={recurrence} onValueChange={(v) => setRecurrence(v as RecurrenceKind)}>
+                  <SelectTrigger id="task-recurrence">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Does not repeat</SelectItem>
+                    <SelectItem value="daily">Every day</SelectItem>
+                    <SelectItem value="weekly">Every week</SelectItem>
+                    <SelectItem value="monthly">Every month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {recurrence !== 'none' && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="task-recurrence-end" className="text-[12px]">
+                    Ends on <span className="text-negative">*</span>
+                  </Label>
+                  <Input
+                    id="task-recurrence-end"
+                    type="date"
+                    value={recurrenceEnd}
+                    min={dueDate || startDate || undefined}
+                    onChange={(e) => setRecurrenceEnd(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-desc" className="text-[12px]">
@@ -248,7 +293,7 @@ export default function TaskForm({
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId)}>
+            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId) || (!isEdit && recurrence !== 'none' && (!recurrenceEnd || !(dueDate || startDate)))}>
               {saving ? t('taskForm.saving') : isEdit ? t('taskForm.saveChanges') : t('taskForm.create')}
             </Button>
           </DialogFooter>
