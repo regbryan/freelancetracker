@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil, BookOpen, Calendar } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil, BookOpen, Calendar, Clock } from 'lucide-react'
 import { useProject, useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -26,30 +26,32 @@ import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { useI18n } from '../lib/i18n'
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  active: { label: 'Active', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
-  completed: { label: 'Completed', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
-  on_hold: { label: 'On Hold', bg: 'bg-status-hold-bg', text: 'text-status-hold-text' },
-  cancelled: { label: 'Cancelled', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+const STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
+  active: { labelKey: 'projectDetail.statusActive', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  completed: { labelKey: 'projectDetail.statusCompleted', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  on_hold: { labelKey: 'projectDetail.statusOnHold', bg: 'bg-status-hold-bg', text: 'text-status-hold-text' },
+  cancelled: { labelKey: 'projectDetail.statusCancelled', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
 }
 
-const INVOICE_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  draft: { label: 'Draft', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
-  sent: { label: 'Sent', bg: 'bg-status-scheduled-bg', text: 'text-status-scheduled-text' },
-  paid: { label: 'Paid', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
-  overdue: { label: 'Overdue', bg: 'bg-negative-bg', text: 'text-negative' },
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '--'
-  const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+const INVOICE_STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
+  draft: { labelKey: 'projectDetail.invStatusDraft', bg: 'bg-status-completed-bg', text: 'text-status-completed-text' },
+  sent: { labelKey: 'projectDetail.invStatusSent', bg: 'bg-status-scheduled-bg', text: 'text-status-scheduled-text' },
+  paid: { labelKey: 'projectDetail.invStatusPaid', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
+  overdue: { labelKey: 'projectDetail.invStatusOverdue', bg: 'bg-negative-bg', text: 'text-negative' },
 }
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, lang } = useI18n()
+
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return '--'
+    const d = new Date(iso + 'T00:00:00')
+    return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
   const { deleteProject, updateProject } = useProjects()
@@ -77,6 +79,30 @@ export default function ProjectDetail() {
   const [notesSaving, setNotesSaving] = useState(false)
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'todo' | 'in_progress' | 'done'>('all')
   const [taskSortBy, setTaskSortBy] = useState<'due_date' | 'priority' | 'status'>('due_date')
+  const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
+  const [logHours, setLogHours] = useState('')
+  const [logDate, setLogDate] = useState('')
+  const [logBillable, setLogBillable] = useState(true)
+  const [logSaving, setLogSaving] = useState(false)
+
+  function openLogForm(taskId: string) {
+    setLoggingTaskId(taskId)
+    setLogHours('')
+    setLogDate(new Date().toISOString().slice(0, 10))
+    setLogBillable(true)
+  }
+
+  async function submitLogForm(taskId: string) {
+    const hours = parseFloat(logHours)
+    if (!hours || hours <= 0 || !logDate) return
+    setLogSaving(true)
+    try {
+      await handleTaskLogTime(taskId, hours, logDate, logBillable)
+      setLoggingTaskId(null)
+    } finally {
+      setLogSaving(false)
+    }
+  }
 
   const contractFilters = useMemo(() => ({ projectId: id }), [id])
 
@@ -147,6 +173,7 @@ export default function ProjectDetail() {
       items,
       project,
       clientInfo,
+      lang,
     )
   }
 
@@ -213,7 +240,7 @@ export default function ProjectDetail() {
   }, [])
 
   async function handleTaskLogTime(taskId: string, hours: number, date: string, billable: boolean) {
-    const task = tasks.find((t) => t.id === taskId)
+    const task = tasks.find((tk) => tk.id === taskId)
     await createEntry({
       project_id: id!,
       description: task?.title ?? '',
@@ -230,7 +257,7 @@ export default function ProjectDetail() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-[13px] font-medium">Loading project...</p>
+        <p className="text-[13px] font-medium">{t('projectDetail.loading')}</p>
       </div>
     )
   }
@@ -239,13 +266,13 @@ export default function ProjectDetail() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-text-muted">
         <p className="text-[13px] font-medium text-negative">
-          {projectError ?? 'Project not found'}
+          {projectError ?? t('projectDetail.notFound')}
         </p>
         <button
           onClick={() => navigate('/projects')}
           className="text-accent text-[13px] hover:underline"
         >
-          Back to Projects
+          {t('projectDetail.back')}
         </button>
       </div>
     )
@@ -261,7 +288,7 @@ export default function ProjectDetail() {
         className="flex items-center gap-1 text-accent text-[13px] font-medium hover:underline w-fit"
       >
         <ArrowLeft size={14} />
-        Back to Projects
+        {t('projectDetail.back')}
       </button>
 
       {/* Project header */}
@@ -281,7 +308,7 @@ export default function ProjectDetail() {
                 </Link>
               )}
               <span className={`${status.bg} ${status.text} text-[10px] font-semibold px-2 py-0.5 rounded-full`}>
-                {status.label}
+                {t(status.labelKey)}
               </span>
             </div>
           </div>
@@ -292,22 +319,22 @@ export default function ProjectDetail() {
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
             >
               <Pencil size={12} />
-              Edit
+              {t('common.edit')}
             </button>
             <button
               onClick={async () => {
-                if (!confirm(`Delete "${project.name}" and all associated data? This cannot be undone.`)) return
+                if (!confirm(t('projectDetail.confirmDelete', { name: project.name }))) return
                 try {
                   await deleteProject(project.id)
                   navigate('/projects')
                 } catch (err) {
-                  alert(`Failed to delete project: ${err instanceof Error ? err.message : 'Unknown error'}`)
+                  alert(t('projectDetail.failedDelete', { error: err instanceof Error ? err.message : t('projectDetail.unknownError') }))
                 }
               }}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-negative text-[12px] font-medium hover:bg-negative/10 transition-colors"
             >
               <Trash2 size={12} />
-              Delete
+              {t('common.delete')}
             </button>
           </div>
         </div>
@@ -321,17 +348,17 @@ export default function ProjectDetail() {
         {/* Detail fields row */}
         <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Type</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.type')}</p>
             <p className="text-text-primary text-[13px] font-medium">{project.type || '—'}</p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Billing</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.billing')}</p>
             <p className="text-text-primary text-[13px] font-medium capitalize">
-              {project.billing_type === 'monthly' ? 'Monthly Flat' : 'Hourly'}
+              {project.billing_type === 'monthly' ? t('projectDetail.monthlyFlat') : t('projectDetail.hourly')}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Rate</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.rate')}</p>
             <p className="text-text-primary text-[13px] font-medium">
               {project.billing_type === 'monthly'
                 ? project.monthly_rate != null ? `$${project.monthly_rate.toFixed(2)}/mo` : '—'
@@ -339,9 +366,9 @@ export default function ProjectDetail() {
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Created</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.created')}</p>
             <p className="text-text-primary text-[13px] font-medium">
-              {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(project.created_at).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>
           </div>
         </div>
@@ -350,12 +377,12 @@ export default function ProjectDetail() {
       {/* Tabs */}
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
-          <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">Tasks</TabsTrigger>
-          <TabsTrigger value="meetings" className="text-[11px] sm:text-[12px] shrink-0">Meetings</TabsTrigger>
-          <TabsTrigger value="notes" className="text-[11px] sm:text-[12px] shrink-0">Notes</TabsTrigger>
-          <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">Comms</TabsTrigger>
-          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">Contracts</TabsTrigger>
-          <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">Invoices</TabsTrigger>
+          <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabTasks')}</TabsTrigger>
+          <TabsTrigger value="meetings" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabMeetings')}</TabsTrigger>
+          <TabsTrigger value="notes" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabNotes')}</TabsTrigger>
+          <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabComms')}</TabsTrigger>
+          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabContracts')}</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabInvoices')}</TabsTrigger>
         </TabsList>
 
         {/* Tasks Tab */}
@@ -366,7 +393,7 @@ export default function ProjectDetail() {
             const STATUS_ORDER: Record<string, number> = { in_progress: 0, todo: 1, done: 2 }
 
             const filtered = tasks
-              .filter(t => taskStatusFilter === 'all' || t.status === taskStatusFilter)
+              .filter(tk => taskStatusFilter === 'all' || tk.status === taskStatusFilter)
               .sort((a, b) => {
                 if (taskSortBy === 'due_date') {
                   if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
@@ -382,30 +409,30 @@ export default function ProjectDetail() {
 
             const groups: { key: string; label: string; isOverdue: boolean; tasks: typeof filtered }[] = []
             const seen = new Set<string>()
-            for (const t of filtered) {
-              const key = taskSortBy === 'due_date' ? (t.due_date ?? 'none') : t.status
+            for (const tk of filtered) {
+              const key = taskSortBy === 'due_date' ? (tk.due_date ?? 'none') : tk.status
               if (!seen.has(key)) {
                 seen.add(key)
                 let label = key
                 let isOverdue = false
                 if (taskSortBy === 'due_date') {
-                  if (t.due_date) {
-                    const d = new Date(t.due_date + 'T00:00:00')
+                  if (tk.due_date) {
+                    const d = new Date(tk.due_date + 'T00:00:00')
                     const isToday = d.toDateString() === today
                     const isPast = d < new Date(today)
                     isOverdue = isPast && !isToday
-                    label = isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                    label = isToday ? t('projectDetail.today') : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
                   } else {
-                    label = 'No Due Date'
+                    label = t('projectDetail.noDueDate')
                   }
                 } else if (taskSortBy === 'priority') {
-                  label = key === 'high' ? 'High Priority' : key === 'medium' ? 'Medium Priority' : 'Low Priority'
+                  label = key === 'high' ? t('projectDetail.highPriority') : key === 'medium' ? t('projectDetail.mediumPriority') : t('projectDetail.lowPriority')
                 } else {
-                  label = key === 'in_progress' ? 'In Progress' : key === 'todo' ? 'To Do' : 'Done'
+                  label = key === 'in_progress' ? t('projectDetail.inProgress') : key === 'todo' ? t('projectDetail.todo') : t('projectDetail.done')
                 }
                 groups.push({ key, label, isOverdue, tasks: [] })
               }
-              groups.find(g => g.key === key)!.tasks.push(t)
+              groups.find(g => g.key === key)!.tasks.push(tk)
             }
 
             return (
@@ -419,7 +446,7 @@ export default function ProjectDetail() {
                         onClick={() => setTaskStatusFilter(s)}
                         className={`h-6 px-2.5 rounded-full text-[11px] font-semibold transition-colors ${taskStatusFilter === s ? 'bg-accent text-white' : 'bg-input-bg text-text-muted hover:text-text-secondary'}`}
                       >
-                        {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : s === 'in_progress' ? 'In Progress' : 'Done'}
+                        {s === 'all' ? t('projectDetail.all') : s === 'todo' ? t('projectDetail.todo') : s === 'in_progress' ? t('projectDetail.inProgress') : t('projectDetail.done')}
                       </button>
                     ))}
                     <div className="w-px h-4 bg-border mx-1" />
@@ -428,9 +455,9 @@ export default function ProjectDetail() {
                       onChange={e => setTaskSortBy(e.target.value as typeof taskSortBy)}
                       className="h-6 px-2 rounded-lg bg-input-bg text-text-muted text-[11px] border border-border focus:outline-none cursor-pointer"
                     >
-                      <option value="due_date">Sort: Due Date</option>
-                      <option value="priority">Sort: Priority</option>
-                      <option value="status">Sort: Status</option>
+                      <option value="due_date">{t('projectDetail.sortDueDate')}</option>
+                      <option value="priority">{t('projectDetail.sortPriority')}</option>
+                      <option value="status">{t('projectDetail.sortStatus')}</option>
                     </select>
                   </div>
                   <button
@@ -439,16 +466,16 @@ export default function ProjectDetail() {
                     style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
                     <Plus size={11} />
-                    Add Task
+                    {t('projectDetail.addTask')}
                   </button>
                 </div>
 
                 {/* Column headers */}
                 <div className="grid grid-cols-[1fr_110px_100px_130px] border-b border-border bg-input-bg/50 px-5 py-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Dates</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colTask')}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colPriority')}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colStatus')}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colDates')}</span>
                 </div>
 
                 {/* Rows */}
@@ -459,7 +486,7 @@ export default function ProjectDetail() {
                     </div>
                   ) : filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-2">
-                      <p className="text-text-muted text-[12px]">{tasks.length === 0 ? 'No tasks yet' : 'No tasks match this filter'}</p>
+                      <p className="text-text-muted text-[12px]">{tasks.length === 0 ? t('projectDetail.noTasksYet') : t('projectDetail.noTasksFilter')}</p>
                     </div>
                   ) : (
                     groups.map(group => (
@@ -477,10 +504,13 @@ export default function ProjectDetail() {
                           const isDueSoon = diffDays !== null && diffDays >= 0 && diffDays <= 3 && task.status !== 'done'
                           const isUpcoming = diffDays !== null && diffDays > 3 && task.status !== 'done'
                           const dueDateColor = task.status === 'done' ? 'text-text-muted' : isPastDue ? 'text-negative font-semibold' : isDueSoon ? 'text-amber-500 font-semibold' : isUpcoming ? 'text-emerald-600' : 'text-text-muted'
+                          const taskHours = timeByTaskId[task.id] ?? 0
+                          const isLogging = loggingTaskId === task.id
+                          const isDone = task.status === 'done'
                           return (
+                          <div key={task.id} className="border-b border-border/40 last:border-0">
                           <div
-                            key={task.id}
-                            className="grid grid-cols-[1fr_110px_100px_130px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors border-b border-border/40 last:border-0 group"
+                            className="grid grid-cols-[1fr_110px_100px_130px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors group"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <button
@@ -495,31 +525,99 @@ export default function ProjectDetail() {
                               >
                                 {task.title}
                               </button>
-                              <div className="hidden group-hover:flex items-center gap-1 ml-1 shrink-0">
-                                <button onClick={() => deleteTask(task.id)} className="p-0.5 rounded hover:bg-negative/10 text-text-muted hover:text-negative transition-colors">
+                              {taskHours > 0 && (
+                                <span className="text-[10px] text-text-muted shrink-0">{taskHours.toFixed(1)}h</span>
+                              )}
+                              <div className="flex items-center gap-1 ml-auto shrink-0">
+                                {!isDone && (
+                                  <button
+                                    onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
+                                    className="p-1 rounded hover:bg-input-bg transition-colors"
+                                    title={t('projectDetail.logTime') !== 'projectDetail.logTime' ? t('projectDetail.logTime') : 'Log time'}
+                                  >
+                                    <Clock size={11} className={isLogging ? 'text-accent' : 'text-text-muted hover:text-accent'} />
+                                  </button>
+                                )}
+                                <button onClick={() => deleteTask(task.id)} className="p-1 rounded hover:bg-negative/10 text-text-muted hover:text-negative transition-colors opacity-0 group-hover:opacity-100">
                                   <Trash2 size={10} />
                                 </button>
                               </div>
                             </div>
                             <div>
-                              {task.priority === 'high' && <span className="text-[10px] font-semibold text-negative">High</span>}
-                              {task.priority === 'medium' && <span className="text-[10px] font-semibold text-status-medium-text">Medium</span>}
-                              {task.priority === 'low' && <span className="text-[10px] font-semibold text-text-muted">Low</span>}
+                              {task.priority === 'high' && <span className="text-[10px] font-semibold text-negative">{t('projectDetail.high')}</span>}
+                              {task.priority === 'medium' && <span className="text-[10px] font-semibold text-status-medium-text">{t('projectDetail.medium')}</span>}
+                              {task.priority === 'low' && <span className="text-[10px] font-semibold text-text-muted">{t('projectDetail.low')}</span>}
                             </div>
                             <div>
-                              {task.status === 'in_progress' && <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>}
-                              {task.status === 'todo' && <span className="text-[10px] font-semibold text-text-muted">To Do</span>}
-                              {task.status === 'done' && <span className="text-[10px] font-semibold text-positive">Done</span>}
+                              {task.status === 'in_progress' && <span className="text-[10px] font-semibold text-status-scheduled-text">{t('projectDetail.inProgress')}</span>}
+                              {task.status === 'todo' && <span className="text-[10px] font-semibold text-text-muted">{t('projectDetail.todo')}</span>}
+                              {task.status === 'done' && <span className="text-[10px] font-semibold text-positive">{t('projectDetail.done')}</span>}
                             </div>
                             <div>
                               {task.due_date ? (
                                 <span className={`text-[11px] ${dueDateColor}`}>
                                   {task.start_date && task.start_date !== task.due_date
-                                    ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                    : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    ? `${new Date(task.start_date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })} – ${new Date(task.due_date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}`
+                                    : new Date(task.due_date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                               ) : <span className="text-text-muted text-[11px]">—</span>}
                             </div>
+                          </div>
+                          {isLogging && (
+                            <div className="px-5 pb-3 pt-2 bg-input-bg/30 border-t border-border/50">
+                              <div className="flex flex-wrap items-end gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Hours</label>
+                                  <input
+                                    type="number"
+                                    step="0.25"
+                                    min="0"
+                                    value={logHours}
+                                    onChange={(e) => setLogHours(e.target.value)}
+                                    placeholder="2.5"
+                                    autoFocus
+                                    className="h-7 w-20 px-2 rounded-md border border-border bg-surface text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Date</label>
+                                  <input
+                                    type="date"
+                                    value={logDate}
+                                    onChange={(e) => setLogDate(e.target.value)}
+                                    className="h-7 px-2 rounded-md border border-border bg-surface text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                                  />
+                                </div>
+                                <label className="flex items-center gap-1.5 h-7 text-[11px] text-text-secondary cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={logBillable}
+                                    onChange={(e) => setLogBillable(e.target.checked)}
+                                    className="accent-accent"
+                                  />
+                                  Billable
+                                </label>
+                                <div className="flex items-center gap-2 ml-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => setLoggingTaskId(null)}
+                                    className="h-7 px-3 rounded-md text-[11px] text-text-muted hover:text-text-secondary"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => submitLogForm(task.id)}
+                                    disabled={logSaving || !logHours || !logDate}
+                                    className="h-7 px-3 rounded-md text-white text-[11px] font-semibold disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
+                                  >
+                                    {logSaving ? 'Saving…' : 'Log time'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           </div>
                           )
                         })}
@@ -552,8 +650,8 @@ export default function ProjectDetail() {
         <TabsContent value="meetings">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Meeting Notes</p>
-              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.meetingNotes')}</p>
+              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">{t('common.viewAll')}</button>
             </div>
             {meetingsLoading ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
@@ -562,7 +660,7 @@ export default function ProjectDetail() {
             ) : meetingNotes.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex flex-col items-center justify-center gap-2">
                 <BookOpen size={20} className="text-text-muted/40" />
-                <p className="text-text-muted text-[13px]">No meeting notes for this project yet.</p>
+                <p className="text-text-muted text-[13px]">{t('projectDetail.noMeetings')}</p>
               </div>
             ) : (
               <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
@@ -583,7 +681,7 @@ export default function ProjectDetail() {
                       </div>
                       <div className="flex items-center gap-1 text-text-muted text-[11px] shrink-0">
                         <Calendar size={10} />
-                        {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {meetDate.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     </button>
                   )
@@ -597,14 +695,14 @@ export default function ProjectDetail() {
         <TabsContent value="notes">
           <div className="bg-surface rounded-[14px] shadow-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Project Notes</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.projectNotes')}</p>
               {notesText !== null && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setNotesText(null)}
                     className="text-[12px] text-text-muted hover:text-text-secondary px-2 py-1 rounded-lg hover:bg-input-bg transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleNotesSave}
@@ -612,7 +710,7 @@ export default function ProjectDetail() {
                     className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                   >
-                    {notesSaving ? 'Saving…' : 'Save'}
+                    {notesSaving ? t('projectDetail.saving') : t('common.save')}
                   </button>
                 </div>
               )}
@@ -621,7 +719,7 @@ export default function ProjectDetail() {
             {notesText !== null ? (
               <textarea
                 className="w-full min-h-[180px] rounded-xl border border-border bg-input-bg px-4 py-3 text-[13px] text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
-                placeholder="Add notes about this project…"
+                placeholder={t('projectDetail.notesPlaceholder')}
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
                 autoFocus
@@ -632,14 +730,14 @@ export default function ProjectDetail() {
                 onClick={() => setNotesText(project.description ?? '')}
               >
                 <p className="text-text-secondary text-[13px] leading-relaxed whitespace-pre-wrap">{project.description}</p>
-                <p className="text-text-muted text-[11px] mt-2">Click to edit</p>
+                <p className="text-text-muted text-[11px] mt-2">{t('projectDetail.clickToEdit')}</p>
               </div>
             ) : (
               <button
                 onClick={() => setNotesText('')}
                 className="flex items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed border-border text-text-muted text-[13px] hover:border-accent/40 hover:text-accent transition-colors"
               >
-                + Add notes for this project
+                {t('projectDetail.addNotesCta')}
               </button>
             )}
           </div>
@@ -652,7 +750,7 @@ export default function ProjectDetail() {
             {project.clients?.email && (
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                  Email Communications
+                  {t('projectDetail.emailComms')}
                 </p>
                 <EmailSyncButton
                   projectId={id!}
@@ -702,7 +800,7 @@ export default function ProjectDetail() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Project Contracts
+                {t('projectDetail.projectContracts')}
               </p>
               <button
                 onClick={() => setContractFormOpen(true)}
@@ -710,7 +808,7 @@ export default function ProjectDetail() {
                 style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
-                New Contract
+                {t('projectDetail.newContract')}
               </button>
             </div>
 
@@ -718,12 +816,12 @@ export default function ProjectDetail() {
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  <p className="text-text-muted text-[12px]">Loading contracts...</p>
+                  <p className="text-text-muted text-[12px]">{t('projectDetail.loadingContracts')}</p>
                 </div>
               </div>
             ) : contracts.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-                <p className="text-text-muted text-[13px]">No contracts yet.</p>
+                <p className="text-text-muted text-[13px]">{t('projectDetail.noContracts')}</p>
               </div>
             ) : (
               <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
@@ -731,10 +829,10 @@ export default function ProjectDetail() {
                   <table className="w-full min-w-[500px]">
                     <thead>
                       <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                        <th className="text-left px-5 py-3">Title</th>
-                        <th className="text-center px-3 py-3">Status</th>
-                        <th className="text-left px-3 py-3">Created</th>
-                        <th className="text-right px-5 py-3">Actions</th>
+                        <th className="text-left px-5 py-3">{t('projectDetail.colTitle')}</th>
+                        <th className="text-center px-3 py-3">{t('projectDetail.colStatus')}</th>
+                        <th className="text-left px-3 py-3">{t('projectDetail.colCreated')}</th>
+                        <th className="text-right px-5 py-3">{t('projectDetail.colActions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -758,11 +856,11 @@ export default function ProjectDetail() {
                               <div className="inline-flex items-center gap-1">
                                 <button
                                   onClick={() => {
-                                    const doc = generateContractPDF(c, c.contract_signatures?.[0])
+                                    const doc = generateContractPDF(c, c.contract_signatures?.[0], lang)
                                     doc.save(`${c.title.replace(/\s+/g, '-')}.pdf`)
                                   }}
                                   className="p-1.5 rounded hover:bg-border transition-colors"
-                                  title="Download PDF"
+                                  title={t('projectDetail.downloadPdf')}
                                 >
                                   <Download size={12} className="text-text-muted" />
                                 </button>
@@ -774,7 +872,7 @@ export default function ProjectDetail() {
                                       setTimeout(() => setCopiedContractId(null), 3000)
                                     }}
                                     className="p-1.5 rounded hover:bg-border transition-colors"
-                                    title={copiedContractId === c.id ? 'Copied!' : 'Copy signing link'}
+                                    title={copiedContractId === c.id ? t('projectDetail.copied') : t('projectDetail.copySignLink')}
                                   >
                                     {copiedContractId === c.id ? (
                                       <Check size={12} className="text-status-active-text" />
@@ -817,7 +915,7 @@ export default function ProjectDetail() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Project Invoices
+                {t('projectDetail.projectInvoices')}
               </p>
               <button
                 onClick={() => setInvoiceBuilderOpen(true)}
@@ -825,7 +923,7 @@ export default function ProjectDetail() {
                 style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
               >
                 <Plus size={12} />
-                Generate Invoice
+                {t('projectDetail.generateInvoice')}
               </button>
             </div>
 
@@ -842,7 +940,7 @@ export default function ProjectDetail() {
               </div>
             ) : invoices.length === 0 ? (
               <div className="bg-surface rounded-[14px] shadow-card p-8 flex items-center justify-center">
-                <p className="text-text-muted text-[13px]">No invoices yet for this project.</p>
+                <p className="text-text-muted text-[13px]">{t('projectDetail.noInvoices')}</p>
               </div>
             ) : (
               <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
@@ -850,12 +948,12 @@ export default function ProjectDetail() {
                   <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="text-[10px] text-text-muted font-semibold uppercase tracking-wide border-b border-border">
-                        <th className="text-left px-5 py-3">Invoice #</th>
-                        <th className="text-center px-3 py-3">Status</th>
-                        <th className="text-right px-3 py-3">Amount</th>
-                        <th className="text-left px-3 py-3">Issued</th>
-                        <th className="text-left px-3 py-3">Due</th>
-                        <th className="text-right px-5 py-3">Actions</th>
+                        <th className="text-left px-5 py-3">{t('projectDetail.colInvoiceNum')}</th>
+                        <th className="text-center px-3 py-3">{t('projectDetail.colStatus')}</th>
+                        <th className="text-right px-3 py-3">{t('projectDetail.colAmount')}</th>
+                        <th className="text-left px-3 py-3">{t('projectDetail.colIssued')}</th>
+                        <th className="text-left px-3 py-3">{t('projectDetail.colDue')}</th>
+                        <th className="text-right px-5 py-3">{t('projectDetail.colActions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -878,7 +976,7 @@ export default function ProjectDetail() {
                               <span
                                 className={`${invStatus.bg} ${invStatus.text} inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold`}
                               >
-                                {invStatus.label}
+                                {t(invStatus.labelKey)}
                               </span>
                             </td>
                             <td className="px-3 py-3 text-text-primary text-[12px] font-bold text-right">
@@ -895,10 +993,10 @@ export default function ProjectDetail() {
                                 <button
                                   onClick={() => handleDownloadPDF(invoice)}
                                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-accent hover:bg-accent-bg transition-colors"
-                                  title="Download PDF"
+                                  title={t('projectDetail.downloadPdf')}
                                 >
                                   <Download size={12} />
-                                  PDF
+                                  {t('projectDetail.pdf')}
                                 </button>
                                 {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                                   <button
@@ -906,14 +1004,14 @@ export default function ProjectDetail() {
                                     disabled={paymentLoading === invoice.id}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-colors"
                                     style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
-                                    title={copiedPayId === invoice.id ? 'Link copied!' : 'Get pay link'}
+                                    title={copiedPayId === invoice.id ? t('projectDetail.linkCopied') : t('projectDetail.getPayLink')}
                                   >
                                     {paymentLoading === invoice.id ? (
                                       <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                                     ) : copiedPayId === invoice.id ? (
-                                      <><Check size={12} /> Copied</>
+                                      <><Check size={12} /> {t('projectDetail.copiedLabel')}</>
                                     ) : (
-                                      <><CreditCard size={12} /> Pay</>
+                                      <><CreditCard size={12} /> {t('projectDetail.pay')}</>
                                     )}
                                   </button>
                                 )}
@@ -954,7 +1052,7 @@ export default function ProjectDetail() {
                   style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
                 >
                   <Download size={12} />
-                  Download PDF
+                  {t('projectDetail.downloadPdf')}
                 </button>
                 <button
                   onClick={cleanupPreview}
