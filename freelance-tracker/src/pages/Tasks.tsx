@@ -26,6 +26,30 @@ export default function Tasks() {
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
+  const [collapsedTaskEntries, setCollapsedTaskEntries] = useState<Set<string>>(new Set())
+  const toggleProjectCollapse = (pid: string) => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev)
+      if (next.has(pid)) next.delete(pid); else next.add(pid)
+      return next
+    })
+  }
+  const toggleDateCollapse = (key: string) => {
+    setCollapsedDates(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
+  const toggleTaskEntriesCollapse = (tid: string) => {
+    setCollapsedTaskEntries(prev => {
+      const next = new Set(prev)
+      if (next.has(tid)) next.delete(tid); else next.add(tid)
+      return next
+    })
+  }
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
@@ -323,34 +347,49 @@ export default function Tasks() {
               </p>
             </div>
           ) : (
-            projectGroups.map(pg => (
+            projectGroups.map(pg => {
+              const isProjectCollapsed = collapsedProjects.has(pg.projectId)
+              return (
               <div key={pg.projectId}>
                 {/* Project header */}
                 <div className="flex items-center gap-2 px-5 py-2.5 border-b border-border bg-accent/5">
-                  {pg.projectId !== 'none' ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleProjectCollapse(pg.projectId)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                    aria-expanded={!isProjectCollapsed}
+                  >
+                    {isProjectCollapsed ? <ChevronRight size={11} className="text-text-muted shrink-0" /> : <ChevronDown size={11} className="text-text-muted shrink-0" />}
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pg.projectId === 'none' ? 'bg-border' : 'bg-accent'}`} />
+                    <span className={`text-[12px] font-bold truncate ${pg.projectId === 'none' ? 'text-text-muted' : 'text-text-primary'}`}>{pg.projectName}</span>
+                    <span className="text-[10px] text-text-muted ml-1 shrink-0">
+                      {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
+                    </span>
+                  </button>
+                  {pg.projectId !== 'none' && (
                     <Link
                       to={`/projects/${pg.projectId}`}
-                      className="flex items-center gap-1.5 text-[12px] font-bold text-text-primary hover:text-accent transition-colors"
+                      className="p-1 rounded hover:bg-input-bg text-text-muted hover:text-accent transition-colors shrink-0"
+                      title="Open project"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                      {pg.projectName}
-                      <ExternalLink size={10} className="opacity-50" />
+                      <ExternalLink size={11} />
                     </Link>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-[12px] font-bold text-text-muted">
-                      <span className="w-1.5 h-1.5 rounded-full bg-border" />
-                      {pg.projectName}
-                    </span>
                   )}
-                  <span className="text-[10px] text-text-muted ml-1">
-                    {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
-                  </span>
                 </div>
 
-                {pg.dateGroups.map(group => (
-                <div key={`${pg.projectId}-${group.key}`}>
+                {!isProjectCollapsed && pg.dateGroups.map(group => {
+                const dateKey = `${pg.projectId}-${group.key}`
+                const isDateCollapsed = collapsedDates.has(dateKey)
+                return (
+                <div key={dateKey}>
                 {/* Date sub-header */}
-                <div className="flex items-center gap-2 px-5 py-1.5 border-b border-border/60 bg-input-bg/30 pl-8">
+                <button
+                  type="button"
+                  onClick={() => toggleDateCollapse(dateKey)}
+                  className="w-full flex items-center gap-2 px-5 py-1.5 border-b border-border/60 bg-input-bg/30 pl-8 hover:bg-input-bg/60 transition-colors text-left"
+                  aria-expanded={!isDateCollapsed}
+                >
+                  {isDateCollapsed ? <ChevronRight size={10} className="text-text-muted shrink-0" /> : <ChevronDown size={10} className="text-text-muted shrink-0" />}
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${group.isOverdue ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
                     {group.label}
@@ -359,10 +398,10 @@ export default function Tasks() {
                   {group.isOverdue && (
                     <span className="text-[10px] font-medium text-negative uppercase tracking-wide ml-1">Overdue</span>
                   )}
-                </div>
+                </button>
 
                 {/* Tasks */}
-                {group.tasks.map((task) => {
+                {!isDateCollapsed && group.tasks.map((task) => {
                   const isLogging = loggingTaskId === task.id
                   const hoursLogged = timeByTaskId[task.id] ?? 0
                   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
@@ -394,10 +433,10 @@ export default function Tasks() {
                             {hoursLogged > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setExpandedTimeTaskId(expandedTimeTaskId === task.id ? null : task.id)}
+                                onClick={() => toggleTaskEntriesCollapse(task.id)}
                                 className="text-[10px] text-text-muted flex items-center gap-0.5 mt-0.5 hover:text-accent transition-colors"
                               >
-                                {expandedTimeTaskId === task.id ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+                                {!collapsedTaskEntries.has(task.id) ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
                                 <Clock size={8} className="ml-0.5" />{hoursLogged}h logged
                               </button>
                             )}
@@ -543,7 +582,7 @@ export default function Tasks() {
                       )}
 
                       {/* Per-day time breakdown — always visible when entries exist */}
-                      {entriesByTaskId[task.id] && entriesByTaskId[task.id].length > 0 && (
+                      {entriesByTaskId[task.id] && entriesByTaskId[task.id].length > 0 && !collapsedTaskEntries.has(task.id) && (
                         <div className="px-5 pb-2 pt-1 border-t border-border/40 bg-input-bg/20">
                           {entriesByTaskId[task.id].map(entry => (
                             <div key={entry.id}>
@@ -633,9 +672,11 @@ export default function Tasks() {
                   )
                 })}
                 </div>
-                ))}
+                )
+                })}
               </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
