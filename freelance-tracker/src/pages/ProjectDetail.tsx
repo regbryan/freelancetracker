@@ -133,7 +133,11 @@ export default function ProjectDetail() {
       map[e.task_id].push(e)
     }
     for (const k of Object.keys(map)) {
-      map[k].sort((a, b) => b.date.localeCompare(a.date))
+      map[k].sort((a, b) => {
+        const d = b.date.localeCompare(a.date)
+        if (d !== 0) return d
+        return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+      })
     }
     return map
   }, [entries])

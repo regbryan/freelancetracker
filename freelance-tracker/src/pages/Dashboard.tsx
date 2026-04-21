@@ -267,13 +267,20 @@ export default function Dashboard() {
             return 0
           })
 
-        // Group by due_date (YYYY-MM-DD key), tasks with no due date go to 'none'
-        const groups: { key: string; label: string; isOverdueGroup: boolean; tasks: typeof activeTasks }[] = []
-        const seen = new Set<string>()
+        // Group by project, then by due_date
+        type DateGroup = { key: string; label: string; isOverdueGroup: boolean; tasks: typeof activeTasks }
+        type ProjectGroup = { projectId: string; projectName: string; dateGroups: DateGroup[] }
+        const projMap = new Map<string, ProjectGroup>()
         for (const tk of activeTasks) {
-          const key = tk.due_date ?? 'none'
-          if (!seen.has(key)) {
-            seen.add(key)
+          const pid = tk.project_id ?? 'none'
+          if (!projMap.has(pid)) {
+            const pname = projectMap.get(pid)?.name ?? t('dash.noProject')
+            projMap.set(pid, { projectId: pid, projectName: pname, dateGroups: [] })
+          }
+          const pg = projMap.get(pid)!
+          const dkey = tk.due_date ?? 'none'
+          let dg = pg.dateGroups.find(g => g.key === dkey)
+          if (!dg) {
             let label = t('dash.noDueDate')
             let isOverdueGroup = false
             if (tk.due_date) {
@@ -285,10 +292,12 @@ export default function Dashboard() {
                 ? t('dash.today')
                 : d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })
             }
-            groups.push({ key, label, isOverdueGroup, tasks: [] })
+            dg = { key: dkey, label, isOverdueGroup, tasks: [] }
+            pg.dateGroups.push(dg)
           }
-          groups.find(g => g.key === key)!.tasks.push(tk)
+          dg.tasks.push(tk)
         }
+        const projectGroups = Array.from(projMap.values()).sort((a, b) => a.projectName.localeCompare(b.projectName))
 
         return (
           <div className="bg-surface rounded-xl border border-border-accent shadow-card flex flex-col overflow-hidden">
@@ -317,9 +326,8 @@ export default function Dashboard() {
             </div>
 
             {/* Column headers */}
-            <div className="grid grid-cols-[1fr_150px_120px_90px] border-b border-border bg-input-bg/50 px-5 py-2">
+            <div className="grid grid-cols-[1fr_120px_90px] border-b border-border bg-input-bg/50 pl-8 pr-5 py-2">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.task')}</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.project')}</span>
               <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('common.status')}</span>
               <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.due')}</span>
             </div>
@@ -334,53 +342,68 @@ export default function Dashboard() {
                   </p>
                 </div>
               ) : (
-                groups.map(group => (
-                  <div key={group.key}>
-                    {/* Group header */}
-                    <div className="flex items-center gap-2 px-5 py-1.5 border-b border-border bg-input-bg/30">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${group.isOverdueGroup ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
-                      <span className="text-[11px] font-semibold text-text-secondary">
-                        {group.label}
+                projectGroups.map(pg => (
+                  <div key={pg.projectId}>
+                    {/* Project header */}
+                    <button
+                      onClick={() => pg.projectId !== 'none' ? navigate(`/projects/${pg.projectId}`) : undefined}
+                      className="w-full flex items-center gap-2 px-5 py-2 border-b border-border bg-accent/5 hover:bg-accent/10 transition-colors text-left"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pg.projectId === 'none' ? 'bg-border' : 'bg-accent'}`} />
+                      <span className="text-[12px] font-bold text-text-primary">{pg.projectName}</span>
+                      <span className="text-[10px] text-text-muted ml-1">
+                        {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
                       </span>
-                      <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
-                    </div>
+                    </button>
 
-                    {/* Tasks in group */}
-                    {group.tasks.map(task => {
-                      const proj = projectMap.get(task.project_id)
-                      const isOverdue = group.isOverdueGroup
-                      return (
-                        <button
-                          key={task.id}
-                          onClick={() => proj ? navigate(`/projects/${proj.id}`) : undefined}
-                          className="grid grid-cols-[1fr_150px_120px_90px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors text-left group w-full border-b border-border/40 last:border-0"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Circle size={12} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
-                            <span className={`text-[12px] font-medium truncate ${isOverdue ? 'text-negative' : 'text-text-primary'}`}>{task.title}</span>
-                          </div>
-                          <span className="text-text-muted text-[11px] truncate pr-3">{proj?.name ?? '—'}</span>
-                          <div>
-                            {task.status === 'in_progress' && (
-                              <span className="text-[10px] font-semibold text-status-scheduled-text">{t('status.inProgress')}</span>
-                            )}
-                            {task.status === 'todo' && (
-                              <span className="text-[10px] font-semibold text-text-muted">{t('status.todo')}</span>
-                            )}
-                          </div>
-                          <div>
-                            {task.due_date ? (
-                              <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
-                                {isOverdue && <AlertTriangle size={9} />}
-                                {new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
-                              </span>
-                            ) : (
-                              <span className="text-text-muted text-[11px]">—</span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
+                    {pg.dateGroups.map(group => (
+                      <div key={`${pg.projectId}-${group.key}`}>
+                        {/* Date sub-header */}
+                        <div className="flex items-center gap-2 pl-8 pr-5 py-1 border-b border-border/60 bg-input-bg/30">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${group.isOverdueGroup ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+                            {group.label}
+                          </span>
+                          <span className="text-[10px] text-text-muted ml-1">{group.tasks.length}</span>
+                        </div>
+
+                        {/* Tasks in group */}
+                        {group.tasks.map(task => {
+                          const proj = projectMap.get(task.project_id)
+                          const isOverdue = group.isOverdueGroup
+                          return (
+                            <button
+                              key={task.id}
+                              onClick={() => proj ? navigate(`/projects/${proj.id}`) : undefined}
+                              className="grid grid-cols-[1fr_120px_90px] items-center pl-8 pr-5 py-2.5 hover:bg-input-bg/40 transition-colors text-left group w-full border-b border-border/40 last:border-0"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Circle size={12} className="text-border shrink-0 group-hover:text-accent transition-colors" strokeWidth={2} />
+                                <span className={`text-[12px] font-medium truncate ${isOverdue ? 'text-negative' : 'text-text-primary'}`}>{task.title}</span>
+                              </div>
+                              <div>
+                                {task.status === 'in_progress' && (
+                                  <span className="text-[10px] font-semibold text-status-scheduled-text">{t('status.inProgress')}</span>
+                                )}
+                                {task.status === 'todo' && (
+                                  <span className="text-[10px] font-semibold text-text-muted">{t('status.todo')}</span>
+                                )}
+                              </div>
+                              <div>
+                                {task.due_date ? (
+                                  <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
+                                    {isOverdue && <AlertTriangle size={9} />}
+                                    {new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
+                                  </span>
+                                ) : (
+                                  <span className="text-text-muted text-[11px]">—</span>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ))}
                   </div>
                 ))
               )}

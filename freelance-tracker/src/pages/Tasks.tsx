@@ -51,7 +51,11 @@ export default function Tasks() {
       if (!map[e.task_id]) map[e.task_id] = []
       map[e.task_id].push(e)
     }
-    for (const arr of Object.values(map)) arr.sort((a, b) => b.date.localeCompare(a.date))
+    for (const arr of Object.values(map)) arr.sort((a, b) => {
+      const d = b.date.localeCompare(a.date)
+      if (d !== 0) return d
+      return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+    })
     return map
   }, [timeEntries])
 
@@ -115,15 +119,23 @@ export default function Tasks() {
       })
   }, [tasks, statusFilter])
 
-  // Build date groups
-  const groups = useMemo(() => {
+  // Build project → date groups
+  const projectGroups = useMemo(() => {
     const today = new Date().toDateString()
-    const result: { key: string; label: string; isOverdue: boolean; tasks: typeof filtered }[] = []
-    const seen = new Set<string>()
+    type DateGroup = { key: string; label: string; isOverdue: boolean; tasks: typeof filtered }
+    type ProjectGroup = { projectId: string; projectName: string; dateGroups: DateGroup[] }
+    const projMap = new Map<string, ProjectGroup>()
+
     for (const tk of filtered) {
-      const key = tk.due_date ?? 'none'
-      if (!seen.has(key)) {
-        seen.add(key)
+      const pid = tk.project_id ?? 'none'
+      if (!projMap.has(pid)) {
+        const pname = projectMap.get(pid)?.name ?? 'No Project'
+        projMap.set(pid, { projectId: pid, projectName: pname, dateGroups: [] })
+      }
+      const pg = projMap.get(pid)!
+      const dkey = tk.due_date ?? 'none'
+      let dg = pg.dateGroups.find(g => g.key === dkey)
+      if (!dg) {
         let label = t('tasks.noDueDate')
         let isOverdue = false
         if (tk.due_date) {
@@ -133,12 +145,16 @@ export default function Tasks() {
           isOverdue = isPast && !isToday
           label = isToday ? t('tasks.today') : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
         }
-        result.push({ key, label, isOverdue, tasks: [] })
+        dg = { key: dkey, label, isOverdue, tasks: [] }
+        pg.dateGroups.push(dg)
       }
-      result.find(g => g.key === key)!.tasks.push(tk)
+      dg.tasks.push(tk)
     }
-    return result
-  }, [filtered, t, lang])
+
+    const arr = Array.from(projMap.values())
+    arr.sort((a, b) => a.projectName.localeCompare(b.projectName))
+    return arr
+  }, [filtered, projectMap, t, lang])
 
   function openLogForm(taskId: string) {
     setLoggingTaskId(taskId)
@@ -268,9 +284,8 @@ export default function Tasks() {
       {/* Table */}
       <div className="bg-surface rounded-[14px] shadow-card overflow-hidden">
         {/* Column headers */}
-        <div className="grid grid-cols-[1fr_160px_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
+        <div className="grid grid-cols-[1fr_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Project</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Dates</span>
@@ -286,12 +301,36 @@ export default function Tasks() {
               </p>
             </div>
           ) : (
-            groups.map(group => (
-              <div key={group.key}>
-                {/* Group header */}
-                <div className="flex items-center gap-2 px-5 py-2 border-b border-border bg-input-bg/30">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${group.isOverdue ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
-                  <span className="text-[11px] font-semibold text-text-secondary">
+            projectGroups.map(pg => (
+              <div key={pg.projectId}>
+                {/* Project header */}
+                <div className="flex items-center gap-2 px-5 py-2.5 border-b border-border bg-accent/5">
+                  {pg.projectId !== 'none' ? (
+                    <Link
+                      to={`/projects/${pg.projectId}`}
+                      className="flex items-center gap-1.5 text-[12px] font-bold text-text-primary hover:text-accent transition-colors"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                      {pg.projectName}
+                      <ExternalLink size={10} className="opacity-50" />
+                    </Link>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-[12px] font-bold text-text-muted">
+                      <span className="w-1.5 h-1.5 rounded-full bg-border" />
+                      {pg.projectName}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-text-muted ml-1">
+                    {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
+                  </span>
+                </div>
+
+                {pg.dateGroups.map(group => (
+                <div key={`${pg.projectId}-${group.key}`}>
+                {/* Date sub-header */}
+                <div className="flex items-center gap-2 px-5 py-1.5 border-b border-border/60 bg-input-bg/30 pl-8">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${group.isOverdue ? 'bg-negative' : group.key === 'none' ? 'bg-border' : 'bg-accent'}`} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
                     {group.label}
                   </span>
                   <span className="text-[10px] text-text-muted">{group.tasks.length}</span>
@@ -302,7 +341,6 @@ export default function Tasks() {
 
                 {/* Tasks */}
                 {group.tasks.map((task) => {
-                  const project = projectMap.get(task.project_id)
                   const isLogging = loggingTaskId === task.id
                   const hoursLogged = timeByTaskId[task.id] ?? 0
                   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
@@ -316,7 +354,7 @@ export default function Tasks() {
                   return (
                     <div key={task.id} className="border-b border-border/50 last:border-0">
                       {/* Main row */}
-                      <div className="grid grid-cols-[1fr_160px_110px_110px_130px_88px] items-center px-5 py-3 hover:bg-input-bg/30 transition-colors group">
+                      <div className="grid grid-cols-[1fr_110px_110px_130px_88px] items-center px-5 py-3 hover:bg-input-bg/30 transition-colors group">
                         {/* Task title */}
                         <div className="flex items-center gap-2.5 min-w-0">
                           <button
@@ -342,21 +380,6 @@ export default function Tasks() {
                               </button>
                             )}
                           </div>
-                        </div>
-
-                        {/* Project */}
-                        <div className="pr-3">
-                          {project ? (
-                            <Link
-                              to={`/projects/${project.id}`}
-                              className="flex items-center gap-1 text-[11px] text-accent hover:underline truncate w-fit max-w-full"
-                            >
-                              <span className="truncate">{project.name}</span>
-                              <ExternalLink size={9} className="shrink-0" />
-                            </Link>
-                          ) : (
-                            <span className="text-text-muted text-[11px]">—</span>
-                          )}
                         </div>
 
                         {/* Priority */}
@@ -587,6 +610,8 @@ export default function Tasks() {
                     </div>
                   )
                 })}
+                </div>
+                ))}
               </div>
             ))
           )}
