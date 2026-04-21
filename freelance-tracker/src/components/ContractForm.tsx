@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { getDefaultTemplate, fillTemplate } from '@/lib/contractTemplates'
+import { useI18n } from '../lib/i18n'
+import { userStorage } from '../lib/userStorage'
 
 export interface ContractFormData {
   clientId: string
@@ -43,6 +45,7 @@ export default function ContractForm({
   projects,
   onSave,
 }: ContractFormProps) {
+  const { t, lang } = useI18n()
   const isEdit = Boolean(contract)
 
   const [clientId, setClientId] = useState('')
@@ -67,7 +70,7 @@ export default function ContractForm({
     let freelancerName = ''
     let freelancerCompany = ''
     try {
-      const raw = localStorage.getItem('freelancer_profile')
+      const raw = userStorage.get('freelancer_profile')
       if (raw) {
         const profile = JSON.parse(raw)
         freelancerName = profile.name || ''
@@ -89,9 +92,9 @@ export default function ContractForm({
       freelancer_address: freelancerCompany,
       client_name: clientName,
       client_company: clientCompany || '',
-      scope: '[Describe the scope of work]',
-      payment_terms: '[Describe payment terms]',
-      date: new Date().toLocaleDateString('en-US', {
+      scope: t('contractForm.scopePlaceholder'),
+      payment_terms: t('contractForm.paymentPlaceholder'),
+      date: new Date().toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -124,11 +127,11 @@ export default function ContractForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Contract' : 'Create Contract'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('contractForm.editTitle') : t('contractForm.addTitle')}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? 'Update the contract details below.'
-              : 'Fill in the details to create a new contract.'}
+              ? t('contractForm.editDesc')
+              : t('contractForm.addDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,13 +139,13 @@ export default function ContractForm({
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="contract-title" className="text-[12px]">
-              Title <span className="text-negative">*</span>
+              {t('contractForm.title')} <span className="text-negative">*</span>
             </Label>
             <Input
               id="contract-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Freelance Services Agreement"
+              placeholder={t('contractForm.titlePlaceholder')}
               required
             />
           </div>
@@ -151,11 +154,11 @@ export default function ContractForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="contract-client" className="text-[12px]">
-                Client <span className="text-negative">*</span>
+                {t('contractForm.client')} <span className="text-negative">*</span>
               </Label>
               <Select value={clientId} onValueChange={setClientId} required>
                 <SelectTrigger id="contract-client">
-                  <SelectValue placeholder="Select a client" />
+                  <SelectValue placeholder={t('contractForm.selectClient')} />
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
@@ -169,14 +172,14 @@ export default function ContractForm({
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="contract-project" className="text-[12px]">
-                Project
+                {t('contractForm.project')}
               </Label>
               <Select value={projectId || 'none'} onValueChange={(v) => setProjectId(v === 'none' ? '' : v)}>
                 <SelectTrigger id="contract-project">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder={t('contractForm.none')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t('contractForm.none')}</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
@@ -191,7 +194,7 @@ export default function ContractForm({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="contract-content" className="text-[12px]">
-                Content <span className="text-negative">*</span>
+                {t('contractForm.content')} <span className="text-negative">*</span>
               </Label>
               <Button
                 type="button"
@@ -199,14 +202,14 @@ export default function ContractForm({
                 size="sm"
                 onClick={handleUseTemplate}
               >
-                Use Template
+                {t('contractForm.useTemplate')}
               </Button>
             </div>
             <textarea
               id="contract-content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter contract terms and conditions..."
+              placeholder={t('contractForm.contentPlaceholder')}
               rows={12}
               required
               className="w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 resize-none"
@@ -220,10 +223,10 @@ export default function ContractForm({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="gradient" disabled={saving || !clientId || !title || !content}>
-              {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Contract'}
+              {saving ? t('contractForm.saving') : isEdit ? t('contractForm.saveChanges') : t('contractForm.create')}
             </Button>
           </DialogFooter>
         </form>

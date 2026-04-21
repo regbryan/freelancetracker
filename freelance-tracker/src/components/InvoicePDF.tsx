@@ -2,6 +2,8 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Invoice, InvoiceItem } from '@/hooks/useInvoices'
 import type { Project } from '@/hooks/useProjects'
+import { translate, type Lang } from '../lib/i18n'
+import { userStorage } from '../lib/userStorage'
 
 interface ClientInfo {
   id: string
@@ -18,32 +20,35 @@ export function generateInvoicePDF(
   invoice: Invoice,
   items: InvoiceItem[],
   project: Project,
-  client: ClientInfo
+  client: ClientInfo,
+  lang: Lang = 'en'
 ): jsPDF {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 20
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+  const t = (key: string, vars?: Record<string, string | number>) => translate(lang, key, vars)
 
   // --- Header ---
   doc.setFontSize(28)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 88, 190) // accent blue
-  doc.text('INVOICE', margin, 30)
+  doc.text(t('invPdf.title'), margin, 30)
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100, 100, 100)
 
   const headerRightX = pageWidth - margin
-  doc.text(`Invoice #: ${invoice.invoice_number}`, headerRightX, 20, { align: 'right' })
+  doc.text(`${t('invPdf.invoiceNum')}: ${invoice.invoice_number}`, headerRightX, 20, { align: 'right' })
   doc.text(
-    `Issued: ${invoice.issued_date ? formatDate(invoice.issued_date) : formatDate(new Date().toISOString())}`,
+    `${t('invPdf.issued')}: ${invoice.issued_date ? formatDate(invoice.issued_date, locale) : formatDate(new Date().toISOString(), locale)}`,
     headerRightX,
     26,
     { align: 'right' }
   )
   if (invoice.due_date) {
-    doc.text(`Due: ${formatDate(invoice.due_date)}`, headerRightX, 32, { align: 'right' })
+    doc.text(`${t('invPdf.due')}: ${formatDate(invoice.due_date, locale)}`, headerRightX, 32, { align: 'right' })
   }
 
   // Status badge
@@ -65,12 +70,12 @@ export function generateInvoicePDF(
   // Load freelancer profile from localStorage
   const profile = (() => {
     try {
-      const raw = localStorage.getItem('freelancer_profile')
+      const raw = userStorage.get('freelancer_profile')
       if (raw) return JSON.parse(raw)
     } catch { /* ignore */ }
     return { name: '', email: '', phone: '', address: '' }
   })()
-  const businessLogo = localStorage.getItem('freelancer_logo') || ''
+  const businessLogo = userStorage.get('freelancer_logo') || ''
 
   // Add business logo if available
   if (businessLogo) {
@@ -85,12 +90,12 @@ export function generateInvoicePDF(
   doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(150, 150, 150)
-  doc.text('FROM', fromX, yPos)
+  doc.text(t('invPdf.from'), fromX, yPos)
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text(profile.name || 'Your Name', fromX, yPos + 7)
+  doc.text(profile.name || t('invPdf.yourName'), fromX, yPos + 7)
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
@@ -114,7 +119,7 @@ export function generateInvoicePDF(
   doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(150, 150, 150)
-  doc.text('BILL TO', toX, yPos)
+  doc.text(t('invPdf.billTo'), toX, yPos)
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
@@ -138,7 +143,7 @@ export function generateInvoicePDF(
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100, 100, 100)
-  doc.text(`Project: ${project.name}`, margin, yPos)
+  doc.text(`${t('invPdf.project')}: ${project.name}`, margin, yPos)
 
   // --- Line Items Table ---
   yPos = 96
@@ -152,7 +157,7 @@ export function generateInvoicePDF(
 
   autoTable(doc, {
     startY: yPos,
-    head: [['Description', 'Qty / Hours', 'Rate', 'Amount']],
+    head: [[t('invPdf.description'), t('invPdf.qtyHours'), t('invPdf.rate'), t('invPdf.amount')]],
     body: tableRows,
     margin: { left: margin, right: margin },
     theme: 'plain',
@@ -188,11 +193,11 @@ export function generateInvoicePDF(
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(80, 80, 80)
-  doc.text('Subtotal:', totalsX - 50, totalsY)
+  doc.text(t('invPdf.subtotal'), totalsX - 50, totalsY)
   doc.text(`$${invoice.subtotal.toFixed(2)}`, totalsX, totalsY, { align: 'right' })
 
   totalsY += 7
-  doc.text(`Tax (${invoice.tax_rate}%):`, totalsX - 50, totalsY)
+  doc.text(t('invPdf.tax', { pct: invoice.tax_rate }), totalsX - 50, totalsY)
   const taxAmount = invoice.subtotal * (invoice.tax_rate / 100)
   doc.text(`$${taxAmount.toFixed(2)}`, totalsX, totalsY, { align: 'right' })
 
@@ -204,7 +209,7 @@ export function generateInvoicePDF(
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 88, 190)
-  doc.text('Total:', totalsX - 50, totalsY)
+  doc.text(t('invPdf.total'), totalsX - 50, totalsY)
   doc.text(`$${invoice.total.toFixed(2)}`, totalsX, totalsY, { align: 'right' })
 
   // --- Notes ---
@@ -213,7 +218,7 @@ export function generateInvoicePDF(
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(150, 150, 150)
-    doc.text('NOTES', margin, totalsY)
+    doc.text(t('invPdf.notes'), margin, totalsY)
 
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
@@ -227,14 +232,14 @@ export function generateInvoicePDF(
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(180, 180, 180)
-  doc.text('Generated by FreelanceTracker', pageWidth / 2, footerY, { align: 'center' })
+  doc.text(t('invPdf.generated'), pageWidth / 2, footerY, { align: 'center' })
 
   return doc
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

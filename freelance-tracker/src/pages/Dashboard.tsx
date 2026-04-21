@@ -25,20 +25,24 @@ import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices } from '../hooks/useInvoices'
 import { useTasks } from '../hooks/useTasks'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
+import { useI18n } from '../lib/i18n'
+import { userStorage } from '../lib/userStorage'
 
 const CHART_COLORS = ['#3e6b5a', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-const STATUS_LABELS: Record<string, { label: string; style: string }> = {
-  active: { label: 'Active', style: 'bg-status-active-bg text-status-active-text' },
-  completed: { label: 'Completed', style: 'bg-status-completed-bg text-status-completed-text' },
-  on_hold: { label: 'On Hold', style: 'bg-status-hold-bg text-status-hold-text' },
-  cancelled: { label: 'Cancelled', style: 'bg-status-completed-bg text-status-completed-text' },
+const STATUS_STYLES: Record<string, { key: string; style: string }> = {
+  active: { key: 'status.active', style: 'bg-status-active-bg text-status-active-text' },
+  completed: { key: 'status.completed', style: 'bg-status-completed-bg text-status-completed-text' },
+  on_hold: { key: 'status.onHold', style: 'bg-status-hold-bg text-status-hold-text' },
+  cancelled: { key: 'status.cancelled', style: 'bg-status-completed-bg text-status-completed-text' },
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { t, lang } = useI18n()
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const { projects, loading: pLoading } = useProjects()
   const { entries, loading: tLoading } = useTimeEntries()
   const { invoices, loading: iLoading } = useInvoices()
@@ -47,7 +51,7 @@ export default function Dashboard() {
 
   const [profileName] = useState(() => {
     try {
-      const raw = localStorage.getItem('freelancer_profile')
+      const raw = userStorage.get('freelancer_profile')
       if (raw) {
         const p = JSON.parse(raw)
         return p.name?.split(' ')[0] || 'there'
@@ -141,9 +145,9 @@ export default function Dashboard() {
     return {
       labels,
       series: [
-        { name: 'Billable', color: '#3e6b5a', values: billable },
-        { name: 'Non-billable', color: '#10b981', values: nonBillable },
-        { name: 'Total', color: '#f59e0b', values: totals },
+        { name: t('dash.billable'), color: '#3e6b5a', values: billable },
+        { name: t('dash.nonBillable'), color: '#10b981', values: nonBillable },
+        { name: t('common.total'), color: '#f59e0b', values: totals },
       ],
     }
   }, [entries])
@@ -152,12 +156,12 @@ export default function Dashboard() {
   const donutData = useMemo(() => {
     const countByType = new Map<string, number>()
     for (const p of projects) {
-      const label = p.type || 'Uncategorized'
+      const label = p.type || t('common.none')
       countByType.set(label, (countByType.get(label) || 0) + 1)
     }
 
     if (countByType.size === 0) {
-      return [{ label: 'No data', value: 1, color: CHART_COLORS[0] }]
+      return [{ label: t('common.noData'), value: 1, color: CHART_COLORS[0] }]
     }
 
     const sorted = [...countByType.entries()]
@@ -173,8 +177,8 @@ export default function Dashboard() {
 
   // Donut center: show the top type
   const donutCenter = useMemo(() => {
-    if (donutData.length === 0 || (donutData.length === 1 && donutData[0].label === 'No data')) {
-      return { label: 'No data', value: '0' }
+    if (donutData.length === 0 || (donutData.length === 1 && donutData[0].label === t('common.noData'))) {
+      return { label: t('common.noData'), value: '0' }
     }
     const total = donutData.reduce((s, d) => s + d.value, 0)
     const top = donutData[0]
@@ -214,7 +218,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-32">
         <Loader2 size={28} className="animate-spin text-accent" />
-        <p className="text-text-muted text-[13px]">Loading dashboard...</p>
+        <p className="text-text-muted text-[13px]">{t('dash.loadingDashboard')}</p>
       </div>
     )
   }
@@ -233,10 +237,10 @@ export default function Dashboard() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px]">
-            Welcome back, {profileName}!
+            {t('dash.welcomeBack')}, {profileName}!
           </h2>
           <p className="text-text-muted text-[12px] mt-0.5">
-            Here's what's happening today.
+            {t('dash.here')}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -246,7 +250,7 @@ export default function Dashboard() {
             style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
           >
             <Timer size={12} />
-            Log Time
+            {t('dash.logTime')}
           </button>
         </div>
       </div>
@@ -266,24 +270,24 @@ export default function Dashboard() {
         // Group by due_date (YYYY-MM-DD key), tasks with no due date go to 'none'
         const groups: { key: string; label: string; isOverdueGroup: boolean; tasks: typeof activeTasks }[] = []
         const seen = new Set<string>()
-        for (const t of activeTasks) {
-          const key = t.due_date ?? 'none'
+        for (const tk of activeTasks) {
+          const key = tk.due_date ?? 'none'
           if (!seen.has(key)) {
             seen.add(key)
-            let label = 'No Due Date'
+            let label = t('dash.noDueDate')
             let isOverdueGroup = false
-            if (t.due_date) {
-              const d = new Date(t.due_date + 'T00:00:00')
+            if (tk.due_date) {
+              const d = new Date(tk.due_date + 'T00:00:00')
               const isToday = d.toDateString() === today
               const isPast = d < new Date(today)
               isOverdueGroup = isPast && !isToday
               label = isToday
-                ? 'Today'
-                : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                ? t('dash.today')
+                : d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })
             }
             groups.push({ key, label, isOverdueGroup, tasks: [] })
           }
-          groups.find(g => g.key === key)!.tasks.push(t)
+          groups.find(g => g.key === key)!.tasks.push(tk)
         }
 
         return (
@@ -292,7 +296,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="text-text-primary text-[14px] font-bold flex items-center gap-2">
                 <CheckSquare size={15} className="text-accent" />
-                To-Do
+                {t('dash.todo')}
               </h3>
               {tasks.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -300,13 +304,13 @@ export default function Dashboard() {
                     <div
                       className="h-full rounded-full transition-all duration-300"
                       style={{
-                        width: `${Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)}%`,
-                        background: tasks.filter(t => t.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
+                        width: `${Math.round((tasks.filter(tk => tk.status === 'done').length / tasks.length) * 100)}%`,
+                        background: tasks.filter(tk => tk.status === 'done').length === tasks.length ? '#10b981' : 'linear-gradient(90deg, #3e6b5a, #5a8f7b)',
                       }}
                     />
                   </div>
                   <span className="text-text-muted text-[11px]">
-                    {tasks.filter(t => t.status === 'done').length}/{tasks.length} done
+                    {tasks.filter(tk => tk.status === 'done').length}/{tasks.length} {t('dash.done')}
                   </span>
                 </div>
               )}
@@ -314,10 +318,10 @@ export default function Dashboard() {
 
             {/* Column headers */}
             <div className="grid grid-cols-[1fr_150px_120px_90px] border-b border-border bg-input-bg/50 px-5 py-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Project</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Status</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Due</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.task')}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.project')}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('common.status')}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('dash.due')}</span>
             </div>
 
             {/* Grouped rows */}
@@ -326,7 +330,7 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center justify-center py-10 gap-2">
                   <CheckSquare size={24} className="text-text-muted/30" />
                   <p className="text-text-muted text-[12px]">
-                    {tasks.length === 0 ? 'No tasks yet' : 'All tasks complete!'}
+                    {tasks.length === 0 ? t('dash.noTasksYet') : t('dash.allTasksComplete')}
                   </p>
                 </div>
               ) : (
@@ -358,17 +362,17 @@ export default function Dashboard() {
                           <span className="text-text-muted text-[11px] truncate pr-3">{proj?.name ?? '—'}</span>
                           <div>
                             {task.status === 'in_progress' && (
-                              <span className="text-[10px] font-semibold text-status-scheduled-text">In Progress</span>
+                              <span className="text-[10px] font-semibold text-status-scheduled-text">{t('status.inProgress')}</span>
                             )}
                             {task.status === 'todo' && (
-                              <span className="text-[10px] font-semibold text-text-muted">To Do</span>
+                              <span className="text-[10px] font-semibold text-text-muted">{t('status.todo')}</span>
                             )}
                           </div>
                           <div>
                             {task.due_date ? (
                               <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? 'text-negative font-semibold' : 'text-text-muted'}`}>
                                 {isOverdue && <AlertTriangle size={9} />}
-                                {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                {new Date(task.due_date + 'T00:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
                               </span>
                             ) : (
                               <span className="text-text-muted text-[11px]">—</span>
@@ -396,27 +400,27 @@ export default function Dashboard() {
         <div className="xl:col-span-2 grid grid-cols-2 gap-3">
           <StatCard
             icon={Clock}
-            label="Unbilled Hours"
+            label={t('dash.unbilledHours')}
             value={unbilledHours.toFixed(2)}
-            sublabel={unbilledEntryCount === 0 ? 'Nothing waiting to bill' : `across ${unbilledEntryCount} ${unbilledEntryCount === 1 ? 'entry' : 'entries'}`}
+            sublabel={unbilledEntryCount === 0 ? t('dash.nothingWaiting') : t(unbilledEntryCount === 1 ? 'dash.acrossEntry' : 'dash.acrossEntries', { n: unbilledEntryCount })}
           />
           <StatCard
             icon={DollarSign}
-            label="Pending Invoices"
+            label={t('dash.pendingInvoices')}
             value={`$${pendingInvoiceAmount.toLocaleString()}`}
-            sublabel={pendingInvoiceCount === 0 ? 'No invoices out' : `${pendingInvoiceCount} awaiting payment`}
+            sublabel={pendingInvoiceCount === 0 ? t('dash.noInvoicesOut') : t('dash.awaitingPayment', { n: pendingInvoiceCount })}
           />
           <StatCard
             icon={TrendingUp}
-            label="Revenue"
+            label={t('dash.revenue')}
             value={`$${totalRevenue.toLocaleString()}`}
-            sublabel={paidInvoiceCount === 0 ? 'No paid invoices yet' : `${paidInvoiceCount} paid ${paidInvoiceCount === 1 ? 'invoice' : 'invoices'}`}
+            sublabel={paidInvoiceCount === 0 ? t('dash.noPaidYet') : t(paidInvoiceCount === 1 ? 'dash.paidInvoice' : 'dash.paidInvoices', { n: paidInvoiceCount })}
           />
           <StatCard
             icon={FolderKanban}
-            label="Active Projects"
+            label={t('dash.activeProjects')}
             value={String(activeProjectCount)}
-            sublabel={activeProjectCount === 0 ? 'No active work' : `for ${activeClientCount} ${activeClientCount === 1 ? 'client' : 'clients'}`}
+            sublabel={activeProjectCount === 0 ? t('dash.noActiveWork') : t(activeClientCount === 1 ? 'dash.forClient' : 'dash.forClients', { n: activeClientCount })}
           />
         </div>
         <div className="xl:col-span-1">
@@ -431,8 +435,8 @@ export default function Dashboard() {
         {/* Hours Tracked - Line Chart */}
         <div className="lg:col-span-5 h-full">
           <LineChart
-            title="Hours Tracked"
-            subtitle="Last 30 days overview"
+            title={t('dash.hoursTracked')}
+            subtitle={t('dash.last30')}
             data={lineChartData}
           />
         </div>
@@ -440,8 +444,8 @@ export default function Dashboard() {
         {/* Project Types - Donut Chart */}
         <div className="lg:col-span-3 h-full">
           <DonutChart
-            title="Project Types"
-            subtitle="By category"
+            title={t('dash.projectTypes')}
+            subtitle={t('dash.byCategory')}
             segments={donutData}
             centerLabel={donutCenter.label}
             centerValue={donutCenter.value}
@@ -452,14 +456,14 @@ export default function Dashboard() {
         <div className="lg:col-span-4">
           <div className="bg-surface rounded-xl border border-border-accent shadow-card p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-text-primary text-[14px] font-bold">Top Projects</h3>
-              <button className="text-accent text-[11px] font-semibold hover:underline">View All</button>
+              <h3 className="text-text-primary text-[14px] font-bold">{t('dash.topProjects')}</h3>
+              <button className="text-accent text-[11px] font-semibold hover:underline">{t('common.viewAll')}</button>
             </div>
-            <p className="text-text-muted text-[11px] mb-4">Best performers</p>
+            <p className="text-text-muted text-[11px] mb-4">{t('dash.bestPerformers')}</p>
 
             <div className="flex flex-col gap-5 flex-1">
               {topProjects.length === 0 ? (
-                <p className="text-text-muted text-[12px]">No time tracked yet.</p>
+                <p className="text-text-muted text-[12px]">{t('dash.noTimeTracked')}</p>
               ) : topProjects.map((project, i) => {
                 const pct = maxHours > 0 ? Math.round((project.hours / maxHours) * 100) : 0
                 return (
@@ -489,30 +493,30 @@ export default function Dashboard() {
         <div>
           <div className="bg-surface rounded-xl border border-border-accent shadow-card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-text-primary text-[14px] font-bold">Recent Entries</h3>
-              <button onClick={() => navigate('/time')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
+              <h3 className="text-text-primary text-[14px] font-bold">{t('dash.recentEntries')}</h3>
+              <button onClick={() => navigate('/time')} className="text-accent text-[11px] font-semibold hover:underline">{t('common.viewAll')}</button>
             </div>
 
             {/* Table header */}
             <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 pb-2 border-b border-border text-[10px] text-text-muted font-semibold uppercase tracking-wide">
-              <span>Project</span>
-              <span>Status</span>
-              <span className="text-right">Hrs</span>
-              <span className="text-right">Value</span>
+              <span>{t('dash.project')}</span>
+              <span>{t('common.status')}</span>
+              <span className="text-right">{t('dash.hrs')}</span>
+              <span className="text-right">{t('dash.value')}</span>
             </div>
 
             {/* Rows */}
             {recentEntries.length === 0 ? (
-              <div className="py-4 text-text-muted text-[12px] text-center">No entries yet.</div>
+              <div className="py-4 text-text-muted text-[12px] text-center">{t('dash.noEntriesYet')}</div>
             ) : recentEntries.map((entry, i) => {
-              const s = STATUS_LABELS[entry.status] || STATUS_LABELS.active
+              const s = STATUS_STYLES[entry.status] || STATUS_STYLES.active
               return (
                 <div
                   key={i}
                   className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center py-2.5 border-b border-border/50 last:border-0"
                 >
                   <span className="text-text-primary text-[12px] font-medium truncate">{entry.project}</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${s.style}`}>{s.label}</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${s.style}`}>{t(s.key)}</span>
                   <span className="text-text-secondary text-[12px] text-right">{entry.hours}</span>
                   <span className="text-text-secondary text-[12px] text-right">{entry.rate}</span>
                 </div>
@@ -525,20 +529,20 @@ export default function Dashboard() {
         <div>
           <div className="bg-surface rounded-xl border border-border-accent shadow-card p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-text-primary text-[14px] font-bold">Recent Meetings</h3>
-              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">View All</button>
+              <h3 className="text-text-primary text-[14px] font-bold">{t('dash.recentMeetings')}</h3>
+              <button onClick={() => navigate('/meetings')} className="text-accent text-[11px] font-semibold hover:underline">{t('common.viewAll')}</button>
             </div>
 
             <div className="flex flex-col gap-3 flex-1">
               {meetingNotes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6 gap-2">
                   <BookOpen size={20} className="text-text-muted/40" />
-                  <p className="text-text-muted text-[12px]">No meetings yet</p>
+                  <p className="text-text-muted text-[12px]">{t('dash.noMeetingsYet')}</p>
                   <button
                     onClick={() => navigate('/meetings')}
                     className="text-accent text-[11px] font-medium hover:underline"
                   >
-                    Create your first meeting note →
+                    {t('dash.createFirstMeeting')}
                   </button>
                 </div>
               ) : meetingNotes.slice(0, 3).map(note => {
@@ -563,7 +567,7 @@ export default function Dashboard() {
                         )}
                         <span className="text-text-muted text-[10px] flex items-center gap-0.5">
                           <Calendar size={8} />
-                          {meetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {meetDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                     </div>
@@ -581,7 +585,7 @@ export default function Dashboard() {
 
         {/* Revenue Growth */}
         <div className="h-full">
-          <BarChart title="Revenue Growth" data={barChartData} />
+          <BarChart title={t('dash.revenueGrowth')} data={barChartData} />
         </div>
       </div>
     </div>

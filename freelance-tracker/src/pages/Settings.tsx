@@ -7,6 +7,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useGmail } from '../hooks/useGmail'
 import { useCalendarAuth } from '../hooks/useCalendarAuth'
 import SettingsInsight from '../components/SettingsInsight'
+import { useI18n } from '../lib/i18n'
+import { userStorage } from '../lib/userStorage'
 
 interface FreelancerProfile {
   name: string
@@ -29,12 +31,11 @@ function formatPhone(value: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`
 }
 
-const PROFILE_KEY = 'freelancer_profile'
 const DEFAULTS_KEY = 'invoice_defaults'
 
 function loadProfile(): FreelancerProfile {
   try {
-    const raw = localStorage.getItem(PROFILE_KEY)
+    const raw = userStorage.get('freelancer_profile')
     if (raw) return JSON.parse(raw)
   } catch { /* ignore */ }
   return { name: '', email: '', address: '', phone: '' }
@@ -51,58 +52,59 @@ function loadDefaults(): InvoiceDefaults {
 type ToastState = { section: string; visible: boolean }
 
 export default function Settings() {
+  const { t } = useI18n()
   const { user, signOut } = useAuth()
   const { isAuthenticated, login, logout, loading: gmailLoading } = useGmail()
   const calendarAuth = useCalendarAuth()
 
   // Profile photo
-  const [profilePhoto, setProfilePhoto] = useState<string>(localStorage.getItem('freelancer_photo') || '')
+  const [profilePhoto, setProfilePhoto] = useState<string>(userStorage.get('freelancer_photo') || '')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Business logo (for invoices)
-  const [businessLogo, setBusinessLogo] = useState<string>(localStorage.getItem('freelancer_logo') || '')
+  const [businessLogo, setBusinessLogo] = useState<string>(userStorage.get('freelancer_logo') || '')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image must be under 2MB')
+      alert(t('settings.imageTooLarge'))
       return
     }
     const reader = new FileReader()
     reader.onload = () => {
       const dataUrl = reader.result as string
       setProfilePhoto(dataUrl)
-      localStorage.setItem('freelancer_photo', dataUrl)
+      userStorage.set('freelancer_photo', dataUrl)
     }
     reader.readAsDataURL(file)
   }
 
   function handleRemovePhoto() {
     setProfilePhoto('')
-    localStorage.removeItem('freelancer_photo')
+    userStorage.remove('freelancer_photo')
   }
 
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 2 * 1024 * 1024) {
-      alert('Logo must be under 2MB')
+      alert(t('settings.logoTooLarge'))
       return
     }
     const reader = new FileReader()
     reader.onload = () => {
       const dataUrl = reader.result as string
       setBusinessLogo(dataUrl)
-      localStorage.setItem('freelancer_logo', dataUrl)
+      userStorage.set('freelancer_logo', dataUrl)
     }
     reader.readAsDataURL(file)
   }
 
   function handleRemoveLogo() {
     setBusinessLogo('')
-    localStorage.removeItem('freelancer_logo')
+    userStorage.remove('freelancer_logo')
   }
 
   // Profile state
@@ -131,11 +133,11 @@ export default function Settings() {
 
   function handleSaveProfile() {
     try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+      userStorage.set('freelancer_profile', JSON.stringify(profile))
       showToast('profile')
     } catch (err) {
       console.error('Failed to save profile:', err)
-      alert('Failed to save profile. Please try again.')
+      alert(t('settings.failedToSaveProfile'))
     }
   }
 
@@ -145,7 +147,7 @@ export default function Settings() {
       showToast('defaults')
     } catch (err) {
       console.error('Failed to save defaults:', err)
-      alert('Failed to save defaults. Please try again.')
+      alert(t('settings.failedToSaveDefaults'))
     }
   }
 
@@ -172,13 +174,13 @@ export default function Settings() {
           style={{ background: 'radial-gradient(circle, rgba(138,150,144,0.4) 0%, transparent 70%)' }}
         />
         <div className="relative z-10 px-7 py-7 max-w-2xl">
-          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">Preferences</p>
-          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">Settings</h1>
+          <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('settings.preferences')}</p>
+          <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('settings.title')}</h1>
           <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">
-            "The details you set once here are the details your clients see every time."
+            {t('settings.quote')}
           </p>
           <p className="text-white/60 text-[12px] mt-3">
-            {profileFieldCount}/4 profile fields · {isAuthenticated ? 'Gmail connected' : 'Gmail off'} · {(calendarAuth.status.google || calendarAuth.status.microsoft) ? 'Calendar connected' : 'Calendar off'}
+            {t('settings.profileFields', { n: profileFieldCount })} · {isAuthenticated ? t('settings.gmailConnected') : t('settings.gmailOff')} · {(calendarAuth.status.google || calendarAuth.status.microsoft) ? t('settings.calendarConnected') : t('settings.calendarOff')}
           </p>
         </div>
       </div>
@@ -197,14 +199,14 @@ export default function Settings() {
       <div className="bg-surface rounded-[14px] shadow-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-text-primary text-[14px] font-bold">Profile</h3>
+            <h3 className="text-text-primary text-[14px] font-bold">{t('settings.profile')}</h3>
             <p className="text-text-muted text-[11px] mt-0.5">
-              Your details appear on invoices and communications.
+              {t('settings.profileDesc')}
             </p>
           </div>
           {toast.visible && toast.section === 'profile' && (
             <span className="flex items-center gap-1 text-positive text-[11px] font-semibold">
-              <Check size={12} /> Saved
+              <Check size={12} /> {t('settings.saved')}
             </span>
           )}
         </div>
@@ -217,7 +219,7 @@ export default function Settings() {
               style={!profilePhoto ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               {profilePhoto ? (
-                <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                <img src={profilePhoto} alt={t('settings.profilePhotoAlt')} className="w-full h-full object-cover" />
               ) : (
                 profile.name
                   ? profile.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -239,14 +241,14 @@ export default function Settings() {
             />
           </div>
           <div>
-            <p className="text-text-primary text-[13px] font-semibold">Profile Photo</p>
-            <p className="text-text-muted text-[11px] mt-0.5">Click to upload (max 2MB)</p>
+            <p className="text-text-primary text-[13px] font-semibold">{t('settings.profilePhoto')}</p>
+            <p className="text-text-muted text-[11px] mt-0.5">{t('settings.clickToUpload')}</p>
             {profilePhoto && (
               <button
                 onClick={handleRemovePhoto}
                 className="text-negative text-[11px] font-medium mt-1 hover:underline"
               >
-                Remove photo
+                {t('settings.removePhoto')}
               </button>
             )}
           </div>
@@ -259,7 +261,7 @@ export default function Settings() {
               className="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden border border-border bg-input-bg/50"
             >
               {businessLogo ? (
-                <img src={businessLogo} alt="Business Logo" className="w-full h-full object-contain p-1" />
+                <img src={businessLogo} alt={t('settings.businessLogoAlt')} className="w-full h-full object-contain p-1" />
               ) : (
                 <FileText size={24} className="text-text-muted" />
               )}
@@ -279,14 +281,14 @@ export default function Settings() {
             />
           </div>
           <div>
-            <p className="text-text-primary text-[13px] font-semibold">Business Logo</p>
-            <p className="text-text-muted text-[11px] mt-0.5">Appears on your invoices (max 2MB)</p>
+            <p className="text-text-primary text-[13px] font-semibold">{t('settings.businessLogo')}</p>
+            <p className="text-text-muted text-[11px] mt-0.5">{t('settings.logoAppearsOnInvoices')}</p>
             {businessLogo && (
               <button
                 onClick={handleRemoveLogo}
                 className="text-negative text-[11px] font-medium mt-1 hover:underline"
               >
-                Remove logo
+                {t('settings.removeLogo')}
               </button>
             )}
           </div>
@@ -295,11 +297,11 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="prof-name" className="text-[12px]">
-              Freelancer Name
+              {t('settings.freelancerName')}
             </Label>
             <Input
               id="prof-name"
-              placeholder="Jane Doe"
+              placeholder={t('settings.namePlaceholder')}
               value={profile.name}
               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
             />
@@ -307,12 +309,12 @@ export default function Settings() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="prof-email" className="text-[12px]">
-              Email
+              {t('settings.email')}
             </Label>
             <Input
               id="prof-email"
               type="email"
-              placeholder="jane@example.com"
+              placeholder={t('settings.emailPlaceholder')}
               value={profile.email}
               onChange={(e) => setProfile({ ...profile, email: e.target.value })}
             />
@@ -320,7 +322,7 @@ export default function Settings() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="prof-phone" className="text-[12px]">
-              Phone
+              {t('settings.phone')}
             </Label>
             <Input
               id="prof-phone"
@@ -334,12 +336,12 @@ export default function Settings() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="prof-address" className="text-[12px]">
-              Address
+              {t('settings.address')}
             </Label>
             <textarea
               id="prof-address"
               rows={2}
-              placeholder="123 Main St, City, ST 00000"
+              placeholder={t('settings.addressPlaceholder')}
               className="flex w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ring-offset-surface resize-none"
               value={profile.address}
               onChange={(e) => setProfile({ ...profile, address: e.target.value })}
@@ -350,12 +352,12 @@ export default function Settings() {
         <div className="flex items-center justify-end gap-3 mt-4">
           {profileSaved && (
             <span className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-status-active-bg text-status-active-text animate-pulse">
-              <Check size={14} /> Profile Saved!
+              <Check size={14} /> {t('settings.profileSaved')}
             </span>
           )}
           <Button type="button" size="sm" variant="gradient" onClick={handleSaveProfile}>
             <Save size={12} />
-            Save Profile
+            {t('settings.saveProfile')}
           </Button>
         </div>
       </div>
@@ -363,9 +365,9 @@ export default function Settings() {
       {/* Gmail Connection Section */}
       <div className="bg-surface rounded-[14px] shadow-card p-5">
         <div className="mb-4">
-          <h3 className="text-text-primary text-[14px] font-bold">Gmail Connection</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('settings.gmailConnection')}</h3>
           <p className="text-text-muted text-[11px] mt-0.5">
-            Connect your Gmail to send and receive emails from project pages.
+            {t('settings.gmailConnectionDesc')}
           </p>
         </div>
 
@@ -408,7 +410,7 @@ export default function Settings() {
                       : 'var(--color-text-muted)',
                   }}
                 />
-                {isAuthenticated ? 'Connected' : 'Not connected'}
+                {isAuthenticated ? t('settings.connected') : t('settings.notConnected')}
               </span>
             </div>
           </div>
@@ -416,7 +418,7 @@ export default function Settings() {
           {isAuthenticated ? (
             <Button size="sm" variant="outline" onClick={logout}>
               <Unplug size={12} />
-              Disconnect
+              {t('settings.disconnect')}
             </Button>
           ) : (
             <Button
@@ -426,7 +428,7 @@ export default function Settings() {
               disabled={gmailLoading}
             >
               <Mail size={12} />
-              {gmailLoading ? 'Connecting...' : 'Connect Gmail'}
+              {gmailLoading ? t('settings.connecting') : t('settings.connectGmail')}
             </Button>
           )}
         </div>
@@ -435,20 +437,20 @@ export default function Settings() {
       {/* Connected Calendars Section */}
       <div className="bg-surface rounded-[14px] shadow-card p-5">
         <div className="mb-4">
-          <h3 className="text-text-primary text-[14px] font-bold">Connected Calendars</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('settings.connectedCalendars')}</h3>
           <p className="text-text-muted text-[11px] mt-0.5">
-            Connect your Google Calendar and Outlook to see events on the Calendar page.
+            {t('settings.connectedCalendarsDesc')}
           </p>
         </div>
 
         {!calendarAuth.configured ? (
           <p className="text-text-muted text-[12px]">
-            Calendar API not configured. Set <code className="bg-input-bg px-1 py-0.5 rounded text-[11px]">VITE_CALENDAR_API_URL</code> in your environment.
+            {t('settings.calendarApiNotConfigured')} <code className="bg-input-bg px-1 py-0.5 rounded text-[11px]">VITE_CALENDAR_API_URL</code> {t('settings.inYourEnv')}
           </p>
         ) : calendarAuth.loading ? (
           <div className="flex items-center gap-2 text-text-muted text-[12px]">
             <Loader2 size={14} className="animate-spin" />
-            Checking connection status...
+            {t('settings.checkingStatus')}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -469,7 +471,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <p className="text-text-primary text-[13px] font-semibold">Google Calendar</p>
+                  <p className="text-text-primary text-[13px] font-semibold">{t('settings.googleCalendar')}</p>
                   <span
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
                     style={{
@@ -483,7 +485,7 @@ export default function Settings() {
                         background: calendarAuth.status.google ? '#2E7D32' : 'var(--color-text-muted)',
                       }}
                     />
-                    {calendarAuth.status.google ? 'Connected' : 'Not connected'}
+                    {calendarAuth.status.google ? t('settings.connected') : t('settings.notConnected')}
                   </span>
                 </div>
               </div>
@@ -491,12 +493,12 @@ export default function Settings() {
               {calendarAuth.status.google ? (
                 <Button size="sm" variant="outline" onClick={() => calendarAuth.disconnect('google')}>
                   <Unplug size={12} />
-                  Disconnect
+                  {t('settings.disconnect')}
                 </Button>
               ) : (
                 <Button size="sm" variant="gradient" onClick={calendarAuth.connectGoogle}>
                   <Calendar size={12} />
-                  Connect Google
+                  {t('settings.connectGoogle')}
                 </Button>
               )}
             </div>
@@ -518,7 +520,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <p className="text-text-primary text-[13px] font-semibold">Outlook Calendar</p>
+                  <p className="text-text-primary text-[13px] font-semibold">{t('settings.outlookCalendar')}</p>
                   <span
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
                     style={{
@@ -532,7 +534,7 @@ export default function Settings() {
                         background: calendarAuth.status.microsoft ? '#1565C0' : 'var(--color-text-muted)',
                       }}
                     />
-                    {calendarAuth.status.microsoft ? 'Connected' : 'Not connected'}
+                    {calendarAuth.status.microsoft ? t('settings.connected') : t('settings.notConnected')}
                   </span>
                 </div>
               </div>
@@ -540,12 +542,12 @@ export default function Settings() {
               {calendarAuth.status.microsoft ? (
                 <Button size="sm" variant="outline" onClick={() => calendarAuth.disconnect('microsoft')}>
                   <Unplug size={12} />
-                  Disconnect
+                  {t('settings.disconnect')}
                 </Button>
               ) : (
                 <Button size="sm" variant="gradient" onClick={calendarAuth.connectMicrosoft}>
                   <Calendar size={12} />
-                  Connect Outlook
+                  {t('settings.connectOutlook')}
                 </Button>
               )}
             </div>
@@ -557,14 +559,14 @@ export default function Settings() {
       <div className="bg-surface rounded-[14px] shadow-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-text-primary text-[14px] font-bold">Invoice Defaults</h3>
+            <h3 className="text-text-primary text-[14px] font-bold">{t('settings.invoiceDefaults')}</h3>
             <p className="text-text-muted text-[11px] mt-0.5">
-              Pre-fill values when creating new invoices.
+              {t('settings.invoiceDefaultsDesc')}
             </p>
           </div>
           {toast.visible && toast.section === 'defaults' && (
             <span className="flex items-center gap-1 text-positive text-[11px] font-semibold">
-              <Check size={12} /> Saved
+              <Check size={12} /> {t('settings.saved')}
             </span>
           )}
         </div>
@@ -572,7 +574,7 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tax-rate" className="text-[12px]">
-              Default Tax Rate (%)
+              {t('settings.defaultTaxRate')}
             </Label>
             <Input
               id="tax-rate"
@@ -588,7 +590,7 @@ export default function Settings() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="payment-terms" className="text-[12px]">
-              Default Payment Terms (days)
+              {t('settings.defaultPaymentTerms')}
             </Label>
             <Input
               id="payment-terms"
@@ -604,12 +606,12 @@ export default function Settings() {
 
           <div className="flex flex-col gap-1.5 md:col-span-2">
             <Label htmlFor="notes-template" className="text-[12px]">
-              Invoice Notes Template
+              {t('settings.invoiceNotesTemplate')}
             </Label>
             <textarea
               id="notes-template"
               rows={3}
-              placeholder="Thank you for your business! Payment is due within the specified terms."
+              placeholder={t('settings.notesTemplatePlaceholder')}
               className="flex w-full rounded-[12px] border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ring-offset-surface resize-none"
               value={defaults.notesTemplate}
               onChange={(e) =>
@@ -622,12 +624,12 @@ export default function Settings() {
         <div className="flex items-center justify-end gap-3 mt-4">
           {defaultsSaved && (
             <span className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-status-active-bg text-status-active-text animate-pulse">
-              <Check size={14} /> Defaults Saved!
+              <Check size={14} /> {t('settings.defaultsSaved')}
             </span>
           )}
           <Button type="button" size="sm" variant="gradient" onClick={handleSaveDefaults}>
             <Save size={12} />
-            Save Defaults
+            {t('settings.saveDefaults')}
           </Button>
         </div>
       </div>
@@ -635,9 +637,9 @@ export default function Settings() {
       {/* Account Section */}
       <div className="bg-surface rounded-xl border border-border p-5">
         <div className="mb-4">
-          <h3 className="text-text-primary text-[14px] font-bold">Account</h3>
+          <h3 className="text-text-primary text-[14px] font-bold">{t('settings.account')}</h3>
           <p className="text-text-muted text-[11px] mt-0.5">
-            Signed in as <span className="font-semibold text-text-primary">{user?.email}</span>
+            {t('settings.signedInAs')} <span className="font-semibold text-text-primary">{user?.email}</span>
           </p>
         </div>
         <button
@@ -645,7 +647,7 @@ export default function Settings() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold text-negative bg-negative-bg hover:bg-negative/10 transition-colors"
         >
           <LogOut size={14} />
-          Sign Out
+          {t('settings.signOut')}
         </button>
       </div>
     </div>

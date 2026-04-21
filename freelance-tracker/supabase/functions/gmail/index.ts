@@ -21,10 +21,11 @@
 // Required function secrets (set via `supabase secrets set` or dashboard):
 //   GOOGLE_CLIENT_ID
 //   GOOGLE_CLIENT_SECRET
+//   SUPABASE_SECRET_KEY     (sb_secret_... — preferred; falls back to SUPABASE_SERVICE_ROLE_KEY)
 //
 // Auto-provided by Supabase runtime:
 //   SUPABASE_URL
-//   SUPABASE_SERVICE_ROLE_KEY
+//   SUPABASE_SERVICE_ROLE_KEY  (legacy; used as fallback)
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -101,7 +102,8 @@ function error(message: string, status = 400): Response {
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_SERVICE_ROLE_KEY =
+  Deno.env.get('SERVICE_ROLE_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
   console.error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set');
