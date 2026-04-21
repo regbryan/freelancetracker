@@ -349,6 +349,7 @@ export default function Tasks() {
           ) : (
             projectGroups.map(pg => {
               const isProjectCollapsed = collapsedProjects.has(pg.projectId)
+              const projectHours = pg.dateGroups.reduce((n, dg) => n + dg.tasks.reduce((m, tk) => m + (timeByTaskId[tk.id] ?? 0), 0), 0)
               return (
               <div key={pg.projectId}>
                 {/* Project header */}
@@ -365,6 +366,12 @@ export default function Tasks() {
                     <span className="text-[10px] text-text-muted ml-1 shrink-0">
                       {pg.dateGroups.reduce((n, dg) => n + dg.tasks.length, 0)}
                     </span>
+                    {projectHours > 0 && (
+                      <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-text-secondary shrink-0">
+                        <Clock size={10} />
+                        {projectHours}h
+                      </span>
+                    )}
                   </button>
                   {pg.projectId !== 'none' && (
                     <Link
@@ -380,6 +387,7 @@ export default function Tasks() {
                 {!isProjectCollapsed && pg.dateGroups.map(group => {
                 const dateKey = `${pg.projectId}-${group.key}`
                 const isDateCollapsed = collapsedDates.has(dateKey)
+                const groupHours = group.tasks.reduce((n, tk) => n + (timeByTaskId[tk.id] ?? 0), 0)
                 return (
                 <div key={dateKey}>
                 {/* Date sub-header */}
@@ -397,6 +405,12 @@ export default function Tasks() {
                   <span className="text-[10px] text-text-muted">{group.tasks.length}</span>
                   {group.isOverdue && (
                     <span className="text-[10px] font-medium text-negative uppercase tracking-wide ml-1">Overdue</span>
+                  )}
+                  {groupHours > 0 && (
+                    <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-text-secondary shrink-0">
+                      <Clock size={9} />
+                      {groupHours}h
+                    </span>
                   )}
                 </button>
 
