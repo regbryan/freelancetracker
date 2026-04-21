@@ -82,6 +82,7 @@ export default function ProjectDetail() {
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
   const [logHours, setLogHours] = useState('')
   const [logDate, setLogDate] = useState('')
+  const [logNote, setLogNote] = useState('')
   const [logBillable, setLogBillable] = useState(true)
   const [logSaving, setLogSaving] = useState(false)
 
@@ -89,6 +90,7 @@ export default function ProjectDetail() {
     setLoggingTaskId(taskId)
     setLogHours('')
     setLogDate(new Date().toISOString().slice(0, 10))
+    setLogNote('')
     setLogBillable(true)
   }
 
@@ -97,7 +99,17 @@ export default function ProjectDetail() {
     if (!hours || hours <= 0 || !logDate) return
     setLogSaving(true)
     try {
-      await handleTaskLogTime(taskId, hours, logDate, logBillable)
+      const task = tasks.find((tk) => tk.id === taskId)
+      const description = logNote.trim() || task?.title || ''
+      await createEntry({
+        project_id: id!,
+        description,
+        hours,
+        date: logDate,
+        billable: logBillable,
+        invoice_id: null,
+        task_id: taskId,
+      })
       setLoggingTaskId(null)
     } finally {
       setLogSaving(false)
@@ -110,6 +122,18 @@ export default function ProjectDetail() {
     const map: Record<string, number> = {}
     for (const e of entries) {
       if (e.task_id) map[e.task_id] = (map[e.task_id] ?? 0) + e.hours
+    }
+    return map
+  }, [entries])
+  const entriesByTaskId = useMemo(() => {
+    const map: Record<string, typeof entries> = {}
+    for (const e of entries) {
+      if (!e.task_id) continue
+      if (!map[e.task_id]) map[e.task_id] = []
+      map[e.task_id].push(e)
+    }
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => b.date.localeCompare(a.date))
     }
     return map
   }, [entries])
@@ -505,6 +529,7 @@ export default function ProjectDetail() {
                           const isUpcoming = diffDays !== null && diffDays > 3 && task.status !== 'done'
                           const dueDateColor = task.status === 'done' ? 'text-text-muted' : isPastDue ? 'text-negative font-semibold' : isDueSoon ? 'text-amber-500 font-semibold' : isUpcoming ? 'text-emerald-600' : 'text-text-muted'
                           const taskHours = timeByTaskId[task.id] ?? 0
+                          const taskEntries = entriesByTaskId[task.id] ?? []
                           const isLogging = loggingTaskId === task.id
                           const isDone = task.status === 'done'
                           return (
@@ -563,8 +588,20 @@ export default function ProjectDetail() {
                               ) : <span className="text-text-muted text-[11px]">—</span>}
                             </div>
                           </div>
+                          {taskEntries.length > 0 && (
+                            <div className="px-5 pb-2 pt-1 flex flex-col gap-0.5">
+                              {taskEntries.map((e) => (
+                                <div key={e.id} className="flex items-center gap-2 text-[11px] text-text-muted pl-6">
+                                  <span className="text-text-secondary font-medium shrink-0">{e.hours.toFixed(2)}h</span>
+                                  <span className="shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}</span>
+                                  {e.description && <span className="truncate">— {e.description}</span>}
+                                  {!e.billable && <span className="text-[9px] uppercase tracking-wide text-text-muted/70 shrink-0">non-billable</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {isLogging && (
-                            <div className="px-5 pb-3 pt-2 bg-input-bg/30 border-t border-border/50">
+                            <div className="px-5 pb-3 pt-2 bg-input-bg/30 border-t border-border/50 flex flex-col gap-2">
                               <div className="flex flex-wrap items-end gap-2">
                                 <div className="flex flex-col gap-1">
                                   <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Hours</label>
@@ -597,24 +634,34 @@ export default function ProjectDetail() {
                                   />
                                   Billable
                                 </label>
-                                <div className="flex items-center gap-2 ml-auto">
-                                  <button
-                                    type="button"
-                                    onClick={() => setLoggingTaskId(null)}
-                                    className="h-7 px-3 rounded-md text-[11px] text-text-muted hover:text-text-secondary"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => submitLogForm(task.id)}
-                                    disabled={logSaving || !logHours || !logDate}
-                                    className="h-7 px-3 rounded-md text-white text-[11px] font-semibold disabled:opacity-50"
-                                    style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
-                                  >
-                                    {logSaving ? 'Saving…' : 'Log time'}
-                                  </button>
-                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Note</label>
+                                <input
+                                  type="text"
+                                  value={logNote}
+                                  onChange={(e) => setLogNote(e.target.value)}
+                                  placeholder={task.title}
+                                  className="h-7 w-full px-2 rounded-md border border-border bg-surface text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => setLoggingTaskId(null)}
+                                  className="h-7 px-3 rounded-md text-[11px] text-text-muted hover:text-text-secondary"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => submitLogForm(task.id)}
+                                  disabled={logSaving || !logHours || !logDate}
+                                  className="h-7 px-3 rounded-md text-white text-[11px] font-semibold disabled:opacity-50"
+                                  style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
+                                >
+                                  {logSaving ? 'Saving…' : 'Log time'}
+                                </button>
                               </div>
                             </div>
                           )}
