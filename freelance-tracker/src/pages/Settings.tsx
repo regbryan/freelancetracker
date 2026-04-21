@@ -173,6 +173,14 @@ export default function Settings() {
           className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-15 pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(138,150,144,0.4) 0%, transparent 70%)' }}
         />
+        <button
+          onClick={signOut}
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
+          title={t('settings.signOut')}
+        >
+          <LogOut size={12} />
+          {t('settings.signOut')}
+        </button>
         <div className="relative z-10 px-7 py-7 max-w-2xl">
           <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('settings.preferences')}</p>
           <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('settings.title')}</h1>
