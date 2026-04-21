@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Clock, X, ExternalLink, Loader2, Plus, Pencil, Trash2, Check, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useProjects } from '../hooks/useProjects'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -25,6 +25,7 @@ export default function Tasks() {
   const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
@@ -112,12 +113,16 @@ export default function Tasks() {
     return tasks
       .filter((tk) => statusFilter === 'all' || tk.status === statusFilter)
       .sort((a, b) => {
-        if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+        if (a.due_date && b.due_date) {
+          return sortDir === 'desc'
+            ? b.due_date.localeCompare(a.due_date)
+            : a.due_date.localeCompare(b.due_date)
+        }
         if (a.due_date) return -1
         if (b.due_date) return 1
         return 0
       })
-  }, [tasks, statusFilter])
+  }, [tasks, statusFilter, sortDir])
 
   // Build project → date groups
   const projectGroups = useMemo(() => {
@@ -258,6 +263,7 @@ export default function Tasks() {
           )}
           {/* Status filters */}
           <div className="flex items-center gap-1 border-b border-border">
+            <div className="flex-1 flex items-center gap-1">
             {FILTERS.map((f) => {
               const isActive = statusFilter === f.value
               return (
@@ -276,6 +282,15 @@ export default function Tasks() {
                 </button>
               )
             })}
+            </div>
+            <button
+              onClick={() => setSortDir(sortDir === 'desc' ? 'asc' : 'desc')}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold text-text-muted hover:text-text-primary hover:bg-input-bg transition-colors"
+              title={sortDir === 'desc' ? t('tasks.sortNewestFirst') : t('tasks.sortOldestFirst')}
+            >
+              {sortDir === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
+              {t('tasks.sortDate')}
+            </button>
           </div>
           <button
             onClick={() => { setEditingTask(null); setTaskFormOpen(true) }}
@@ -466,8 +481,69 @@ export default function Tasks() {
                         </div>
                       </div>
 
-                      {/* Per-day time breakdown */}
-                      {expandedTimeTaskId === task.id && entriesByTaskId[task.id] && (
+                      {/* Inline log time form — above entries so it's at the top */}
+                      {isLogging && (
+                        <div className="px-5 pb-3 pt-2 border-t border-border/50 bg-input-bg/40">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">Log time — {task.title}</p>
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-col gap-1 w-full">
+                              <label className="text-[10px] text-text-muted">Notes (optional)</label>
+                              <input
+                                type="text" value={logNotes}
+                                onChange={(e) => setLogNotes(e.target.value)}
+                                placeholder="What did you work on?"
+                                className="h-8 w-full rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] text-text-muted">Hours</label>
+                              <input
+                                type="number" min="0.25" step="0.25" value={logHours}
+                                onChange={(e) => setLogHours(e.target.value)}
+                                placeholder="0.0"
+                                className="h-8 w-[80px] rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] text-text-muted">Date</label>
+                              <input
+                                type="date" value={logDate}
+                                onChange={(e) => setLogDate(e.target.value)}
+                                className="h-8 w-[140px] rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1 items-center">
+                              <label className="text-[10px] text-text-muted">Billable</label>
+                              <button
+                                type="button" role="checkbox" aria-checked={logBillable}
+                                onClick={() => setLogBillable(!logBillable)}
+                                className={`h-8 w-8 rounded-[8px] border transition-colors flex items-center justify-center ${logBillable ? 'bg-accent border-accent text-white' : 'bg-input-bg border-border text-text-muted'}`}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={logBillable ? 'opacity-100' : 'opacity-30'}>
+                                  <path d="M10 3L5 9L2 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                            </div>
+                            <button
+                              type="button" onClick={() => submitLogTime(task)}
+                              disabled={logSaving || !logHours}
+                              className="h-8 px-3 rounded-[8px] text-[12px] font-semibold text-white disabled:opacity-50 transition-all"
+                              style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
+                            >
+                              {logSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button" onClick={() => setLoggingTaskId(null)}
+                              className="h-8 w-8 flex items-center justify-center rounded-[8px] hover:bg-input-bg transition-colors"
+                            >
+                              <X size={12} className="text-text-muted" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Per-day time breakdown — always visible when entries exist */}
+                      {entriesByTaskId[task.id] && entriesByTaskId[task.id].length > 0 && (
                         <div className="px-5 pb-2 pt-1 border-t border-border/40 bg-input-bg/20">
                           {entriesByTaskId[task.id].map(entry => (
                             <div key={entry.id}>
@@ -551,67 +627,6 @@ export default function Tasks() {
                               )}
                             </div>
                           ))}
-                        </div>
-                      )}
-
-                      {/* Inline log time form */}
-                      {isLogging && (
-                        <div className="px-5 pb-3 pt-2 border-t border-border/50 bg-input-bg/40">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">Log time — {task.title}</p>
-                          <div className="flex flex-wrap items-end gap-2">
-                            <div className="flex flex-col gap-1 w-full">
-                              <label className="text-[10px] text-text-muted">Notes (optional)</label>
-                              <input
-                                type="text" value={logNotes}
-                                onChange={(e) => setLogNotes(e.target.value)}
-                                placeholder="What did you work on?"
-                                className="h-8 w-full rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-[10px] text-text-muted">Hours</label>
-                              <input
-                                type="number" min="0.25" step="0.25" value={logHours}
-                                onChange={(e) => setLogHours(e.target.value)}
-                                placeholder="0.0"
-                                className="h-8 w-[80px] rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-[10px] text-text-muted">Date</label>
-                              <input
-                                type="date" value={logDate}
-                                onChange={(e) => setLogDate(e.target.value)}
-                                className="h-8 w-[140px] rounded-[8px] border border-border bg-input-bg px-2 text-[12px] text-text-primary focus:outline-none focus:border-accent"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1 items-center">
-                              <label className="text-[10px] text-text-muted">Billable</label>
-                              <button
-                                type="button" role="checkbox" aria-checked={logBillable}
-                                onClick={() => setLogBillable(!logBillable)}
-                                className={`h-8 w-8 rounded-[8px] border transition-colors flex items-center justify-center ${logBillable ? 'bg-accent border-accent text-white' : 'bg-input-bg border-border text-text-muted'}`}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={logBillable ? 'opacity-100' : 'opacity-30'}>
-                                  <path d="M10 3L5 9L2 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              </button>
-                            </div>
-                            <button
-                              type="button" onClick={() => submitLogTime(task)}
-                              disabled={logSaving || !logHours}
-                              className="h-8 px-3 rounded-[8px] text-[12px] font-semibold text-white disabled:opacity-50 transition-all"
-                              style={{ background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }}
-                            >
-                              {logSaving ? 'Saving...' : 'Save'}
-                            </button>
-                            <button
-                              type="button" onClick={() => setLoggingTaskId(null)}
-                              className="h-8 w-8 flex items-center justify-center rounded-[8px] hover:bg-input-bg transition-colors"
-                            >
-                              <X size={12} className="text-text-muted" />
-                            </button>
-                          </div>
                         </div>
                       )}
                     </div>

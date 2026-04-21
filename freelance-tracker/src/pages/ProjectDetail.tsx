@@ -598,18 +598,6 @@ export default function ProjectDetail() {
                               ) : <span className="text-text-muted text-[11px]">—</span>}
                             </div>
                           </div>
-                          {taskEntries.length > 0 && (
-                            <div className="px-5 pb-2 pt-1 flex flex-col gap-0.5">
-                              {taskEntries.map((e) => (
-                                <div key={e.id} className="flex items-center gap-2 text-[11px] text-text-muted pl-6">
-                                  <span className="text-text-secondary font-medium shrink-0">{e.hours.toFixed(2)}h</span>
-                                  <span className="shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}</span>
-                                  {e.description && <span className="truncate">— {e.description}</span>}
-                                  {!e.billable && <span className="text-[9px] uppercase tracking-wide text-text-muted/70 shrink-0">non-billable</span>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                           {isLogging && (
                             <div className="px-5 pb-3 pt-2 bg-input-bg/30 border-t border-border/50 flex flex-col gap-2">
                               <div className="flex flex-wrap items-end gap-2">
@@ -673,6 +661,18 @@ export default function ProjectDetail() {
                                   {logSaving ? 'Saving…' : 'Log time'}
                                 </button>
                               </div>
+                            </div>
+                          )}
+                          {taskEntries.length > 0 && (
+                            <div className="px-5 pb-2 pt-1 flex flex-col gap-0.5">
+                              {taskEntries.map((e) => (
+                                <div key={e.id} className="flex items-center gap-2 text-[11px] text-text-muted pl-6">
+                                  <span className="text-text-secondary font-medium shrink-0">{e.hours.toFixed(2)}h</span>
+                                  <span className="shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}</span>
+                                  {e.description && <span className="truncate">— {e.description}</span>}
+                                  {!e.billable && <span className="text-[9px] uppercase tracking-wide text-text-muted/70 shrink-0">non-billable</span>}
+                                </div>
+                              ))}
                             </div>
                           )}
                           </div>

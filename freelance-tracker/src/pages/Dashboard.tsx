@@ -261,7 +261,7 @@ export default function Dashboard() {
         const activeTasks = tasks
           .filter(t => t.status !== 'done')
           .sort((a, b) => {
-            if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+            if (a.due_date && b.due_date) return b.due_date.localeCompare(a.due_date)
             if (a.due_date) return -1
             if (b.due_date) return 1
             return 0
