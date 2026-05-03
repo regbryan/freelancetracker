@@ -6,6 +6,7 @@ import TimeEntryForm from '../components/TimeEntryForm'
 import TimeEntryList from '../components/TimeEntryList'
 import TimeEntryEditDialog from '../components/TimeEntryEditDialog'
 import CuratorInsight from '../components/CuratorInsight'
+import WorkTabs from '../components/WorkTabs'
 import type { TimeEntry as ListTimeEntry } from '../components/TimeEntryList'
 import { useI18n } from '../lib/i18n'
 
@@ -119,6 +120,8 @@ export default function TimeTracker() {
         <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('timeTracker.tracking')}</p>
         <h2 className="text-text-primary text-[20px] font-bold tracking-[-0.3px] mt-1">{t('timeTracker.title')}</h2>
       </div>
+
+      <WorkTabs />
 
       {/* Curator's Insight */}
       <CuratorInsight projects={projects} entries={entries} />

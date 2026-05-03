@@ -4,6 +4,7 @@ import { Loader2, ChevronRight } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import TimelineInsight from '../components/TimelineInsight'
+import WorkTabs from '../components/WorkTabs'
 import { useI18n } from '../lib/i18n'
 
 function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
@@ -164,6 +165,7 @@ export default function Timeline() {
     return (
       <div className="p-6 flex flex-col gap-5">
         <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
+        <WorkTabs />
         <div className="bg-surface rounded-[14px] shadow-card border border-border p-12 flex flex-col items-center justify-center gap-3">
           <p className="text-text-muted text-[13px]">{t('timeline.noDates')}</p>
           <p className="text-text-muted text-[12px]">{t('timeline.noDatesHelp')}</p>
@@ -176,6 +178,7 @@ export default function Timeline() {
     <div className="p-6 flex flex-col gap-5">
       {/* Editorial Hero */}
       <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
+      <WorkTabs />
 
       {/* Runway Insight */}
       <TimelineInsight projects={projects} tasks={tasks} />

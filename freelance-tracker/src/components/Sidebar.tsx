@@ -3,32 +3,40 @@ import {
   LayoutDashboard,
   Users,
   FolderKanban,
-  CheckSquare,
+  Briefcase,
   BookOpen,
   Receipt,
   FileCheck,
   FileText,
   Calendar,
-  GanttChartSquare,
   Settings,
   Plus,
   Mail,
 } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 
-const navItems = [
-  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-  { to: '/clients', labelKey: 'nav.clients', icon: Users },
-  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban },
-  { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare },
-  { to: '/timeline', labelKey: 'nav.timeline', icon: GanttChartSquare },
-  { to: '/meetings', labelKey: 'nav.meetings', icon: BookOpen },
-  { to: '/calendar', labelKey: 'nav.calendar', icon: Calendar },
-  { to: '/emails', labelKey: 'nav.emails', icon: Mail },
-  { to: '/expenses', labelKey: 'nav.expenses', icon: Receipt },
-  { to: '/contracts', labelKey: 'nav.contracts', icon: FileCheck },
-  { to: '/invoices', labelKey: 'nav.invoices', icon: FileText },
-  { to: '/settings', labelKey: 'nav.settings', icon: Settings },
+// "Work" rolls up Tasks + Timeline + Time Tracker — they share a sub-nav
+// inside the page so users don't need three separate sidebar items.
+type NavItem = {
+  to: string
+  label: string
+  labelKey?: string
+  icon: typeof LayoutDashboard
+  matchAny?: string[]
+}
+
+const navItems: NavItem[] = [
+  { to: '/', labelKey: 'nav.dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/clients', labelKey: 'nav.clients', label: 'Clients', icon: Users },
+  { to: '/projects', labelKey: 'nav.projects', label: 'Projects', icon: FolderKanban },
+  { to: '/tasks', label: 'Work', icon: Briefcase, matchAny: ['/tasks', '/timeline', '/time'] },
+  { to: '/meetings', labelKey: 'nav.meetings', label: 'Meetings', icon: BookOpen },
+  { to: '/calendar', labelKey: 'nav.calendar', label: 'Calendar', icon: Calendar },
+  { to: '/emails', labelKey: 'nav.emails', label: 'Emails', icon: Mail },
+  { to: '/expenses', labelKey: 'nav.expenses', label: 'Expenses', icon: Receipt },
+  { to: '/contracts', labelKey: 'nav.contracts', label: 'Contracts', icon: FileCheck },
+  { to: '/invoices', labelKey: 'nav.invoices', label: 'Invoices', icon: FileText },
+  { to: '/settings', labelKey: 'nav.settings', label: 'Settings', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -71,8 +79,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {navItems.map((item) => {
           const isActive = item.to === '/'
             ? location.pathname === '/'
-            : location.pathname.startsWith(item.to)
+            : item.matchAny
+              ? item.matchAny.some((p) => location.pathname.startsWith(p))
+              : location.pathname.startsWith(item.to)
 
+          const label = item.labelKey ? t(item.labelKey) : item.label
           return (
             <NavLink
               key={item.to}
@@ -87,7 +98,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               style={isActive ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
             >
               <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
-              <span>{t(item.labelKey)}</span>
+              <span>{label}</span>
             </NavLink>
           )
         })}

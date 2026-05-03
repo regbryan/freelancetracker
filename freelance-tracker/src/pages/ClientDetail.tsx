@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Pencil, Plus, Mail, Phone, DollarSign, Loader2, Trash2, BookOpen, Calendar } from 'lucide-react'
+import { Pencil, Plus, Mail, Phone, DollarSign, Loader2, Trash2, BookOpen, Calendar } from 'lucide-react'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { useClient, useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
 import { useInvoices } from '../hooks/useInvoices'
@@ -148,14 +149,7 @@ export default function ClientDetail() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/clients')}
-        className="flex items-center gap-1 text-accent text-[13px] font-medium hover:underline w-fit"
-      >
-        <ArrowLeft size={14} />
-        {t('clientDetail.back')}
-      </button>
+      <Breadcrumbs items={[{ label: 'Clients', to: '/clients' }, { label: client.name }]} />
 
       {/* Client info header */}
       <div className="bg-surface rounded-[14px] shadow-card p-5">

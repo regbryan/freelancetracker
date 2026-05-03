@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  ArrowLeft,
   Calendar,
   Users,
   FolderKanban,
@@ -16,6 +15,7 @@ import {
   Trash2,
   BookOpen,
 } from 'lucide-react'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { useMeetingNote } from '../hooks/useMeetingNotes'
 import { useClients } from '../hooks/useClients'
 import { useProjects } from '../hooks/useProjects'
@@ -139,14 +139,18 @@ export default function MeetingNoteDetail() {
 
   return (
     <div className="flex flex-col gap-5 max-w-4xl">
-      {/* Back + Header */}
+      {/* Header */}
       <div>
-        <button
-          onClick={() => navigate('/meetings')}
-          className="flex items-center gap-1 text-text-muted text-[12px] hover:text-accent transition-colors mb-3"
-        >
-          <ArrowLeft size={14} /> {t('meetingDetail.backToNotes')}
-        </button>
+        <div className="mb-3">
+          <Breadcrumbs
+            items={[
+              { label: 'Meetings', to: '/meetings' },
+              ...(client ? [{ label: client.name, to: `/clients/${client.id}` }] : []),
+              ...(project ? [{ label: project.name, to: `/projects/${project.id}` }] : []),
+              { label: meetingNote.title },
+            ]}
+          />
+        </div>
 
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">

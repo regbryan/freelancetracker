@@ -9,6 +9,7 @@ import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
 import type { TaskRow } from '../components/TaskList'
 import TaskInsight from '../components/TaskInsight'
+import WorkTabs from '../components/WorkTabs'
 import { useI18n } from '../lib/i18n'
 
 type StatusFilter = 'all' | 'todo' | 'in_progress' | 'done'
@@ -355,6 +356,8 @@ export default function Tasks() {
           <p className="text-white/60 text-[12px] mt-3">{tasks.length} total · {doneCount} done · {inProgressCount} in progress</p>
         </div>
       </div>
+
+      <WorkTabs />
 
       {/* Task Insight */}
       <TaskInsight tasks={tasks} />
@@ -750,7 +753,7 @@ export default function Tasks() {
                               className={`p-1.5 rounded-md transition-all active:scale-95 ${
                                 isLogging
                                   ? 'bg-accent/10 text-accent'
-                                  : 'text-text-muted hover:text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 focus:opacity-100'
+                                  : 'text-accent hover:bg-accent/10'
                               }`}
                             >
                               <Clock size={12} />
@@ -763,7 +766,7 @@ export default function Tasks() {
                               setTaskFormOpen(true)
                             }}
                             title="Edit task"
-                            className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-input-bg transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-input-bg transition-all active:scale-95"
                           >
                             <Pencil size={12} />
                           </button>
@@ -771,7 +774,7 @@ export default function Tasks() {
                             type="button"
                             onClick={() => { if (confirm('Delete this task?')) deleteTask(task.id) }}
                             title="Delete task"
-                            className="p-1.5 rounded-md text-text-muted hover:text-negative hover:bg-negative/10 transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="p-1.5 rounded-md text-text-muted hover:text-negative hover:bg-negative/10 transition-all active:scale-95"
                           >
                             <Trash2 size={12} />
                           </button>

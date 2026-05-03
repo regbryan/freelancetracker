@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Loader2, Download, Eye, X, Receipt, CreditCard, Check, FileCheck, Link2, Trash2, Pencil, BookOpen, Calendar, Clock } from 'lucide-react'
+import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock } from 'lucide-react'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { useProject, useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
@@ -321,14 +322,13 @@ export default function ProjectDetail() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/projects')}
-        className="flex items-center gap-1 text-accent text-[13px] font-medium hover:underline w-fit"
-      >
-        <ArrowLeft size={14} />
-        {t('projectDetail.back')}
-      </button>
+      <Breadcrumbs
+        items={[
+          { label: 'Projects', to: '/projects' },
+          ...(project.clients ? [{ label: project.clients.name, to: `/clients/${project.clients.id}` }] : []),
+          { label: project.name },
+        ]}
+      />
 
       {/* Project header */}
       <div className="bg-surface rounded-[14px] shadow-card p-5">
