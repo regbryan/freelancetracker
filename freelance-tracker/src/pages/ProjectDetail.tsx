@@ -516,11 +516,12 @@ export default function ProjectDetail() {
                 </div>
 
                 {/* Column headers */}
-                <div className="grid grid-cols-[1fr_110px_100px_130px] border-b border-border bg-input-bg/50 px-5 py-2">
+                <div className="grid grid-cols-[1fr_100px_90px_120px_96px] border-b border-border bg-input-bg/50 px-5 py-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colTask')}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colPriority')}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colStatus')}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('projectDetail.colDates')}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Actions</span>
                 </div>
 
                 {/* Bulk-select toolbar */}
@@ -594,7 +595,7 @@ export default function ProjectDetail() {
                           return (
                           <div key={task.id} className={`border-b border-border/40 last:border-0 ${isSelected ? 'bg-accent/5' : ''}`}>
                           <div
-                            className="grid grid-cols-[1fr_110px_100px_130px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors group"
+                            className="grid grid-cols-[1fr_100px_90px_120px_96px] items-center px-5 py-2.5 hover:bg-input-bg/40 transition-colors group"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               {/* Multi-select checkbox — appears on hover or when selection mode is active */}
@@ -628,20 +629,6 @@ export default function ProjectDetail() {
                               {taskHours > 0 && (
                                 <span className="text-[10px] text-text-muted shrink-0">{taskHours.toFixed(1)}h</span>
                               )}
-                              <div className="flex items-center gap-1 ml-auto shrink-0">
-                                {!isDone && (
-                                  <button
-                                    onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
-                                    className="p-1 rounded hover:bg-input-bg transition-colors"
-                                    title={t('projectDetail.logTime') !== 'projectDetail.logTime' ? t('projectDetail.logTime') : 'Log time'}
-                                  >
-                                    <Clock size={11} className={isLogging ? 'text-accent' : 'text-text-muted hover:text-accent'} />
-                                  </button>
-                                )}
-                                <button onClick={() => deleteTask(task.id)} className="p-1 rounded hover:bg-negative/10 text-text-muted hover:text-negative transition-colors opacity-0 group-hover:opacity-100">
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
                             </div>
                             <div>
                               {task.priority === 'high' && <span className="text-[10px] font-semibold text-negative">{t('projectDetail.high')}</span>}
@@ -661,6 +648,39 @@ export default function ProjectDetail() {
                                     : new Date(task.due_date + 'T00:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                               ) : <span className="text-text-muted text-[11px]">—</span>}
+                            </div>
+                            {/* Actions */}
+                            <div className="flex items-center gap-0.5 justify-end">
+                              {!isDone && (
+                                <button
+                                  type="button"
+                                  onClick={() => isLogging ? setLoggingTaskId(null) : openLogForm(task.id)}
+                                  title="Log time"
+                                  className={`p-1.5 rounded-md transition-all active:scale-95 ${
+                                    isLogging
+                                      ? 'bg-accent/10 text-accent'
+                                      : 'text-accent hover:bg-accent/10'
+                                  }`}
+                                >
+                                  <Clock size={12} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined, projectId: task.project_id }); setTaskFormOpen(true) }}
+                                title="Edit task"
+                                className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-input-bg transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteTask(task.id)}
+                                title="Delete task"
+                                className="p-1.5 rounded-md text-text-muted hover:text-negative hover:bg-negative/10 transition-all active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              >
+                                <Trash2 size={12} />
+                              </button>
                             </div>
                           </div>
                           {isLogging && (
