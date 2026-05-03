@@ -6,6 +6,7 @@ import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormData } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import type { ExpenseRow } from '../components/ExpenseList'
+import BillingTabs from '../components/BillingTabs'
 import { useI18n } from '../lib/i18n'
 
 function formatCurrency(amount: number): string {
@@ -106,6 +107,7 @@ export default function Expenses() {
 
   return (
     <div className="flex flex-col gap-5">
+      <BillingTabs />
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>

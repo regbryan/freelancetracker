@@ -1,14 +1,28 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import BottomNav from './BottomNav'
+import CommandPalette from './CommandPalette'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), [])
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+
+  // Global Cmd/Ctrl+K toggles the search palette
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className="min-h-screen bg-bg flex">
@@ -27,7 +41,7 @@ export default function Layout() {
 
       {/* Main content area */}
       <div className="flex-1 min-w-0 min-h-screen flex flex-col">
-        <TopBar onToggleSidebar={toggleSidebar} />
+        <TopBar onToggleSidebar={toggleSidebar} onOpenSearch={() => setPaletteOpen(true)} />
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto overflow-x-hidden pb-20 lg:pb-6">
           <Outlet />
         </main>
@@ -35,6 +49,9 @@ export default function Layout() {
 
       {/* Mobile bottom navigation */}
       <BottomNav onMoreClick={toggleSidebar} />
+
+      {/* Global command palette */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import InvoiceEditDialog from '../components/InvoiceEditDialog'
 import InvoiceInsight from '../components/InvoiceInsight'
+import BillingTabs from '../components/BillingTabs'
 import { useI18n } from '../lib/i18n'
 
 const STATUS_FLOW: Record<string, Invoice['status'] | null> = {
@@ -229,6 +230,7 @@ export default function Invoices() {
 
   return (
     <div className="flex flex-col gap-5">
+      <BillingTabs />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('invoices.billing')}</p>

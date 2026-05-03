@@ -5,18 +5,17 @@ import {
   FolderKanban,
   Briefcase,
   BookOpen,
-  Receipt,
-  FileCheck,
-  FileText,
+  Wallet,
   Calendar,
-  Settings,
   Plus,
   Mail,
 } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 
-// "Work" rolls up Tasks + Timeline + Time Tracker — they share a sub-nav
-// inside the page so users don't need three separate sidebar items.
+// Consolidated nav (was 12 items, now 7):
+// - "Work" rolls up Tasks + Timeline + Time Tracker
+// - "Billing" rolls up Invoices + Contracts + Expenses
+// - Settings has moved into the avatar dropdown in the TopBar
 type NavItem = {
   to: string
   label: string
@@ -33,10 +32,7 @@ const navItems: NavItem[] = [
   { to: '/meetings', labelKey: 'nav.meetings', label: 'Meetings', icon: BookOpen },
   { to: '/calendar', labelKey: 'nav.calendar', label: 'Calendar', icon: Calendar },
   { to: '/emails', labelKey: 'nav.emails', label: 'Emails', icon: Mail },
-  { to: '/expenses', labelKey: 'nav.expenses', label: 'Expenses', icon: Receipt },
-  { to: '/contracts', labelKey: 'nav.contracts', label: 'Contracts', icon: FileCheck },
-  { to: '/invoices', labelKey: 'nav.invoices', label: 'Invoices', icon: FileText },
-  { to: '/settings', labelKey: 'nav.settings', label: 'Settings', icon: Settings },
+  { to: '/invoices', label: 'Billing', icon: Wallet, matchAny: ['/invoices', '/contracts', '/expenses'] },
 ]
 
 interface SidebarProps {

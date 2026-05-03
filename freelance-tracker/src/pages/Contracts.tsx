@@ -7,6 +7,7 @@ import { useProjects } from '../hooks/useProjects'
 import ContractForm from '../components/ContractForm'
 import type { ContractFormData } from '../components/ContractForm'
 import { generateContractPDF } from '../components/ContractPDF'
+import BillingTabs from '../components/BillingTabs'
 import { useI18n } from '../lib/i18n'
 
 export default function Contracts() {
@@ -123,6 +124,7 @@ export default function Contracts() {
 
   return (
     <div className="flex flex-col gap-5">
+      <BillingTabs />
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
