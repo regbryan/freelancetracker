@@ -110,8 +110,21 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
       .eq('id', id);
 
     if (deleteError) throw deleteError;
-    await fetchTasks();
-  }, [fetchTasks]);
+    // Update local state in-place so the page doesn't re-render / scroll jump
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
 
-  return { tasks, loading, error, createTask, createTasks, updateTask, deleteTask, refetch: fetchTasks };
+  const deleteTasks = useCallback(async (ids: string[]): Promise<void> => {
+    if (ids.length === 0) return;
+    const { error: deleteError } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', ids);
+
+    if (deleteError) throw deleteError;
+    const idSet = new Set(ids);
+    setTasks(prev => prev.filter(t => !idSet.has(t.id)));
+  }, []);
+
+  return { tasks, loading, error, createTask, createTasks, updateTask, deleteTask, deleteTasks, refetch: fetchTasks };
 }

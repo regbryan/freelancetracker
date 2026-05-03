@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Pencil, Trash2, Play, Square, Clock, X } from 'lucide-react'
+import { Pencil, Trash2, Play, Square, Clock, X, CheckSquare } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 
 export interface TaskRow {
@@ -20,6 +20,8 @@ interface TaskListProps {
   onToggle: (id: string, currentStatus: string) => void
   onEdit: (task: TaskRow) => void
   onDelete: (id: string) => void
+  /** Optional bulk delete. When provided, multi-select checkboxes are enabled. */
+  onBulkDelete?: (ids: string[]) => Promise<void>
   onTimerSave?: (taskId: string, hours: number, description: string) => Promise<void>
   onLogTime?: (taskId: string, hours: number, date: string, billable: boolean) => Promise<void>
   timeByTaskId?: Record<string, number>
@@ -50,9 +52,42 @@ function formatDate(date: string, locale: string): string {
   return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onTimerSave, onLogTime, timeByTaskId }: TaskListProps) {
+export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, onBulkDelete, onTimerSave, onLogTime, timeByTaskId }: TaskListProps) {
   const { t, lang } = useI18n()
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
+
+  // ── Multi-select state ────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(tasks.map(tk => tk.id)))
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkDelete() {
+    if (!onBulkDelete || selectedIds.size === 0) return
+    if (!window.confirm(t('taskList.bulkDeleteConfirm', { n: selectedIds.size }) || `Delete ${selectedIds.size} task(s)?`)) return
+    setBulkDeleting(true)
+    try {
+      await onBulkDelete(Array.from(selectedIds))
+      setSelectedIds(new Set())
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
   const formatHours = (h: number): string => {
     const rounded = Math.round(h * 100) / 100
     return t('taskList.hoursLogged', { h: rounded })
@@ -171,19 +206,80 @@ export default function TaskList({ tasks, loading, onToggle, onEdit, onDelete, o
         </div>
       </div>
 
+      {/* Bulk-select toolbar — only when selection is non-empty */}
+      {onBulkDelete && selectedIds.size > 0 && (
+        <div className="bg-accent/10 border border-accent/30 rounded-[14px] px-4 py-2.5 flex items-center justify-between sticky top-0 z-10 backdrop-blur">
+          <div className="flex items-center gap-2 text-[12px] font-medium text-text-primary">
+            <CheckSquare size={14} className="text-accent" />
+            <span>{selectedIds.size} selected</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={selectAll}
+              disabled={bulkDeleting || selectedIds.size === tasks.length}
+              className="text-[11px] px-2.5 py-1 rounded-md hover:bg-input-bg disabled:opacity-40"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              disabled={bulkDeleting}
+              className="text-[11px] px-2.5 py-1 rounded-md hover:bg-input-bg disabled:opacity-40"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="text-[11px] px-3 py-1 rounded-md bg-negative text-white hover:opacity-90 disabled:opacity-40 inline-flex items-center gap-1.5"
+            >
+              <Trash2 size={11} />
+              {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Task rows */}
       <div className="flex flex-col gap-1.5">
         {tasks.map((task) => {
           const done = task.status === 'done'
           const overdue = isOverdue(task.dueDate, task.status)
+          const isSelected = selectedIds.has(task.id)
 
           return (
             <div
               key={task.id}
-              className="bg-surface rounded-[14px] shadow-card overflow-hidden"
+              className={`bg-surface rounded-[14px] shadow-card overflow-hidden group ${isSelected ? 'ring-2 ring-accent/50' : ''}`}
             >
             <div className="px-4 py-3 flex items-center gap-3">
-              {/* Checkbox */}
+              {/* Multi-select checkbox — visible on hover or when selection mode is active */}
+              {onBulkDelete && (
+                <button
+                  type="button"
+                  onClick={() => toggleSelected(task.id)}
+                  className={`flex-shrink-0 w-4 h-4 rounded-sm border flex items-center justify-center transition-all ${
+                    isSelected
+                      ? 'bg-accent border-accent opacity-100'
+                      : selectedIds.size > 0
+                        ? 'border-border opacity-100 hover:border-accent'
+                        : 'border-border opacity-0 group-hover:opacity-100 hover:border-accent'
+                  }`}
+                  aria-label={isSelected ? 'Deselect task' : 'Select task'}
+                  title={isSelected ? 'Deselect' : 'Select'}
+                >
+                  {isSelected && (
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
+
+              {/* Done-toggle checkbox */}
               <button
                 type="button"
                 onClick={() => onToggle(task.id, task.status)}

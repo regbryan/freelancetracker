@@ -85,7 +85,7 @@ function expandRecurrence(
 
 export default function Tasks() {
   const { t, lang } = useI18n()
-  const { tasks, loading: tasksLoading, createTask, createTasks, updateTask, deleteTask } = useTasks()
+  const { tasks, loading: tasksLoading, createTask, createTasks, updateTask, deleteTask, deleteTasks } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
   const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
 
@@ -117,6 +117,16 @@ export default function Tasks() {
   }
   const [taskFormOpen, setTaskFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const toggleSelected = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const clearSelection = () => setSelectedIds(new Set())
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    if (!window.confirm(`Delete ${selectedIds.size} task(s)? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try { await deleteTasks(Array.from(selectedIds)); clearSelection() } finally { setBulkDeleting(false) }
+  }
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null)
   const [logHours, setLogHours] = useState('')
   const [logDate, setLogDate] = useState(todayISO)
@@ -412,6 +422,43 @@ export default function Tasks() {
       {/* Table */}
       <div className="bg-surface rounded-[14px] shadow-card">
         {/* Column headers */}
+        {/* Bulk-select toolbar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-accent/10 border-b border-accent/30 px-5 py-2.5 flex items-center justify-between sticky top-0 z-20 backdrop-blur">
+            <div className="flex items-center gap-2 text-[12px] font-medium text-text-primary">
+              <Check size={14} className="text-accent" />
+              <span>{selectedIds.size} task{selectedIds.size === 1 ? '' : 's'} selected</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set(filtered.map(t => t.id)))}
+                disabled={bulkDeleting || selectedIds.size === filtered.length}
+                className="text-[11px] px-2.5 py-1 rounded-md hover:bg-input-bg disabled:opacity-40"
+              >
+                Select all visible
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                disabled={bulkDeleting}
+                className="text-[11px] px-2.5 py-1 rounded-md hover:bg-input-bg disabled:opacity-40"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="text-[11px] px-3 py-1 rounded-md bg-negative text-white hover:opacity-90 disabled:opacity-40 inline-flex items-center gap-1.5"
+              >
+                <Trash2 size={11} />
+                {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size}`}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-[1fr_110px_110px_130px_88px] border-b border-border bg-input-bg/60 px-5 py-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Task</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Priority</span>
@@ -508,12 +555,29 @@ export default function Tasks() {
                   const isUpcoming = diffDays !== null && diffDays > 3 && task.status !== 'done'
                   const dueDateColor = task.status === 'done' ? 'text-text-muted' : isPastDue ? 'text-negative font-semibold' : isDueSoon ? 'text-amber-500 font-semibold' : isUpcoming ? 'text-emerald-600' : 'text-text-muted'
 
+                  const isSelected = selectedIds.has(task.id)
                   return (
-                    <div key={task.id} className="border-b border-border/50 last:border-0">
+                    <div key={task.id} className={`border-b border-border/50 last:border-0 ${isSelected ? 'bg-accent/5' : ''}`}>
                       {/* Main row */}
                       <div className="grid grid-cols-[1fr_110px_110px_130px_88px] items-center px-5 py-3 hover:bg-input-bg/30 transition-colors group">
                         {/* Task title */}
                         <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Multi-select checkbox — appears on hover or when selection mode is active */}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleSelected(task.id) }}
+                            className={`w-4 h-4 rounded-sm border shrink-0 flex items-center justify-center transition-all ${
+                              isSelected
+                                ? 'bg-accent border-accent opacity-100'
+                                : selectedIds.size > 0
+                                  ? 'border-border opacity-100 hover:border-accent'
+                                  : 'border-border opacity-0 group-hover:opacity-100 hover:border-accent'
+                            }`}
+                            aria-label={isSelected ? 'Deselect task' : 'Select task'}
+                            title={isSelected ? 'Deselect' : 'Select'}
+                          >
+                            {isSelected && <Check size={9} className="text-white" />}
+                          </button>
                           <button
                             onClick={() => updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' })}
                             className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
