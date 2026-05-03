@@ -48,8 +48,10 @@ interface TaskFormProps {
     priority: string
     startDate?: string
     dueDate?: string
+    /** Current project — pre-populates the picker on edit so the user can move the task. */
+    projectId?: string
   } | null
-  /** When provided, a project selector is shown (for creating tasks outside a project context). */
+  /** When provided, a project selector is shown so the user can pick or change project. */
   projects?: { id: string; name: string }[]
   onSave: (data: TaskFormData) => Promise<void>
 }
@@ -97,7 +99,7 @@ export default function TaskForm({
       setPriority((task?.priority as TaskFormData['priority']) ?? 'medium')
       setStartDate(task?.startDate ?? '')
       setDueDate(task?.dueDate ?? '')
-      setProjectId('')
+      setProjectId(task?.projectId ?? '')
       setRecurrence('none')
       setRecurrenceEnd('')
       const today = new Date()
@@ -108,7 +110,7 @@ export default function TaskForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (projects && !isEdit && !projectId) return
+    if (projects && !projectId) return
     setSaving(true)
     try {
       await onSave({
@@ -141,8 +143,8 @@ export default function TaskForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Project — only when creating from global tasks page */}
-          {projects && !isEdit && (
+          {/* Project picker — visible on both create and edit so a task can be reassigned */}
+          {projects && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-project" className="text-[12px]">
                 {t('taskForm.project')} <span className="text-negative">*</span>
@@ -351,7 +353,7 @@ export default function TaskForm({
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !isEdit && !projectId) || (!isEdit && recurrence !== 'none' && !recurrenceEnd) || (!isEdit && recurrence === 'daily' && !(dueDate || startDate))}>
+            <Button type="submit" variant="gradient" disabled={saving || !title.trim() || (!!projects && !projectId) || (!isEdit && recurrence !== 'none' && !recurrenceEnd) || (!isEdit && recurrence === 'daily' && !(dueDate || startDate))}>
               {saving ? t('taskForm.saving') : isEdit ? t('taskForm.saveChanges') : t('taskForm.create')}
             </Button>
           </DialogFooter>

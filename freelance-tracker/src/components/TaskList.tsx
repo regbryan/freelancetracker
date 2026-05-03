@@ -10,6 +10,8 @@ export interface TaskRow {
   priority: 'low' | 'medium' | 'high'
   startDate?: string
   dueDate?: string
+  /** Optional — used by edit dialogs that allow re-assigning to a different project. */
+  projectId?: string
 }
 
 interface TaskListProps {

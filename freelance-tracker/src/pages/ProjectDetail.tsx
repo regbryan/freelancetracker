@@ -54,7 +54,7 @@ export default function ProjectDetail() {
   }
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
-  const { deleteProject, updateProject } = useProjects()
+  const { projects: allProjects, deleteProject, updateProject } = useProjects()
   const { clients } = useClients()
   const {
     entries,
@@ -555,7 +555,7 @@ export default function ProjectDetail() {
                                 {task.status === 'done' && <Check size={9} className="text-white" />}
                               </button>
                               <button
-                                onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined }); setTaskFormOpen(true) }}
+                                onClick={() => { setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined, projectId: task.project_id }); setTaskFormOpen(true) }}
                                 className={`text-[12px] font-medium truncate text-left hover:underline ${task.status === 'done' ? 'line-through text-text-muted' : isPastDue ? 'text-negative' : 'text-text-primary'}`}
                               >
                                 {task.title}
@@ -690,9 +690,10 @@ export default function ProjectDetail() {
             open={taskFormOpen}
             onOpenChange={(open) => { setTaskFormOpen(open); if (!open) setEditingTask(null) }}
             task={editingTask}
+            projects={editingTask ? allProjects.map((p) => ({ id: p.id, name: p.name })) : undefined}
             onSave={async (data: TaskFormData) => {
               if (editingTask) {
-                await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
+                await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, ...(data.projectId ? { project_id: data.projectId } : {}) })
                 setEditingTask(null)
               } else {
                 await createTask({ project_id: id!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, meeting_note_id: null, assignee: 'me' })

@@ -695,7 +695,7 @@ export default function Tasks() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined })
+                              setEditingTask({ id: task.id, title: task.title, description: task.description ?? undefined, status: task.status, priority: task.priority, startDate: task.start_date ?? undefined, dueDate: task.due_date ?? undefined, projectId: task.project_id })
                               setTaskFormOpen(true)
                             }}
                             title="Edit task"
@@ -882,7 +882,7 @@ export default function Tasks() {
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
         onSave={async (data: TaskFormData) => {
           if (editingTask) {
-            await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null })
+            await updateTask(editingTask.id, { title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, start_date: data.startDate ?? null, due_date: data.dueDate ?? null, ...(data.projectId ? { project_id: data.projectId } : {}) })
             setEditingTask(null)
           } else {
             const base = { project_id: data.projectId!, title: data.title, description: data.description ?? null, status: data.status, priority: data.priority, meeting_note_id: null, assignee: 'me' as const }
