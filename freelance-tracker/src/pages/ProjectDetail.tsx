@@ -385,7 +385,7 @@ export default function ProjectDetail() {
         )}
 
         {/* Detail fields row */}
-        <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.type')}</p>
             <p className="text-text-primary text-[13px] font-medium">{project.type || '—'}</p>
@@ -404,6 +404,20 @@ export default function ProjectDetail() {
                 : project.hourly_rate != null ? `$${project.hourly_rate.toFixed(2)}/hr` : '—'}
             </p>
           </div>
+          {(() => {
+            const billableHours = entries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0)
+            const amount = project.billing_type === 'monthly'
+              ? (project.monthly_rate ?? 0)
+              : billableHours * (project.hourly_rate ?? 0)
+            return (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Billed</p>
+                <p className="text-text-primary text-[13px] font-medium">
+                  {billableHours.toFixed(1)}h <span className="text-positive">· ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                </p>
+              </div>
+            )
+          })()}
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">{t('projectDetail.created')}</p>
             <p className="text-text-primary text-[13px] font-medium">

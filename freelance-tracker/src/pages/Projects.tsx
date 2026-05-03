@@ -164,6 +164,37 @@ export default function Projects() {
     return { dueSoon, hoursThisMonth }
   }, [projects, entries])
 
+  // Per-project billed hours + dollar amount
+  const billedByProject = useMemo(() => {
+    const map: Record<string, { hours: number; amount: number }> = {}
+    for (const e of entries) {
+      if (!e.billable || !e.project_id) continue
+      if (!map[e.project_id]) map[e.project_id] = { hours: 0, amount: 0 }
+      map[e.project_id].hours += e.hours
+    }
+    for (const p of projects) {
+      const m = map[p.id]
+      if (!m) continue
+      if (p.billing_type === 'monthly') {
+        // For monthly retainers, amount is monthly_rate (informational — invoices are the source of truth)
+        m.amount = p.monthly_rate ?? 0
+      } else {
+        m.amount = m.hours * (p.hourly_rate ?? 0)
+      }
+    }
+    return map
+  }, [entries, projects])
+
+  const totalBilled = useMemo(() => {
+    let hours = 0
+    let amount = 0
+    for (const v of Object.values(billedByProject)) {
+      hours += v.hours
+      amount += v.amount
+    }
+    return { hours, amount }
+  }, [billedByProject])
+
   // Loading state
   if (loading) {
     return (
@@ -325,6 +356,19 @@ export default function Projects() {
               </p>
             </div>
           </div>
+          <div className="bg-surface flex items-center gap-2.5 px-4 py-2.5 rounded-[12px] shadow-card">
+            <div className="w-7 h-7 rounded-md bg-accent-bg flex items-center justify-center">
+              <Briefcase size={14} className="text-accent" />
+            </div>
+            <div>
+              <p className="font-semibold text-[10px] text-text-muted tracking-wide uppercase">
+                Total Billed
+              </p>
+              <p className="font-bold text-[16px] text-text-primary leading-5">
+                {totalBilled.hours.toFixed(1)}h <span className="text-positive">· ${totalBilled.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -428,6 +472,23 @@ export default function Projects() {
                 </div>
               </div>
 
+              {/* Billed totals */}
+              {(() => {
+                const b = billedByProject[featuredProject.id]
+                if (!b || b.hours === 0) return null
+                return (
+                  <div className="border-t border-border pt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock size={13} className="text-accent" />
+                      <span className="text-text-muted text-[11px] font-semibold uppercase tracking-wide">Billed</span>
+                    </div>
+                    <span className="text-text-primary text-[14px] font-bold">
+                      {b.hours.toFixed(1)}h <span className="text-positive">· ${b.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                    </span>
+                  </div>
+                )
+              })()}
+
               {featuredProject.description && (
                 <div className="border-t border-border pt-4">
                   <p className="text-text-secondary text-[13px] leading-[22px] line-clamp-2">
@@ -505,7 +566,7 @@ export default function Projects() {
               <p className="text-text-secondary text-[12px]">
                 {project.clients?.name ?? t('projects.noClient')}
               </p>
-              <div className="flex items-center justify-between py-3 w-full">
+              <div className="flex items-center justify-between py-2 w-full">
                 <span className="text-text-secondary text-[12px]">
                   {project.billing_type === 'monthly' ? t('projects.monthlyRate') : t('projects.hourlyRate')}
                 </span>
@@ -515,6 +576,20 @@ export default function Projects() {
                     : (project.hourly_rate != null ? `$${project.hourly_rate.toFixed(2)}/hr` : '--')}
                 </span>
               </div>
+              {(() => {
+                const b = billedByProject[project.id]
+                if (!b || b.hours === 0) return null
+                return (
+                  <div className="flex items-center justify-between pb-2 w-full">
+                    <span className="text-text-secondary text-[12px] flex items-center gap-1">
+                      <Clock size={11} className="text-accent" /> Billed
+                    </span>
+                    <span className="text-[12px] font-bold text-text-primary">
+                      {b.hours.toFixed(1)}h <span className="text-positive">· ${b.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                    </span>
+                  </div>
+                )
+              })()}
               <div className="border-t border-border flex items-center justify-between pt-3 w-full">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${status.dotColor}`} />
