@@ -23,7 +23,17 @@ export function useAuth() {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          tos_accepted_at: new Date().toISOString(),
+          tos_version: '2026-05-15',
+          privacy_version: '2026-05-15',
+        },
+      },
+    });
     if (error) throw error;
     return data;
   }, []);

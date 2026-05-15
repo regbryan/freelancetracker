@@ -369,7 +369,7 @@ export default function MeetingNoteDetail() {
       </div>
 
       {/* Transcript */}
-      {(meetingNote.raw_transcript || true) && (
+      {meetingNote.raw_transcript && (
         <div className="bg-surface rounded-xl border border-border overflow-hidden">
           <button
             onClick={() => setShowTranscript(!showTranscript)}

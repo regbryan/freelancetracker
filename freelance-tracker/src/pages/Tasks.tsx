@@ -120,7 +120,7 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const toggleSelected = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleSelected = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const clearSelection = () => setSelectedIds(new Set())
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
@@ -160,7 +160,6 @@ export default function Tasks() {
     return map
   }, [timeEntries])
 
-  const [expandedTimeTaskId, setExpandedTimeTaskId] = useState<string | null>(null)
   const [editingDateTaskId, setEditingDateTaskId] = useState<string | null>(null)
   const [editingStatusTaskId, setEditingStatusTaskId] = useState<string | null>(null)
   const [editStartDraft, setEditStartDraft] = useState('')

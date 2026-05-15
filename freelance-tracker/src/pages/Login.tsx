@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../lib/i18n'
@@ -10,6 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [consentAccepted, setConsentAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [signUpSuccess, setSignUpSuccess] = useState(false)
@@ -17,6 +19,11 @@ export default function Login() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (isSignUp && !consentAccepted) {
+      setError(t('login.mustAcceptTerms'))
+      return
+    }
 
     if (isSignUp && password !== confirmPassword) {
       setError(t('login.passwordsDoNotMatch'))
@@ -135,6 +142,29 @@ export default function Login() {
               </div>
             )}
 
+            {isSignUp && (
+              <label className="flex items-start gap-2 text-[12px] text-text-muted leading-snug">
+                <input
+                  type="checkbox"
+                  checked={consentAccepted}
+                  onChange={(e) => setConsentAccepted(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-accent shrink-0"
+                  required
+                />
+                <span>
+                  {t('login.iAgreeToPrefix')}{' '}
+                  <Link to="/terms" target="_blank" className="text-accent hover:underline font-medium">
+                    {t('login.terms')}
+                  </Link>{' '}
+                  {t('login.and')}{' '}
+                  <Link to="/privacy" target="_blank" className="text-accent hover:underline font-medium">
+                    {t('login.privacy')}
+                  </Link>
+                  .
+                </span>
+              </label>
+            )}
+
             {error && (
               <p className="text-negative text-[12px] bg-negative-bg rounded-lg px-3 py-2">{error}</p>
             )}
@@ -151,6 +181,7 @@ export default function Login() {
 
           <div className="mt-4 text-center">
             <button
+              type="button"
               onClick={() => { setIsSignUp(!isSignUp); setError(null) }}
               className="text-accent text-[12px] font-medium hover:underline"
             >
@@ -158,6 +189,16 @@ export default function Login() {
             </button>
           </div>
         </div>
+
+        <footer className="mt-6 flex items-center justify-center gap-4 text-[11px] text-text-muted">
+          <Link to="/privacy" className="hover:text-accent hover:underline">
+            {t('login.privacy')}
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link to="/terms" className="hover:text-accent hover:underline">
+            {t('login.terms')}
+          </Link>
+        </footer>
       </div>
     </div>
   )

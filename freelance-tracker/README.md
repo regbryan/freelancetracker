@@ -1,73 +1,109 @@
-# React + TypeScript + Vite
+# FreelanceFlow
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A freelance business management app — clients, projects, time, expenses, contracts, invoices, meetings, and Gmail/Calendar integration in one place.
 
-Currently, two official plugins are available:
+> "Grow what you build." Branded as **Bough**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- **Frontend**: React 19 + TypeScript + Vite 8, React Router 7, Tailwind 4, Radix UI primitives
+- **Backend**: Supabase (PostgreSQL + Auth + RLS + Edge Functions)
+- **PDF**: jsPDF + jspdf-autotable (invoices, contracts)
+- **Hosting**: Vercel (SPA + security headers configured in `vercel.json`)
+- **PWA**: `vite-plugin-pwa` with offline precache
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Routes
 
-## Expanding the ESLint configuration
+| Path | Purpose |
+|---|---|
+| `/` | Dashboard — stats, charts, recent activity, meetings |
+| `/clients`, `/clients/:id` | Client management |
+| `/projects`, `/projects/:id` | Project management with tabbed sub-views |
+| `/tasks`, `/timeline` | Task list + roadmap view |
+| `/time` | Time tracker with live timer |
+| `/expenses` | Expense tracking |
+| `/contracts` | Contracts (PDF + sign-by-token) |
+| `/invoices` | Invoices (PDF, Stripe payment links, status flow) |
+| `/meetings`, `/meetings/:id` | Meeting notes with action items |
+| `/emails` | Gmail email search + AI summary |
+| `/calendar` | Google + Outlook calendar view |
+| `/settings` | Profile, integrations, invoice defaults |
+| `/sign/:token` | **Public** contract signing page (no auth) |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Environment variables
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Create `.env.local` (gitignored) in this directory:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
+VITE_CALENDAR_API_URL=https://<your-calendar-service>/api
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Edge Function secrets (set via `supabase secrets set`, not env vars in the browser):
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+SUPABASE_SECRET_KEY=sb_secret_...   # preferred; falls back to legacy SUPABASE_SERVICE_ROLE_KEY
 ```
+
+## Development
+
+```bash
+npm install
+npm run dev          # vite dev server on http://localhost:5173
+npm run build        # tsc -b && vite build → dist/
+npm run preview      # serve the production build locally
+npm run lint         # eslint .
+```
+
+## Database migrations
+
+SQL files live in the repo root for the moment (not yet under `supabase/migrations/`):
+
+- `supabase_migration_rls_security.sql` — RLS hardening (drops legacy "Allow all" policies, adds `WITH CHECK`)
+- `supabase_migration_contracts_public_access.sql` — sign-by-token policy tightening
+- `supabase_migration_meeting_notes.sql`
+- `supabase_migration_gmail_tokens.sql`
+- `supabase_migration_monthly_billing.sql`
+
+Apply in order via the Supabase SQL editor or `supabase db push`.
+
+## Edge Functions
+
+`supabase/functions/gmail/` — server-side proxy for all Gmail API calls. Deploy with:
+
+```bash
+supabase functions deploy gmail --no-verify-jwt
+```
+
+`--no-verify-jwt` is required because the gateway rejects ES256-signed user JWTs; the function validates the user internally via `admin.auth.getUser(token)`.
+
+## Deployment
+
+Pushes to `main` deploy to production on Vercel. Preview deployments on every PR.
+
+Required Vercel env vars (Project Settings → Environment Variables):
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_CALENDAR_API_URL`
+
+## Security posture
+
+- **RLS** is enforced on every table; the `"Allow all"` policies that previously made every authenticated user able to read/write the entire DB have been dropped.
+- **Vercel security headers** (HSTS, X-Frame-Options DENY, Permissions-Policy, Referrer-Policy) configured in `vercel.json`.
+- **Service-role key** never touches the browser — only Edge Functions use it.
+
+## Open work
+
+See the pre-ship review notebook for the canonical list. Highlights:
+- Privacy policy + Terms + signup consent
+- Automated tests (Vitest + Playwright) + CI pipeline
+- Observability (Sentry) + rollback runbook
+- AI email search needs auth + consent + PII redaction
+- Visual artifacts (`/dev/architecture`, `/dev/schema`, `/dev/app-map`)
+
+## License
+
+Proprietary. All rights reserved.

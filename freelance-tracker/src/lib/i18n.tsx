@@ -1,3 +1,7 @@
+/* eslint-disable react-refresh/only-export-components -- intentional: this module
+   colocates the I18nProvider component with the translate() function, useI18n() hook,
+   and Lang type. Splitting them across files would require updating dozens of imports
+   for no runtime benefit. Fast Refresh degrades for this one file; everything else is fine. */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type Lang = 'en' | 'es'
@@ -143,6 +147,11 @@ const en: Dict = {
   'login.passwordsDoNotMatch': 'Passwords do not match',
   'login.passwordTooShort': 'Password must be at least 6 characters',
   'login.authFailed': 'Authentication failed',
+  'login.iAgreeToPrefix': 'I agree to the',
+  'login.terms': 'Terms of Service',
+  'login.privacy': 'Privacy Policy',
+  'login.and': 'and',
+  'login.mustAcceptTerms': 'You must accept the Terms of Service and Privacy Policy to create an account',
 
   // Settings
   'settings.preferences': 'Preferences',
@@ -787,6 +796,11 @@ const en: Dict = {
   'emails.aiAnswer': 'AI Answer',
   'emails.noSummary': 'No summary available.',
   'emails.aiSearchFailed': 'AI search failed',
+  'emails.aiConsentTitle': 'Send email content to AI?',
+  'emails.aiConsentBody1': 'AI search sends the subjects, sender/recipient addresses, and the first 200 characters of each email body to a third-party AI service to generate an answer. Up to 200 emails are sent per search.',
+  'emails.aiConsentBody2': 'This grants consent for future AI searches. You can revoke it later by clearing your browser storage for this site.',
+  'emails.aiConsentAccept': 'I understand — continue',
+  'emails.aiConsentCancel': 'Cancel',
   'emails.resultsSingular': '{n} result found',
   'emails.resultsPlural': '{n} results found',
   'emails.emptyNoSync': "No emails synced yet. Sync emails from a project's Communications tab.",
@@ -1577,6 +1591,11 @@ const es: Dict = {
   'login.passwordsDoNotMatch': 'Las contraseñas no coinciden',
   'login.passwordTooShort': 'La contraseña debe tener al menos 6 caracteres',
   'login.authFailed': 'Error de autenticación',
+  'login.iAgreeToPrefix': 'Acepto los',
+  'login.terms': 'Términos de Servicio',
+  'login.privacy': 'Política de Privacidad',
+  'login.and': 'y',
+  'login.mustAcceptTerms': 'Debes aceptar los Términos de Servicio y la Política de Privacidad para crear una cuenta',
 
   // Settings
   'settings.preferences': 'Preferencias',
@@ -2221,6 +2240,11 @@ const es: Dict = {
   'emails.aiAnswer': 'Respuesta IA',
   'emails.noSummary': 'Sin resumen disponible.',
   'emails.aiSearchFailed': 'La búsqueda con IA falló',
+  'emails.aiConsentTitle': '¿Enviar contenido de correo a la IA?',
+  'emails.aiConsentBody1': 'La búsqueda con IA envía los asuntos, direcciones de remitente/destinatario y los primeros 200 caracteres del cuerpo de cada correo a un servicio de IA externo para generar una respuesta. Se envían hasta 200 correos por búsqueda.',
+  'emails.aiConsentBody2': 'Esto concede el consentimiento para futuras búsquedas con IA. Puedes revocarlo más tarde borrando el almacenamiento del navegador para este sitio.',
+  'emails.aiConsentAccept': 'Entiendo — continuar',
+  'emails.aiConsentCancel': 'Cancelar',
   'emails.resultsSingular': '{n} resultado encontrado',
   'emails.resultsPlural': '{n} resultados encontrados',
   'emails.emptyNoSync': 'Sin correos sincronizados aún. Sincroniza correos desde la pestaña Comunicaciones de un proyecto.',
