@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useI18n } from '../lib/i18n'
+import { runAiSearch, hasAiConsent, grantAiConsent } from '../lib/aiSearch'
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim()) return <>{text}</>
@@ -69,6 +70,7 @@ export default function EmailSearch() {
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiResults, setAiResults] = useState<{ summary: string; matches: { id: string; reason: string }[] } | null>(null)
   const [composeOpen, setComposeOpen] = useState(false)
+  const [consentOpen, setConsentOpen] = useState(false)
 
   const reasonMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -76,16 +78,15 @@ export default function EmailSearch() {
     return m
   }, [aiResults])
 
-  async function runAiSearch() {
+  async function doAiSearch() {
     if (!search.trim() || communications.length === 0) return
     setAiLoading(true)
     setAiError(null)
     setAiResults(null)
     try {
-      const payload = {
-        action: 'email-search',
-        query: search.trim(),
-        emails: communications.slice(0, 200).map(c => ({
+      const result = await runAiSearch({
+        query: search,
+        emails: communications.map(c => ({
           id: c.id,
           subject: c.subject || '',
           from: c.from_email || '',
@@ -93,20 +94,27 @@ export default function EmailSearch() {
           date: c.date,
           snippet: (c.body || '').slice(0, 200),
         })),
-      }
-      const res = await fetch('https://unified-calendar-eight.vercel.app/api/parse-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || t('emails.aiSearchFailed'))
-      setAiResults({ summary: data.summary || '', matches: data.matches || [] })
+      setAiResults(result)
     } catch (err) {
       setAiError(err instanceof Error ? err.message : t('emails.aiSearchFailed'))
     } finally {
       setAiLoading(false)
     }
+  }
+
+  function handleAiSearchRequest() {
+    if (!hasAiConsent()) {
+      setConsentOpen(true)
+      return
+    }
+    doAiSearch()
+  }
+
+  function handleConsentAccept() {
+    grantAiConsent()
+    setConsentOpen(false)
+    doAiSearch()
   }
 
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects])
@@ -204,7 +212,7 @@ export default function EmailSearch() {
             type="text"
             value={search}
             onChange={e => { setSearch(e.target.value); if (aiMode) setAiResults(null) }}
-            onKeyDown={e => { if (aiMode && e.key === 'Enter') runAiSearch() }}
+            onKeyDown={e => { if (aiMode && e.key === 'Enter') handleAiSearchRequest() }}
             placeholder={aiMode ? t('emails.searchPlaceholderAi') : t('emails.searchPlaceholderKeyword')}
             className={`w-full h-10 pl-9 pr-3 rounded-lg border bg-input-bg text-text-primary text-[13px] placeholder:text-text-muted focus:outline-none focus:ring-1 transition-all ${
               aiMode
@@ -235,7 +243,7 @@ export default function EmailSearch() {
         {aiMode && (
           <button
             type="button"
-            onClick={runAiSearch}
+            onClick={handleAiSearchRequest}
             disabled={!search.trim() || aiLoading}
             className="h-10 px-3 rounded-lg bg-accent text-white text-[12px] font-semibold disabled:opacity-50 hover:opacity-90 transition-all flex items-center gap-1.5"
           >
@@ -422,6 +430,38 @@ export default function EmailSearch() {
               status: inv.status,
             }))}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* AI search consent dialog */}
+      <Dialog open={consentOpen} onOpenChange={setConsentOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles size={16} className="text-accent" />
+              {t('emails.aiConsentTitle')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 text-[13px] text-text-primary leading-relaxed">
+            <p>{t('emails.aiConsentBody1')}</p>
+            <p className="text-text-muted text-[12px]">{t('emails.aiConsentBody2')}</p>
+          </div>
+          <div className="flex items-center justify-end gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => setConsentOpen(false)}
+              className="h-9 px-3 rounded-lg border border-border bg-input-bg text-text-primary text-[12px] font-semibold hover:border-accent/40 transition-colors"
+            >
+              {t('emails.aiConsentCancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleConsentAccept}
+              className="h-9 px-3 rounded-lg bg-accent text-white text-[12px] font-semibold hover:opacity-90 transition-opacity"
+            >
+              {t('emails.aiConsentAccept')}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
