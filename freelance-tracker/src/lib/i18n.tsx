@@ -143,6 +143,11 @@ const en: Dict = {
   'login.passwordsDoNotMatch': 'Passwords do not match',
   'login.passwordTooShort': 'Password must be at least 6 characters',
   'login.authFailed': 'Authentication failed',
+  'login.iAgreeToPrefix': 'I agree to the',
+  'login.terms': 'Terms of Service',
+  'login.privacy': 'Privacy Policy',
+  'login.and': 'and',
+  'login.mustAcceptTerms': 'You must accept the Terms of Service and Privacy Policy to create an account',
 
   // Settings
   'settings.preferences': 'Preferences',
@@ -1582,6 +1587,11 @@ const es: Dict = {
   'login.passwordsDoNotMatch': 'Las contraseñas no coinciden',
   'login.passwordTooShort': 'La contraseña debe tener al menos 6 caracteres',
   'login.authFailed': 'Error de autenticación',
+  'login.iAgreeToPrefix': 'Acepto los',
+  'login.terms': 'Términos de Servicio',
+  'login.privacy': 'Política de Privacidad',
+  'login.and': 'y',
+  'login.mustAcceptTerms': 'Debes aceptar los Términos de Servicio y la Política de Privacidad para crear una cuenta',
 
   // Settings
   'settings.preferences': 'Preferencias',

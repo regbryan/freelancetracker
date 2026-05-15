@@ -22,6 +22,8 @@ const MeetingNotes = lazy(() => import('./pages/MeetingNotes'))
 const MeetingNoteDetail = lazy(() => import('./pages/MeetingNoteDetail'))
 const EmailSearch = lazy(() => import('./pages/EmailSearch'))
 const Timeline = lazy(() => import('./pages/Timeline'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const Terms = lazy(() => import('./pages/Terms'))
 
 function PageLoader() {
   return (
@@ -48,6 +50,8 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/sign/:token" element={<ContractSign />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* Protected routes */}
           {user ? (
