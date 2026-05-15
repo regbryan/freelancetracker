@@ -11,7 +11,6 @@ import TaskForm from '../components/TaskForm'
 import type { TaskFormData } from '../components/TaskForm'
 import ProjectForm from '../components/ProjectForm'
 import type { ProjectFormData } from '../components/ProjectForm'
-import TaskList from '../components/TaskList'
 import type { TaskRow } from '../components/TaskList'
 import { useContracts } from '../hooks/useContracts'
 import ContractForm from '../components/ContractForm'
@@ -79,7 +78,7 @@ export default function ProjectDetail() {
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const toggleSelected = (tid: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(tid) ? n.delete(tid) : n.add(tid); return n })
+  const toggleSelected = (tid: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(tid)) n.delete(tid); else n.add(tid); return n })
   const clearSelection = () => setSelectedIds(new Set())
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
@@ -242,9 +241,6 @@ export default function ProjectDetail() {
     }
   }
 
-  const rate = project?.hourly_rate ?? 0
-
-
   const handleGetPayLink = useCallback(async (invoice: Invoice) => {
     const apiUrl = import.meta.env.VITE_CALENDAR_API_URL || ''
     if (!apiUrl) return
@@ -278,20 +274,6 @@ export default function ProjectDetail() {
       setPaymentLoading(null)
     }
   }, [])
-
-  async function handleTaskLogTime(taskId: string, hours: number, date: string, billable: boolean) {
-    const task = tasks.find((tk) => tk.id === taskId)
-    await createEntry({
-      project_id: id!,
-      description: task?.title ?? '',
-      hours,
-      date,
-      billable,
-      invoice_id: null,
-      task_id: taskId,
-    })
-  }
-
 
   if (projectLoading) {
     return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import type { Client } from '../hooks/useClients'
 import { useI18n } from '../lib/i18n'
 

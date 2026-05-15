@@ -83,10 +83,6 @@ export default function ContractForm({
     const clientName = selectedClient?.name || ''
     const clientCompany = selectedClient?.company || ''
 
-    // Find selected project
-    const selectedProject = projects.find((p) => p.id === projectId)
-    const projectName = selectedProject?.name || ''
-
     const filled = fillTemplate(template.content, {
       freelancer_name: freelancerName,
       freelancer_address: freelancerCompany,

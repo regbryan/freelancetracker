@@ -1,3 +1,7 @@
+/* eslint-disable react-refresh/only-export-components -- intentional: this module
+   colocates the I18nProvider component with the translate() function, useI18n() hook,
+   and Lang type. Splitting them across files would require updating dozens of imports
+   for no runtime benefit. Fast Refresh degrades for this one file; everything else is fine. */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type Lang = 'en' | 'es'

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Plus, Download, ChevronDown, X, Eye, CreditCard, Link2, Check, Pencil } from 'lucide-react'
+import { Plus, Download, ChevronDown, X, Eye, CreditCard, Check, Pencil } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import type { Invoice, InvoiceItem } from '../hooks/useInvoices'
 import { supabase } from '../lib/supabase'
