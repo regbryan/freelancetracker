@@ -118,7 +118,7 @@ export default function InvoiceBuilder({
   )
 
   const timeSubtotal = useMemo(
-    () => selectedEntries.reduce((sum, e) => sum + e.hours * rate, 0),
+    () => selectedEntries.reduce((sum, e) => sum + (e.billable ? e.hours * rate : 0), 0),
     [selectedEntries, rate]
   )
 
@@ -212,14 +212,18 @@ export default function InvoiceBuilder({
         }))
         items = [retainerItem, ...expenseItems]
       } else {
-        const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => ({
-          description: entry.description || t('invBuilder.timeEntry'),
-          quantity: entry.hours,
-          rate,
-          amount: entry.hours * rate,
-          time_entry_id: entry.id,
-          item_type: 'time' as const,
-        }))
+        const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => {
+          const effectiveRate = entry.billable ? rate : 0
+          const baseDesc = entry.description || t('invBuilder.timeEntry')
+          return {
+            description: entry.billable ? baseDesc : `${baseDesc} (No charge — complimentary)`,
+            quantity: entry.hours,
+            rate: effectiveRate,
+            amount: entry.hours * effectiveRate,
+            time_entry_id: entry.id,
+            item_type: 'time' as const,
+          }
+        })
         const expenseItems: InvoiceItemInsert[] = selectedExpenses.map((exp) => ({
           description: `${exp.category}: ${exp.description}`,
           quantity: 1,
@@ -361,7 +365,8 @@ export default function InvoiceBuilder({
                     </p>
                   ) : entries.map((entry: TimeEntry) => {
                     const checked = selectedIds.has(entry.id)
-                    const amount = entry.hours * rate
+                    const effectiveRate = entry.billable ? rate : 0
+                    const amount = entry.hours * effectiveRate
                     return (
                       <label
                         key={entry.id}
@@ -380,6 +385,11 @@ export default function InvoiceBuilder({
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-text-primary truncate">
                             {entry.description || t('invBuilder.untitledEntry')}
+                            {!entry.billable && (
+                              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase bg-status-completed-bg text-status-completed-text align-middle">
+                                No charge
+                              </span>
+                            )}
                           </p>
                           <p className="text-[11px] text-text-muted">{formatEntryDate(entry.date, locale)}</p>
                         </div>
@@ -387,7 +397,7 @@ export default function InvoiceBuilder({
                           {entry.hours.toFixed(2)}
                         </div>
                         <div className="w-20 text-right text-sm text-text-muted">
-                          ${rate.toFixed(2)}
+                          ${effectiveRate.toFixed(2)}
                         </div>
                         <div className="w-24 text-right text-sm font-medium text-text-primary">
                           ${amount.toFixed(2)}

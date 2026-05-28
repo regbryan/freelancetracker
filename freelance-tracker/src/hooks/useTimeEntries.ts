@@ -106,12 +106,13 @@ export function useUnbilledEntries(projectId: string | undefined) {
     setLoading(true);
     setError(null);
     try {
+      // Include both billable and non-billable entries so InvoiceBuilder can
+      // show non-billable work as $0 line items (complimentary / no-charge).
       const { data, error: fetchError } = await supabase
         .from('time_entries')
         .select('*')
         .eq('project_id', projectId)
         .is('invoice_id', null)
-        .eq('billable', true)
         .order('date', { ascending: false });
 
       if (fetchError) throw fetchError;
