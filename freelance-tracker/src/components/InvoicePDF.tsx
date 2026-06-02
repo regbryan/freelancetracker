@@ -4,6 +4,7 @@ import type { Invoice, InvoiceItem } from '@/hooks/useInvoices'
 import type { Project } from '@/hooks/useProjects'
 import { translate, type Lang } from '../lib/i18n'
 import { userStorage } from '../lib/userStorage'
+import { formatBillingPeriod } from '../lib/invoicePeriod'
 
 interface ClientInfo {
   id: string
@@ -73,7 +74,7 @@ export function generateInvoicePDF(
       const raw = userStorage.get('freelancer_profile')
       if (raw) return JSON.parse(raw)
     } catch { /* ignore */ }
-    return { name: '', email: '', phone: '', address: '' }
+    return { name: '', company: '', email: '', phone: '', address: '' }
   })()
   const businessLogo = userStorage.get('freelancer_logo') || ''
 
@@ -92,15 +93,35 @@ export function generateInvoicePDF(
   doc.setTextColor(150, 150, 150)
   doc.text(t('invPdf.from'), fromX, yPos)
 
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(30, 30, 30)
-  doc.text(profile.name || t('invPdf.yourName'), fromX, yPos + 7)
+  // From — company name (bold, primary) then personal name (lighter)
+  const company = (profile.company ?? '').trim()
+  let fromLineY: number
+  if (company) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 30, 30)
+    doc.text(company, fromX, yPos + 7)
 
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(80, 80, 80)
-  let fromLineY = yPos + 13
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    if (profile.name) {
+      doc.text(profile.name, fromX, yPos + 13)
+      fromLineY = yPos + 19
+    } else {
+      fromLineY = yPos + 13
+    }
+  } else {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 30, 30)
+    doc.text(profile.name || t('invPdf.yourName'), fromX, yPos + 7)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    fromLineY = yPos + 13
+  }
   if (profile.email) {
     doc.text(profile.email, fromX, fromLineY)
     fromLineY += 5
@@ -145,8 +166,19 @@ export function generateInvoicePDF(
   doc.setTextColor(100, 100, 100)
   doc.text(`${t('invPdf.project')}: ${project.name}`, margin, yPos)
 
+  // Billing period (only when both dates are present)
+  let tableStartY = 96
+  if (invoice.period_start && invoice.period_end) {
+    doc.text(
+      `${t('invPdf.period')}: ${formatBillingPeriod(invoice.period_start, invoice.period_end, locale)}`,
+      margin,
+      yPos + 6
+    )
+    tableStartY = 102
+  }
+
   // --- Line Items Table ---
-  yPos = 96
+  yPos = tableStartY
 
   const tableRows = items.map((item) => [
     item.description,
