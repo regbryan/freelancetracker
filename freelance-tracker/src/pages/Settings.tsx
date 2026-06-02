@@ -12,6 +12,7 @@ import { userStorage } from '../lib/userStorage'
 
 interface FreelancerProfile {
   name: string
+  company: string
   email: string
   address: string
   phone: string
@@ -38,7 +39,7 @@ function loadProfile(): FreelancerProfile {
     const raw = userStorage.get('freelancer_profile')
     if (raw) return JSON.parse(raw)
   } catch { /* ignore */ }
-  return { name: '', email: '', address: '', phone: '' }
+  return { name: '', company: '', email: '', address: '', phone: '' }
 }
 
 function loadDefaults(): InvoiceDefaults {
@@ -151,8 +152,8 @@ export default function Settings() {
     }
   }
 
-  const profileFieldCount = [profile.name, profile.email, profile.address, profile.phone]
-    .filter((v) => v.trim()).length
+  const profileFieldCount = [profile.name, profile.company, profile.email, profile.address, profile.phone]
+    .filter((v) => (v ?? '').trim()).length
 
   return (
     <div className="flex flex-col gap-5">
@@ -303,6 +304,18 @@ export default function Settings() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="prof-company" className="text-[12px]">
+              {t('settings.companyName')}
+            </Label>
+            <Input
+              id="prof-company"
+              placeholder={t('settings.companyPlaceholder')}
+              value={profile.company ?? ''}
+              onChange={(e) => setProfile({ ...profile, company: e.target.value })}
+            />
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="prof-name" className="text-[12px]">
               {t('settings.freelancerName')}
