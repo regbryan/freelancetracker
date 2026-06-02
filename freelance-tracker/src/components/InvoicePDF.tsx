@@ -48,9 +48,6 @@ export function generateInvoicePDF(
     26,
     { align: 'right' }
   )
-  if (invoice.due_date) {
-    doc.text(`${t('invPdf.due')}: ${formatDate(invoice.due_date, locale)}`, headerRightX, 32, { align: 'right' })
-  }
 
   // Status badge
   doc.setFontSize(9)
