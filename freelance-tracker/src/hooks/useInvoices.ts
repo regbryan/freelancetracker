@@ -123,7 +123,7 @@ export function useInvoices(filters?: InvoiceFilters) {
   const createInvoice = useCallback(async (
     invoice: InvoiceInsert,
     items: InvoiceItemInsert[],
-    options?: { expenseIds?: string[] }
+    options?: { expenseIds?: string[]; timeEntryIds?: string[] }
   ): Promise<Invoice> => {
     // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser()
@@ -151,10 +151,14 @@ export function useInvoices(filters?: InvoiceFilters) {
 
       if (itemsError) throw itemsError;
 
-      // Link time entries to this invoice
-      const timeEntryIds = items
+      // Link time entries to this invoice. Items carry a time_entry_id only for
+      // ungrouped lines; grouped (by-task) lines have none, so callers also pass
+      // the full set of included entry ids via options.timeEntryIds. Union both
+      // so every included entry is marked billed (and not double-invoiced).
+      const itemEntryIds = items
         .filter((item) => item.time_entry_id)
         .map((item) => item.time_entry_id as string);
+      const timeEntryIds = Array.from(new Set([...(options?.timeEntryIds ?? []), ...itemEntryIds]));
 
       if (timeEntryIds.length > 0) {
         const { error: linkError } = await supabase
