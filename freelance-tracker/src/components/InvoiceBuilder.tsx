@@ -15,6 +15,7 @@ import { useUnbilledExpenses, type Expense } from '@/hooks/useExpenses'
 import { useProject } from '@/hooks/useProjects'
 import { useInvoices, getNextInvoiceNumber, type InvoiceItemInsert } from '@/hooks/useInvoices'
 import { useI18n } from '../lib/i18n'
+import { monthInputToPeriod, latestMonthInput, currentMonthInput } from '../lib/invoicePeriod'
 
 interface InvoiceBuilderProps {
   open: boolean
@@ -50,6 +51,7 @@ export default function InvoiceBuilder({
   const [taxRate, setTaxRate] = useState('0')
   const [dueDate, setDueDate] = useState(todayPlusDays(30))
   const [notes, setNotes] = useState('')
+  const [billingMonth, setBillingMonth] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -83,6 +85,8 @@ export default function InvoiceBuilder({
   if (!initialized && (entries.length > 0 || unbilledExpenses.length > 0)) {
     setSelectedIds(new Set(entries.map((e) => e.id)))
     setSelectedExpenseIds(new Set(unbilledExpenses.map((e) => e.id)))
+    const derived = latestMonthInput(entries.map((e) => e.date))
+    setBillingMonth(derived || currentMonthInput())
     setInitialized(true)
   }
 
@@ -95,6 +99,7 @@ export default function InvoiceBuilder({
       setTaxRate('0')
       setDueDate(todayPlusDays(30))
       setNotes('')
+      setBillingMonth('')
       setInvoiceNumber('')
       setMonthlyQty('1')
       setMonthlyDesc('')
@@ -235,6 +240,8 @@ export default function InvoiceBuilder({
         items = [...timeItems, ...expenseItems]
       }
 
+      const period = billingMonth ? monthInputToPeriod(billingMonth) : null
+
       await createInvoice(
         {
           project_id: projectId,
@@ -246,6 +253,8 @@ export default function InvoiceBuilder({
           notes: notes.trim() || null,
           due_date: dueDate,
           issued_date: issuedDate,
+          period_start: period?.start ?? null,
+          period_end: period?.end ?? null,
         },
         items,
         { expenseIds: selectedExpenses.map((e) => e.id) }
@@ -498,6 +507,15 @@ export default function InvoiceBuilder({
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="billing-month">{t('invBuilder.billingMonth')}</Label>
+                <Input
+                  id="billing-month"
+                  type="month"
+                  value={billingMonth}
+                  onChange={(e) => setBillingMonth(e.target.value)}
                 />
               </div>
             </div>
