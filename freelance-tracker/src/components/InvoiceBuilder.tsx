@@ -217,18 +217,37 @@ export default function InvoiceBuilder({
         }))
         items = [retainerItem, ...expenseItems]
       } else {
-        const timeItems: InvoiceItemInsert[] = selectedEntries.map((entry) => {
-          const effectiveRate = entry.billable ? rate : 0
-          const baseDesc = entry.description || t('invBuilder.timeEntry')
-          return {
-            description: entry.billable ? baseDesc : `${baseDesc} (No charge — complimentary)`,
-            quantity: entry.hours,
-            rate: effectiveRate,
-            amount: entry.hours * effectiveRate,
-            time_entry_id: entry.id,
-            item_type: 'time' as const,
+        // Group billable entries by task — one line per task (title + summed hours).
+        // Entries without a task, and non-billable entries, stay as individual lines.
+        const taskGroups = new Map<string, { title: string; hours: number }>()
+        const looseItems: InvoiceItemInsert[] = []
+        for (const entry of selectedEntries) {
+          const taskTitle = entry.tasks?.title
+          if (entry.billable && entry.task_id && taskTitle) {
+            const group = taskGroups.get(entry.task_id) ?? { title: taskTitle, hours: 0 }
+            group.hours += entry.hours
+            taskGroups.set(entry.task_id, group)
+          } else {
+            const baseDesc = entry.description || t('invBuilder.timeEntry')
+            const effectiveRate = entry.billable ? rate : 0
+            looseItems.push({
+              description: entry.billable ? baseDesc : `${baseDesc} (No charge — complimentary)`,
+              quantity: entry.hours,
+              rate: effectiveRate,
+              amount: entry.hours * effectiveRate,
+              time_entry_id: entry.id,
+              item_type: 'time' as const,
+            })
           }
-        })
+        }
+        const taskItems: InvoiceItemInsert[] = Array.from(taskGroups.values()).map((group) => ({
+          description: group.title,
+          quantity: group.hours,
+          rate,
+          amount: group.hours * rate,
+          time_entry_id: null,
+          item_type: 'time' as const,
+        }))
         const expenseItems: InvoiceItemInsert[] = selectedExpenses.map((exp) => ({
           description: `${exp.category}: ${exp.description}`,
           quantity: 1,
@@ -237,7 +256,7 @@ export default function InvoiceBuilder({
           time_entry_id: null,
           item_type: 'expense' as const,
         }))
-        items = [...timeItems, ...expenseItems]
+        items = [...taskItems, ...looseItems, ...expenseItems]
       }
 
       const period = billingMonth ? monthInputToPeriod(billingMonth) : null
@@ -257,7 +276,10 @@ export default function InvoiceBuilder({
           period_end: period?.end ?? null,
         },
         items,
-        { expenseIds: selectedExpenses.map((e) => e.id) }
+        {
+          expenseIds: selectedExpenses.map((e) => e.id),
+          timeEntryIds: selectedEntries.map((e) => e.id),
+        }
       )
 
       onCreated?.()

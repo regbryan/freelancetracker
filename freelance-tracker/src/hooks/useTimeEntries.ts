@@ -11,9 +11,10 @@ export interface TimeEntry {
   task_id: string | null;
   invoice_id: string | null;
   created_at: string;
+  tasks?: { title: string } | null;
 }
 
-export type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at' | 'task_id'> & { task_id?: string | null };
+export type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at' | 'task_id' | 'tasks'> & { task_id?: string | null };
 export type TimeEntryUpdate = Partial<TimeEntryInsert>;
 
 export function useTimeEntries(projectId?: string) {
@@ -110,7 +111,7 @@ export function useUnbilledEntries(projectId: string | undefined) {
       // show non-billable work as $0 line items (complimentary / no-charge).
       const { data, error: fetchError } = await supabase
         .from('time_entries')
-        .select('*')
+        .select('*, tasks(title)')
         .eq('project_id', projectId)
         .is('invoice_id', null)
         .order('date', { ascending: false });
