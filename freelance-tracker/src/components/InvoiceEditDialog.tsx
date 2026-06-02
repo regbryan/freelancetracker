@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useInvoices, type Invoice } from '@/hooks/useInvoices'
 import { useI18n } from '../lib/i18n'
+import { monthInputToPeriod, dateToMonthInput } from '../lib/invoicePeriod'
 
 const STATUS_LABEL_KEYS: Record<Invoice['status'], string> = {
   draft: 'invEdit.draft',
@@ -43,6 +44,7 @@ export default function InvoiceEditDialog({
   const [taxRate, setTaxRate] = useState('0')
   const [issuedDate, setIssuedDate] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [billingMonth, setBillingMonth] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +57,7 @@ export default function InvoiceEditDialog({
     setTaxRate(String(invoice.tax_rate ?? 0))
     setIssuedDate(invoice.issued_date ?? '')
     setDueDate(invoice.due_date ?? '')
+    setBillingMonth(dateToMonthInput(invoice.period_start))
     setNotes(invoice.notes ?? '')
     setError(null)
   }, [open, invoice])
@@ -77,6 +80,7 @@ export default function InvoiceEditDialog({
     setSubmitting(true)
     setError(null)
     try {
+      const period = billingMonth ? monthInputToPeriod(billingMonth) : null
       await updateInvoice(invoice.id, {
         invoice_number: trimmedNumber,
         status,
@@ -84,6 +88,8 @@ export default function InvoiceEditDialog({
         total: computedTotal,
         issued_date: issuedDate || null,
         due_date: dueDate || null,
+        period_start: period?.start ?? null,
+        period_end: period?.end ?? null,
         notes: notes.trim() || null,
       })
       onSaved?.()
@@ -151,6 +157,15 @@ export default function InvoiceEditDialog({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-billing-month">{t('invEdit.billingMonth')}</Label>
+              <Input
+                id="edit-billing-month"
+                type="month"
+                value={billingMonth}
+                onChange={(e) => setBillingMonth(e.target.value)}
               />
             </div>
           </div>

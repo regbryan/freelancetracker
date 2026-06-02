@@ -25,6 +25,8 @@ export interface Invoice {
   notes: string | null;
   due_date: string | null;
   issued_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
   payment_url: string | null;
   created_at: string;
   projects?: {
@@ -39,7 +41,7 @@ export interface Invoice {
 }
 
 export type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'payment_url' | 'projects' | 'invoice_items'>;
-export type InvoiceUpdate = Partial<Pick<Invoice, 'invoice_number' | 'status' | 'tax_rate' | 'total' | 'notes' | 'due_date' | 'issued_date'>>;
+export type InvoiceUpdate = Partial<Pick<Invoice, 'invoice_number' | 'status' | 'tax_rate' | 'total' | 'notes' | 'due_date' | 'issued_date' | 'period_start' | 'period_end'>>;
 
 /**
  * Returns the next sequential invoice number for the current year, in the
