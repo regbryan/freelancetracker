@@ -295,7 +295,11 @@ function sanitizePdfText(input: string | null | undefined): string {
 }
 
 function formatDate(dateStr: string, locale: string): string {
-  const d = new Date(dateStr)
+  // A date-only value (YYYY-MM-DD) must be parsed as LOCAL time. `new Date(s)`
+  // treats it as UTC midnight, which renders as the previous day in any
+  // negative-offset timezone. Full timestamps (with time/zone) pass through.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+  const d = isDateOnly ? new Date(dateStr + 'T00:00:00') : new Date(dateStr)
   return d.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
