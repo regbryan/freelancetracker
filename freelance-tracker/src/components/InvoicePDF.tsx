@@ -91,7 +91,7 @@ export function generateInvoicePDF(
   doc.text(t('invPdf.from'), fromX, yPos)
 
   // From — company name (bold, primary) then personal name (lighter)
-  const company = (profile.company ?? '').trim()
+  const company = sanitizePdfText(profile.company).trim()
   let fromLineY: number
   if (company) {
     doc.setFontSize(11)
@@ -103,7 +103,7 @@ export function generateInvoicePDF(
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
     if (profile.name) {
-      doc.text(profile.name, fromX, yPos + 13)
+      doc.text(sanitizePdfText(profile.name), fromX, yPos + 13)
       fromLineY = yPos + 19
     } else {
       fromLineY = yPos + 13
@@ -112,7 +112,7 @@ export function generateInvoicePDF(
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
-    doc.text(profile.name || t('invPdf.yourName'), fromX, yPos + 7)
+    doc.text(sanitizePdfText(profile.name) || t('invPdf.yourName'), fromX, yPos + 7)
 
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
@@ -120,15 +120,15 @@ export function generateInvoicePDF(
     fromLineY = yPos + 13
   }
   if (profile.email) {
-    doc.text(profile.email, fromX, fromLineY)
+    doc.text(sanitizePdfText(profile.email), fromX, fromLineY)
     fromLineY += 5
   }
   if (profile.phone) {
-    doc.text(profile.phone, fromX, fromLineY)
+    doc.text(sanitizePdfText(profile.phone), fromX, fromLineY)
     fromLineY += 5
   }
   if (profile.address) {
-    const addressLines = doc.splitTextToSize(profile.address, 70)
+    const addressLines = doc.splitTextToSize(sanitizePdfText(profile.address), 70)
     doc.text(addressLines, fromX, fromLineY)
   }
 
@@ -142,18 +142,18 @@ export function generateInvoicePDF(
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text(client.name, toX, yPos + 7)
+  doc.text(sanitizePdfText(client.name), toX, yPos + 7)
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(80, 80, 80)
   if (client.company) {
-    doc.text(client.company, toX, yPos + 13)
+    doc.text(sanitizePdfText(client.company), toX, yPos + 13)
     if (client.email) {
-      doc.text(client.email, toX, yPos + 19)
+      doc.text(sanitizePdfText(client.email), toX, yPos + 19)
     }
   } else if (client.email) {
-    doc.text(client.email, toX, yPos + 13)
+    doc.text(sanitizePdfText(client.email), toX, yPos + 13)
   }
 
   // Project name
@@ -161,13 +161,13 @@ export function generateInvoicePDF(
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100, 100, 100)
-  doc.text(`${t('invPdf.project')}: ${project.name}`, margin, yPos)
+  doc.text(`${t('invPdf.project')}: ${sanitizePdfText(project.name)}`, margin, yPos)
 
   // Billing period (only when both dates are present)
   let tableStartY = 96
   if (invoice.period_start && invoice.period_end) {
     doc.text(
-      `${t('invPdf.period')}: ${formatBillingPeriod(invoice.period_start, invoice.period_end, locale)}`,
+      `${t('invPdf.period')}: ${sanitizePdfText(formatBillingPeriod(invoice.period_start, invoice.period_end, locale))}`,
       margin,
       yPos + 6
     )
@@ -178,7 +178,7 @@ export function generateInvoicePDF(
   yPos = tableStartY
 
   const tableRows = items.map((item) => [
-    item.description,
+    sanitizePdfText(item.description),
     item.quantity.toFixed(2),
     `$${item.rate.toFixed(2)}`,
     `$${item.amount.toFixed(2)}`,
@@ -252,7 +252,7 @@ export function generateInvoicePDF(
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    const noteLines = doc.splitTextToSize(invoice.notes, pageWidth - margin * 2)
+    const noteLines = doc.splitTextToSize(sanitizePdfText(invoice.notes), pageWidth - margin * 2)
     doc.text(noteLines, margin, totalsY + 7)
   }
 
@@ -264,6 +264,34 @@ export function generateInvoicePDF(
   doc.text(t('invPdf.generated'), pageWidth / 2, footerY, { align: 'center' })
 
   return doc
+}
+
+// jsPDF's built-in Helvetica only renders WinAnsi (cp1252). Characters outside
+// it (arrows, etc.) render as garbage and corrupt jsPDF's text-width math,
+// which causes letter-spacing and overlap with adjacent columns. Transliterate
+// the common offenders to ASCII and keep the cp1252 chars jsPDF can render.
+const PDF_TRANSLITERATE: Record<string, string> = {
+  '↔': '<->', '→': '->', '←': '<-', '⇒': '=>', '⇐': '<=',
+  '↦': '->', '➜': '->', '➔': '->', '➤': '>', '⮕': '->',
+  '✓': '(done)', '✔': '(done)', '✗': 'x', '✘': 'x',
+}
+// Unicode codepoints above U+00FF that jsPDF's WinAnsi font *can* render.
+const WINANSI_EXTRA = new Set([
+  0x20AC, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160,
+  0x2039, 0x0152, 0x017D, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+  0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x017E, 0x0178,
+])
+
+function sanitizePdfText(input: string | null | undefined): string {
+  if (!input) return ''
+  let out = ''
+  for (const ch of input) {
+    const cp = ch.codePointAt(0) as number
+    if (PDF_TRANSLITERATE[ch]) out += PDF_TRANSLITERATE[ch]
+    else if (cp <= 0xFF || WINANSI_EXTRA.has(cp)) out += ch
+    else out += '-' // any other unsupported glyph
+  }
+  return out
 }
 
 function formatDate(dateStr: string, locale: string): string {
