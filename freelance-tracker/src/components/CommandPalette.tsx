@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, FolderKanban, Users, CheckSquare, FileText, BookOpen, ArrowRight } from 'lucide-react'
+import { Search, X, FolderKanban, Users, CheckSquare, FileText, BookOpen, ArrowRight, Clock } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
 import { useTasks } from '../hooks/useTasks'
 import { useInvoices } from '../hooks/useInvoices'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
+import { useI18n } from '../lib/i18n'
 
-interface SearchResult {
+interface NavResult {
   id: string
   label: string
   sublabel?: string
@@ -15,25 +16,38 @@ interface SearchResult {
   kind: 'project' | 'client' | 'task' | 'invoice' | 'meeting'
 }
 
+interface ActionResult {
+  id: string
+  label: string
+  sublabel?: string
+  kind: 'action'
+  run: () => void
+}
+
+type SearchResult = NavResult | ActionResult
+
 const KIND_META: Record<SearchResult['kind'], { icon: typeof FolderKanban; label: string; tone: string }> = {
   project: { icon: FolderKanban, label: 'Project', tone: 'text-accent' },
   client: { icon: Users, label: 'Client', tone: 'text-blue-500' },
   task: { icon: CheckSquare, label: 'Task', tone: 'text-emerald-600' },
   invoice: { icon: FileText, label: 'Invoice', tone: 'text-amber-500' },
   meeting: { icon: BookOpen, label: 'Meeting', tone: 'text-purple-500' },
+  action: { icon: Clock, label: 'Action', tone: 'text-accent' },
 }
 
 interface Props {
   open: boolean
   onClose: () => void
+  onLogTime: () => void
 }
 
 /**
  * Cmd-K / Ctrl-K global search palette.
  * Searches across clients, projects, tasks, invoices, and meeting notes.
  */
-export default function CommandPalette({ open, onClose }: Props) {
+export default function CommandPalette({ open, onClose, onLogTime }: Props) {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -51,6 +65,12 @@ export default function CommandPalette({ open, onClose }: Props) {
     const out: SearchResult[] = []
 
     const matches = (s: string | null | undefined) => !q || (s ?? '').toLowerCase().includes(q)
+
+    const actionLabel = t('quickLog.paletteAction')
+    const actionKeywords = ['log', 'time', 'hours', 'track', 'registrar', 'tiempo']
+    if (!q || actionKeywords.some((k) => k.startsWith(q) || q.startsWith(k)) || actionLabel.toLowerCase().includes(q)) {
+      out.push({ id: 'action-log-time', label: actionLabel, kind: 'action', run: onLogTime })
+    }
 
     for (const c of clients) {
       if (matches(c.name) || matches(c.company) || matches(c.email)) {
@@ -81,7 +101,7 @@ export default function CommandPalette({ open, onClose }: Props) {
 
     // Without a query, show top 8 across kinds (recent-ish — Supabase already orders by created_at desc on most)
     return q ? out.slice(0, 50) : out.slice(0, 8)
-  }, [query, projects, clients, tasks, invoices, meetingNotes])
+  }, [query, projects, clients, tasks, invoices, meetingNotes, onLogTime, t])
 
   // Reset highlight + focus input when the palette opens or query changes
   useEffect(() => {
@@ -106,7 +126,9 @@ export default function CommandPalette({ open, onClose }: Props) {
       if (e.key === 'Enter') {
         e.preventDefault()
         const r = results[highlight]
-        if (r) { navigate(r.to); onClose() }
+        if (r) {
+          if (r.kind === 'action') { r.run(); onClose() } else { navigate(r.to); onClose() }
+        }
       }
     }
     document.addEventListener('keydown', onKey)
@@ -151,7 +173,7 @@ export default function CommandPalette({ open, onClose }: Props) {
                 <button
                   key={r.id}
                   onMouseEnter={() => setHighlight(i)}
-                  onClick={() => { navigate(r.to); onClose() }}
+                  onClick={() => { if (r.kind === 'action') { r.run(); onClose() } else { navigate(r.to); onClose() } }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isActive ? 'bg-input-bg' : 'hover:bg-input-bg/60'}`}
                 >
                   <meta.icon size={14} className={`${meta.tone} shrink-0`} />

@@ -57,7 +57,11 @@ export default function Layout() {
       <BottomNav onMoreClick={toggleSidebar} />
 
       {/* Global command palette */}
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onLogTime={() => { setPaletteOpen(false); setQuickLogOpen(true) }}
+      />
 
       {/* Global quick-log dialog */}
       <QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />
