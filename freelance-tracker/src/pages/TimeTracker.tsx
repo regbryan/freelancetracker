@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useProjects } from '../hooks/useProjects'
 import Timer from '../components/Timer'
-import TimeEntryForm from '../components/TimeEntryForm'
+import QuickLogForm, { type QuickLogData } from '../components/QuickLogForm'
 import TimeEntryEditDialog from '../components/TimeEntryEditDialog'
 import CuratorInsight from '../components/CuratorInsight'
 import WorkTabs from '../components/WorkTabs'
@@ -13,7 +13,6 @@ export default function TimeTracker() {
   const { t, lang } = useI18n()
   const { entries, loading, error, createEntry, updateEntry, deleteEntry, refetch } = useTimeEntries()
   const { projects, loading: projectsLoading } = useProjects()
-  const [showManualForm, setShowManualForm] = useState(false)
   const [dateRange, setDateRange] = useState<'7' | '30' | 'all'>('all')
   const [editingEntry, setEditingEntry] = useState<ListTimeEntry | null>(null)
 
@@ -37,13 +36,14 @@ export default function TimeTracker() {
   )
 
   const handleManualSave = useCallback(
-    async (data: { projectId: string; description: string; hours: number; date: string; billable: boolean }) => {
+    async (data: QuickLogData) => {
       await createEntry({
         project_id: data.projectId,
         description: data.description,
         hours: data.hours,
         date: data.date,
         billable: data.billable,
+        task_id: data.taskId,
         invoice_id: null,
       })
     },
@@ -128,20 +128,11 @@ export default function TimeTracker() {
       {/* Timer Widget */}
       <Timer projects={projectList} onSave={handleTimerSave} />
 
-      {/* Toggle for manual entry form */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setShowManualForm((prev) => !prev)}
-          className="text-accent text-[12px] font-semibold hover:underline transition-all"
-        >
-          {showManualForm ? t('timeTracker.hideManual') : t('timeTracker.addManual')}
-        </button>
-      </div>
-
-      {/* Manual Entry Form */}
-      {showManualForm && (
-        <TimeEntryForm projects={projectList} onSave={handleManualSave} />
-      )}
+      <QuickLogForm
+        projects={projectList}
+        entries={entries}
+        onSave={handleManualSave}
+      />
 
       {/* Error state */}
       {error && (
@@ -244,24 +235,10 @@ export default function TimeTracker() {
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => handleClone(entry)}
-                                className="p-1.5 rounded hover:bg-border transition-colors"
-                                aria-label={t('timeTracker.cloneEntry')}
+                                className="px-2 py-1 rounded-[8px] text-[11px] font-semibold text-accent hover:bg-accent/10 transition-colors"
                                 title={t('timeTracker.cloneToToday')}
                               >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="text-text-muted"
-                                >
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                </svg>
+                                {t('quickLog.logAgain')}
                               </button>
                               <button
                                 onClick={() => handleEdit(entry)}
