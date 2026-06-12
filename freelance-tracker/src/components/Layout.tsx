@@ -4,20 +4,26 @@ import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import BottomNav from './BottomNav'
 import CommandPalette from './CommandPalette'
+import QuickLogDialog from './QuickLogDialog'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [quickLogOpen, setQuickLogOpen] = useState(false)
 
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), [])
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
-  // Global Cmd/Ctrl+K toggles the search palette
+  // Global shortcuts: Cmd/Ctrl+K → search palette, Cmd/Ctrl+Shift+L → quick log
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPaletteOpen((v) => !v)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        setQuickLogOpen(true)
       }
     }
     document.addEventListener('keydown', onKey)
@@ -52,6 +58,9 @@ export default function Layout() {
 
       {/* Global command palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      {/* Global quick-log dialog */}
+      <QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />
     </div>
   )
 }
