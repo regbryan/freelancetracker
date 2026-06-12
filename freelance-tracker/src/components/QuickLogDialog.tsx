@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import QuickLogForm from './QuickLogForm'
 import { useProjects } from '../hooks/useProjects'
@@ -13,7 +14,13 @@ interface Props {
 export default function QuickLogDialog({ open, onOpenChange }: Props) {
   const { t } = useI18n()
   const { projects } = useProjects()
-  const { entries, createEntry } = useTimeEntries()
+  const { entries, createEntry, refetch } = useTimeEntries()
+
+  // This instance is mounted app-wide; entries logged elsewhere (e.g. the Time
+  // page's own hook instance) would otherwise never reach its suggestions.
+  useEffect(() => {
+    if (open) refetch()
+  }, [open, refetch])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
