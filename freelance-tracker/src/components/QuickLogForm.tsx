@@ -199,6 +199,11 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
                 e.preventDefault()
                 applySuggestion(suggestions[suggestIndex])
               } else if (e.key === 'Escape') {
+                // Stop here so a host dialog (Radix listens at the document)
+                // doesn't close on the same press — Esc dismisses suggestions
+                // first, the dialog on the next press.
+                e.preventDefault()
+                e.stopPropagation()
                 setSuggestOpen(false)
                 setSuggestIndex(-1)
               }

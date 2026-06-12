@@ -24,7 +24,16 @@ export default function QuickLogDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-6">
+      <DialogContent
+        className="max-w-2xl p-6"
+        onEscapeKeyDown={(e) => {
+          // Radix handles Esc in the capture phase. When the description
+          // field's suggestion list is open (aria-expanded), keep the dialog
+          // up and let the form's own Esc handler dismiss the list instead.
+          const target = e.target as HTMLElement | null
+          if (target?.getAttribute('aria-expanded') === 'true') e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-[16px]">{t('quickLog.title')}</DialogTitle>
         </DialogHeader>
