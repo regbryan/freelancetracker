@@ -354,7 +354,8 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
                   <SelectValue placeholder={t('common.none')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('common.none')}</SelectItem>
+                  {/* No empty "none" item: Radix Select >=2.x throws on
+                      <SelectItem value="">; the placeholder covers it. */}
                   {tasks.map((tk) => (
                     <SelectItem key={tk.id} value={tk.id}>
                       {tk.title}
