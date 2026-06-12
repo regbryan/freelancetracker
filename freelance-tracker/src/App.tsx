@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout'
+import OwnerGate from './components/OwnerGate'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import { Loader2 } from 'lucide-react'
@@ -24,6 +25,8 @@ const EmailSearch = lazy(() => import('./pages/EmailSearch'))
 const Timeline = lazy(() => import('./pages/Timeline'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Terms = lazy(() => import('./pages/Terms'))
+const Portal = lazy(() => import('./pages/Portal'))
+const PortalLogin = lazy(() => import('./pages/PortalLogin'))
 
 function PageLoader() {
   return (
@@ -52,10 +55,11 @@ export default function App() {
           <Route path="/sign/:token" element={<ContractSign />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/portal" element={user ? <Portal /> : <PortalLogin />} />
 
           {/* Protected routes */}
           {user ? (
-            <Route element={<Layout />}>
+            <Route element={<OwnerGate><Layout /></OwnerGate>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:id" element={<ClientDetail />} />
