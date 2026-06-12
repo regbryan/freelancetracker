@@ -140,7 +140,7 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
               type="button"
               role="radio"
               aria-checked={active}
-              onClick={() => setChosenProjectId(p.id)}
+              onClick={() => { setChosenProjectId(p.id); setSuggestIndex(-1) }}
               className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
                 active
                   ? 'bg-accent text-white shadow-sm'
@@ -152,7 +152,7 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
           )
         })}
         {overflow.length > 0 && (
-          <Select value="" onValueChange={(v) => setChosenProjectId(v)}>
+          <Select value={overflow.some((p) => p.id === projectId) ? projectId : ''} onValueChange={(v) => { setChosenProjectId(v); setSuggestIndex(-1) }}>
             <SelectTrigger
               aria-label={t('quickLog.moreProjects')}
               className="h-7 w-auto rounded-full border-0 bg-input-bg px-3 text-[11px] font-semibold text-text-muted"
@@ -174,10 +174,11 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
       <div className="flex flex-wrap items-end gap-3">
         {/* Description + suggestions */}
         <div className="relative flex flex-col gap-1 flex-1 min-w-[200px]">
-          <label className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          <label htmlFor="quicklog-desc" className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             {t('quickLog.description')}
           </label>
           <Input
+            id="quicklog-desc"
             value={description}
             onChange={(e) => {
               setDescription(e.target.value)
@@ -194,7 +195,7 @@ export default function QuickLogForm({ projects, entries, tasks, onSave, onSaved
               } else if (e.key === 'ArrowUp') {
                 e.preventDefault()
                 setSuggestIndex((i) => Math.max(i - 1, -1))
-              } else if (e.key === 'Enter' && suggestIndex >= 0) {
+              } else if (e.key === 'Enter' && suggestIndex >= 0 && suggestIndex < suggestions.length) {
                 e.preventDefault()
                 applySuggestion(suggestions[suggestIndex])
               } else if (e.key === 'Escape') {

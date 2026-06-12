@@ -41,7 +41,7 @@ describe('QuickLogForm', () => {
   it('submits with smart defaults: today, billable, rounded hours', async () => {
     const user = userEvent.setup()
     const onSave = setup()
-    await user.type(screen.getByPlaceholderText(/what did you work on/i), 'New work')
+    await user.type(screen.getByRole('combobox', { name: /description/i }), 'New work')
     await user.type(screen.getByRole('spinbutton', { name: /hours/i }), '1.1')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
     expect(onSave).toHaveBeenCalledWith({
@@ -57,7 +57,7 @@ describe('QuickLogForm', () => {
   it('clears description and hours but keeps project after save', async () => {
     const user = userEvent.setup()
     setup()
-    const desc = screen.getByPlaceholderText(/what did you work on/i)
+    const desc = screen.getByRole('combobox', { name: /description/i })
     await user.type(desc, 'New work')
     await user.type(screen.getByRole('spinbutton', { name: /hours/i }), '2')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
@@ -69,9 +69,9 @@ describe('QuickLogForm', () => {
     const user = userEvent.setup()
     setup()
     await user.click(screen.getByRole('radio', { name: 'Alpha' }))
-    await user.click(screen.getByPlaceholderText(/what did you work on/i))
+    await user.click(screen.getByRole('combobox', { name: /description/i }))
     await user.click(await screen.findByRole('option', { name: /logo sketches/i }))
-    expect(screen.getByPlaceholderText(/what did you work on/i)).toHaveValue('Logo sketches')
+    expect(screen.getByRole('combobox', { name: /description/i })).toHaveValue('Logo sketches')
     expect(screen.getByRole('spinbutton', { name: /hours/i })).toHaveValue(1.5)
   })
 
@@ -79,7 +79,7 @@ describe('QuickLogForm', () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockRejectedValue(new Error('boom'))
     setup(onSave)
-    const desc = screen.getByPlaceholderText(/what did you work on/i)
+    const desc = screen.getByRole('combobox', { name: /description/i })
     await user.type(desc, 'Doomed')
     await user.type(screen.getByRole('spinbutton', { name: /hours/i }), '1')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
@@ -91,7 +91,7 @@ describe('QuickLogForm', () => {
     const user = userEvent.setup()
     const onSave = setup()
     await user.click(screen.getByRole('button', { name: /yesterday/i }))
-    await user.type(screen.getByPlaceholderText(/what did you work on/i), 'Late log')
+    await user.type(screen.getByRole('combobox', { name: /description/i }), 'Late log')
     await user.type(screen.getByRole('spinbutton', { name: /hours/i }), '1')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
     const d = new Date()
@@ -107,5 +107,18 @@ describe('QuickLogForm', () => {
       </I18nProvider>,
     )
     expect(screen.getByText(/no projects yet/i)).toBeInTheDocument()
+  })
+
+  it('navigates suggestions with arrow keys and applies with Enter', async () => {
+    const user = userEvent.setup()
+    const onSave = setup()
+    await user.click(screen.getByRole('radio', { name: 'Alpha' }))
+    const desc = screen.getByRole('combobox', { name: /description/i })
+    await user.click(desc)
+    await screen.findByRole('option', { name: /logo sketches/i })
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(desc).toHaveValue('Logo sketches')
+    expect(screen.getByRole('spinbutton', { name: /hours/i })).toHaveValue(1.5)
+    expect(onSave).not.toHaveBeenCalled() // Enter applied the suggestion, did not submit
   })
 })
