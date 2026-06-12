@@ -12,6 +12,12 @@ const PRIORITY_TONE: Record<PortalTask['priority'], string> = {
   low: 'bg-input-bg text-text-muted',
 }
 
+const PRIORITY_KEY: Record<PortalTask['priority'], string> = {
+  high: 'tasks.priorityHigh',
+  medium: 'tasks.priorityMedium',
+  low: 'tasks.priorityLow',
+}
+
 const PROJECT_STATUS_KEY: Record<string, string> = {
   active: 'status.active',
   completed: 'status.completed',
@@ -146,7 +152,7 @@ export default function Portal() {
                                   </span>
                                 )}
                                 <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
-                                  {task.priority}
+                                  {t(PRIORITY_KEY[task.priority])}
                                 </span>
                               </span>
                             </li>

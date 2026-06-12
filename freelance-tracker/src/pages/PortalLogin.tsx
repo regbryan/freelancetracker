@@ -53,6 +53,7 @@ export default function PortalLogin() {
             >
               {cooldown > 0 ? t('portal.resendIn', { s: cooldown }) : t('portal.resend')}
             </button>
+            {error && <p className="mt-3 text-negative text-[12px]">{t('portal.sendFailed', { error })}</p>}
           </div>
         ) : (
           <form
