@@ -160,6 +160,20 @@ describe('useWorkspaceRole', () => {
     expect(filterLog.some((c) => c.value === 'Colleague@Example.com')).toBe(false)
   })
 
+  it('escapes LIKE wildcards in the email so underscores and percents match literally', async () => {
+    mockUser({ id: 'u2b', email: 'First_Last%x@Example.com' })
+    mockTables({
+      clients: emptyFixture,
+      project_members: { data: [{ id: 'pm2' }], error: null },
+      portal_clients: emptyFixture,
+    })
+
+    const { result } = renderHook(() => useWorkspaceRole())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(filterLog).toContainEqual({ table: 'project_members', op: 'ilike', column: 'email', value: 'first\\_last\\%x@example.com' })
+  })
+
   it('treats a missing project_members table (PGRST205) as owner silently, but warns on other errors', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 

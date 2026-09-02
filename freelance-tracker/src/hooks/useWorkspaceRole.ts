@@ -52,7 +52,8 @@ type MembershipTable = 'clients' | 'project_members' | 'portal_clients'
 async function hasRows(table: MembershipTable, filter?: { column: string; value: string }): Promise<boolean> {
   let query = supabase.from(table).select('id').limit(1)
   // filter.value is already lower-cased by toIdentity().
-  if (filter) query = query.ilike(filter.column, filter.value)
+  // Escape LIKE wildcards so an address such as first_last@example.com matches literally.
+  if (filter) query = query.ilike(filter.column, filter.value.replace(/[\\%_]/g, '\\$&'))
   const { data, error } = await query
   if (error) {
     if (error.code !== 'PGRST205') {
