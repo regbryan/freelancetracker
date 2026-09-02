@@ -121,3 +121,64 @@
     }
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Print — the timeline as something you can hand a client.
+ *
+ * Everything that only makes sense on screen (app chrome, the hero, the
+ * switcher, the tabs, the insight banner, the drag hint) carries
+ * `data-print-hide`; Timeline.tsx renders a print-only header in its place.
+ * ------------------------------------------------------------------ */
+@page {
+  size: landscape;
+  margin: 12mm;
+}
+
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  /* The page has no viewport to scroll, so the app's scroll containers have to
+     let their content out instead of clipping it at the fold. */
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Lay the whole track out, then shrink it to the sheet with the ratio
+     TimelineGantt computed from labelWidth + trackW. */
+  [data-gantt] {
+    zoom: var(--print-scale, 1);
+    border: none;
+    box-shadow: none;
+    overflow: visible !important;
+  }
+
+  [data-gantt] [data-testid='gantt-scroll'] {
+    overflow: visible !important;
+  }
+
+  /* A sticky label column has nothing to stick to on paper; left as-is it
+     smears down the page. */
+  [data-gantt] .sticky {
+    position: static !important;
+  }
+
+  .gantt-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Browsers drop background colour when printing unless told not to — and the
+     bars and the weekend shading are the chart. */
+  .gantt-bar,
+  [data-testid='weekend'] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

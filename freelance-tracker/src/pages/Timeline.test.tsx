@@ -261,6 +261,61 @@ describe('Timeline page', () => {
     expect(localStorage.getItem('timeline.lastProject')).toBe('p1')
   })
 
+  it('hides done tasks by default and says how many it hid', () => {
+    hooks.tasks = [
+      makeTask(),
+      makeTask({ id: 't2', title: 'Old logo pass', status: 'done' }),
+      makeTask({ id: 't3', title: 'Sitemap', status: 'done' }),
+    ]
+    renderPage()
+
+    expect(screen.getByRole('checkbox', { name: 'Hide done' })).toBeChecked()
+    expect(screen.getByRole('button', { name: /^Brand audit:/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Old logo pass:/ })).not.toBeInTheDocument()
+    expect(screen.getByText('2 done hidden')).toBeInTheDocument()
+  })
+
+  it('the count is absent when the project has no done tasks', () => {
+    renderPage()
+
+    expect(screen.getByRole('checkbox', { name: 'Hide done' })).toBeChecked()
+    expect(screen.queryByText(/done hidden/)).not.toBeInTheDocument()
+  })
+
+  it('unticking Hide done brings the done tasks back and persists the choice', async () => {
+    const user = userEvent.setup()
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', title: 'Old logo pass', status: 'done' })]
+    renderPage()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Hide done' }))
+
+    expect(screen.getByRole('button', { name: /^Old logo pass:/ })).toBeInTheDocument()
+    expect(screen.queryByText(/done hidden/)).not.toBeInTheDocument()
+    expect(localStorage.getItem('timeline.hideDone')).toBe('false')
+  })
+
+  it('a stored Hide done choice of false is honoured on load', () => {
+    localStorage.setItem('timeline.hideDone', 'false')
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', title: 'Old logo pass', status: 'done' })]
+    renderPage()
+
+    expect(screen.getByRole('checkbox', { name: 'Hide done' })).not.toBeChecked()
+    expect(screen.getByRole('button', { name: /^Old logo pass:/ })).toBeInTheDocument()
+  })
+
+  it('the Print button calls window.print', async () => {
+    const user = userEvent.setup()
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    try {
+      renderPage()
+      await user.click(screen.getByRole('button', { name: /Print \/ PDF/ }))
+      expect(print).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('refresh is skipped while the document is hidden', () => {
     vi.useFakeTimers()
     const setVisibility = (value: string) =>

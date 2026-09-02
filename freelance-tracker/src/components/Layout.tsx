@@ -46,7 +46,7 @@ export default function Layout() {
       <Sidebar open={sidebarOpen} onClose={closeSidebar} />
 
       {/* Spacer for fixed sidebar - only on lg+ */}
-      <div className="hidden lg:block w-[220px] shrink-0" />
+      <div data-print-hide className="hidden lg:block w-[220px] shrink-0" />
 
       {/* Main content area */}
       <div className="flex-1 min-w-0 min-h-screen flex flex-col">

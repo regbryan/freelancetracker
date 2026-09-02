@@ -76,7 +76,7 @@ export default function TopBar({ onToggleSidebar, onOpenSearch }: TopBarProps) {
   const toggleLang = () => setLang(lang === 'en' ? 'es' : 'en')
 
   return (
-    <header className="h-12 bg-bg flex items-center justify-between px-5 shrink-0 gap-4">
+    <header data-print-hide className="h-12 bg-bg flex items-center justify-between px-5 shrink-0 gap-4">
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={onToggleSidebar}

@@ -40,7 +40,7 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
   const isMoreActive = morePages.some((p) => location.pathname.startsWith(p))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border flex items-center justify-around h-14 z-40 lg:hidden safe-area-bottom">
+    <nav data-print-hide className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border flex items-center justify-around h-14 z-40 lg:hidden safe-area-bottom">
       {items.map((item) => {
         if (item.to === '/more') {
           return (

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import { I18nProvider } from '../lib/i18n'
 import TimelineGantt, { type GanttProject, type GanttTask } from './TimelineGantt'
-import { PX_PER_DAY, computeRange, diffDays } from '../lib/timelineMath'
+import { PX_PER_DAY, computeContentRange, diffDays } from '../lib/timelineMath'
 
 const TODAY = '2026-09-01'
 
@@ -60,9 +60,25 @@ describe('TimelineGantt render', () => {
   it('renders one bar per dated task and positions it by day offset', () => {
     setup()
     const bar = screen.getByRole('button', { name: /Brand audit/ })
-    const range = computeRange(['2026-09-01', '2026-10-31', '2026-09-10', '2026-09-12', '2026-09-20'], TODAY)
+    const range = computeContentRange(['2026-09-01', '2026-10-31', '2026-09-10', '2026-09-12', '2026-09-20'], TODAY)
     const left = diffDays(range.start, '2026-09-10') * PX_PER_DAY.month
     expect(bar).toHaveStyle({ left: `${left}px`, width: `${3 * PX_PER_DAY.month}px` })
+  })
+
+  it('starts the range a week before the earliest task when all the work is in the past', () => {
+    const pastProjects: GanttProject[] = [
+      { id: 'p1', name: 'Finished', status: 'completed', start_date: '2026-03-02', end_date: '2026-03-20' },
+    ]
+    const pastTasks: GanttTask[] = [
+      { id: 't1', project_id: 'p1', title: 'Brand audit', status: 'done', start_date: '2026-03-05', due_date: '2026-03-07' },
+    ]
+    setup({ projects: pastProjects, tasks: pastTasks })
+    // computeRange would have opened at today - 37 (2026-07-26) and pushed every bar
+    // off the left of the first screen; the content range starts at 2026-03-02 - 7.
+    const range = computeContentRange(['2026-03-02', '2026-03-20', '2026-03-05', '2026-03-07'], TODAY)
+    expect(range.start).toBe('2026-02-23')
+    const bar = screen.getByRole('button', { name: /Brand audit/ })
+    expect(bar).toHaveStyle({ left: `${diffDays(range.start, '2026-03-05') * PX_PER_DAY.month}px` })
   })
 
   it('shows undated tasks in a Not scheduled tray instead of hiding them', () => {
@@ -106,10 +122,17 @@ describe('TimelineGantt render', () => {
     }
   })
 
-  it('a task with only a due date renders as a one-day bar', () => {
+  it('a task with only a due date renders as a one-day bar, floored at the minimum grab width', () => {
     setup()
     const bar = screen.getByRole('button', { name: /Kickoff/ })
-    expect(bar).toHaveStyle({ width: `${PX_PER_DAY.month}px` })
+    // One day at Month zoom is 12px; editable bars are drawn at least 16px wide so
+    // they can be hit. The drag maths still uses the true 12px width.
+    expect(bar).toHaveStyle({ width: '16px' })
+  })
+
+  it('read-only bars are drawn at their true width, with no minimum', () => {
+    setup({ editable: false, onTaskClick: undefined })
+    expect(screen.getByTitle(/^Kickoff:/)).toHaveStyle({ width: `${PX_PER_DAY.month}px` })
   })
 
   it('read-only mode renders no resize handles and ignores chip clicks', () => {
@@ -208,7 +231,7 @@ describe('TimelineGantt drag', () => {
   it('read-only mode never calls onTaskDates on drag', () => {
     // No onTaskClick either, so the bar renders as a non-interactive role="img", not a button.
     const { onTaskDates } = setup({ editable: false, onTaskClick: undefined })
-    const el = screen.getByTitle(/Brand audit/)
+    const el = screen.getByTitle(/^Brand audit:/)
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
     fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
@@ -331,7 +354,7 @@ describe('TimelineGantt drag', () => {
       tasks[2],
     ]
     rerender({ tasks: moved })
-    const rng = computeRange(['2026-09-01', '2026-10-31', '2026-09-30', '2026-10-02', '2026-09-20'], TODAY)
+    const rng = computeContentRange(['2026-09-01', '2026-10-31', '2026-09-30', '2026-10-02', '2026-09-20'], TODAY)
     expect(bar().style.left).toBe(`${diffDays(rng.start, '2026-09-30') * px}px`)
   })
 

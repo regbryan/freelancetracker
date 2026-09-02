@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import { useI18n } from '../lib/i18n'
 import {
   PX_PER_DAY,
@@ -10,7 +10,8 @@ import {
   pxToDays,
   shiftRange,
   resizeRange,
-  computeRange,
+  computeContentRange,
+  initialScrollDay,
   monthTicks,
   dayTicks,
   weekendSpans,
@@ -65,8 +66,10 @@ export interface TimelineGanttProps {
   labelWidth?: number
 }
 
-const LABEL_W = 220
+const LABEL_W = 320
 const EDGE_PX = 8
+/** Smallest width an editable bar is *drawn* at, so a one-day task stays grabbable. */
+const MIN_BAR_PX = 16
 const CLICK_PX = 3
 
 const STATUS_COLORS: Record<string, string> = {
@@ -167,22 +170,25 @@ export default function TimelineGantt({
   const today = todayProp ?? todayISO()
   const px = PX_PER_DAY[zoom]
 
-  const range = useMemo(
-    () =>
-      computeRange(
-        [
-          ...projects.flatMap((p) => [p.start_date, p.end_date]),
-          ...tasks.flatMap((tk) => [tk.start_date, tk.due_date]),
-        ],
-        today,
-      ),
-    [projects, tasks, today],
+  const dates = useMemo(
+    () => [
+      ...projects.flatMap((p) => [p.start_date, p.end_date]),
+      ...tasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+    ],
+    [projects, tasks],
   )
+  // Content-driven, not today-driven: a project whose work finished in March must
+  // not open on a screenful of empty track with every bar off to the left.
+  const range = useMemo(() => computeContentRange(dates, today), [dates, today])
   const trackW = totalDays(range) * px
   const months = useMemo(() => monthTicks(range), [range])
   const days = useMemo(() => (zoom === 'week' ? dayTicks(range) : []), [range, zoom])
   const weekends = useMemo(() => (zoom === 'week' ? weekendSpans(range) : []), [range, zoom])
   const todayLeft = diffDays(range.start, today) * px
+  const scrollDay = useMemo(() => initialScrollDay(range, dates, today), [range, dates, today])
+  // Printing lays the whole track on the page instead of scrolling it; scale it down
+  // to fit a landscape sheet. Applied as `zoom` by the @media print block in index.css.
+  const printScale = Math.min(1, 1000 / (labelWidth + trackW))
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -194,16 +200,18 @@ export default function TimelineGantt({
   const lastZoomRef = useRef<Zoom | null>(null)
   const dragActive = drag !== null
 
-  // Scroll so today sits ~25% from the left of the track on mount and zoom change.
-  // A refetch can shift range.start (and so todayLeft) without the user asking for
-  // anything; re-running then would yank the viewport back mid-read.
+  // Scroll so the first thing worth looking at — today, or the earliest dated work
+  // when today is outside the content — sits ~15% from the left of the track, on
+  // mount and on zoom change. A refetch can shift range.start (and so the offset)
+  // without the user asking for anything; re-running then would yank the viewport
+  // back mid-read, so the zoom guard stays.
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     if (lastZoomRef.current === zoom) return
     lastZoomRef.current = zoom
-    el.scrollLeft = Math.max(0, todayLeft - Math.max(0, el.clientWidth - labelWidth) * 0.25)
-  }, [zoom, todayLeft, labelWidth])
+    el.scrollLeft = Math.max(0, scrollDay * px - Math.max(0, el.clientWidth - labelWidth) * 0.15)
+  }, [zoom, scrollDay, px, labelWidth])
 
   // Escape cancels an in-progress drag.
   useEffect(() => {
@@ -350,7 +358,11 @@ export default function TimelineGantt({
   const isDragging = (kind: 'task' | 'project', id: string) => Boolean(drag && drag.kind === kind && drag.id === id)
 
   return (
-    <div className="bg-surface rounded-[14px] shadow-card border border-border overflow-hidden">
+    <div
+      data-gantt
+      className="bg-surface rounded-[14px] shadow-card border border-border overflow-hidden"
+      style={{ '--print-scale': String(printScale) } as CSSProperties}
+    >
       <div
         ref={scrollRef}
         className="overflow-x-auto"
@@ -368,12 +380,22 @@ export default function TimelineGantt({
               <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.projectTask')}</span>
             </div>
             <div className="relative h-9" style={{ width: trackW }}>
-              {months.map((tick) => (
-                <div key={tick.iso} className="absolute top-0 h-full flex items-start pt-1" style={{ left: tick.offsetDays * px }}>
-                  <div className="h-full w-px bg-border/50" />
-                  <span className="text-[10px] font-semibold text-text-muted ml-1.5 whitespace-nowrap">{monthLabel(tick.iso)}</span>
-                </div>
-              ))}
+              {months.map((tick, i) => {
+                // The synthetic tick at range.start can land days before a real month
+                // boundary — common now that the range starts a week before the content —
+                // and the two labels then print on top of each other. Keep the gridline,
+                // drop the label that has nowhere to go.
+                const next = months[i + 1]
+                const crowded = Boolean(tick.partial && next && (next.offsetDays - tick.offsetDays) * px < 56)
+                return (
+                  <div key={tick.iso} className="absolute top-0 h-full flex items-start pt-1" style={{ left: tick.offsetDays * px }}>
+                    <div className="h-full w-px bg-border/50" />
+                    {!crowded && (
+                      <span className="text-[10px] font-semibold text-text-muted ml-1.5 whitespace-nowrap">{monthLabel(tick.iso)}</span>
+                    )}
+                  </div>
+                )
+              })}
               {days.map((tick) => (
                 <span
                   key={tick.iso}
@@ -406,15 +428,20 @@ export default function TimelineGantt({
             return (
               <div key={project.id} className="border-b border-border last:border-0">
                 {/* Project row */}
-                <div className="flex items-stretch hover:bg-input-bg/30 transition-colors group">
+                <div className="gantt-row flex items-stretch hover:bg-input-bg/30 transition-colors group">
                   <div
                     className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-3 flex items-center gap-2 min-w-0"
                     style={{ width: labelWidth, minWidth: labelWidth }}
                   >
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="text-[12px] font-semibold text-text-primary truncate">{project.name}</span>
+                    <span
+                      className="text-[12px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
+                      title={project.name}
+                    >
+                      {project.name}
+                    </span>
                   </div>
-                  <div className="relative h-10" style={{ width: trackW }}>
+                  <div className="relative min-h-[40px]" style={{ width: trackW }}>
                     {projectRange && projectGeom && (
                       <div
                         role="img"
@@ -424,10 +451,17 @@ export default function TimelineGantt({
                         onPointerUp={endDrag}
                         onPointerCancel={cancelDrag}
                         onLostPointerCapture={cancelDrag}
-                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none ${
+                        className={`gantt-bar absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none ${
                           editable && canEditProjects ? 'touch-none cursor-grab' : ''
                         } ${projectDragging ? 'ring-2 ring-accent/40' : ''}`}
-                        style={{ left: projectGeom.left, width: projectGeom.width, backgroundColor: color + '22', border: `2px solid ${color}` }}
+                        style={{
+                          left: projectGeom.left,
+                          // Rendered width only: the drag maths keeps using the true width, so
+                          // widening a sliver never lies about the dates it saves.
+                          width: editable && canEditProjects ? Math.max(projectGeom.width, MIN_BAR_PX) : projectGeom.width,
+                          backgroundColor: color + '22',
+                          border: `2px solid ${color}`,
+                        }}
                         title={`${project.name}: ${fmt(projectRange.start)} – ${fmt(projectRange.end)}`}
                       >
                         {editable && canEditProjects && (
@@ -463,10 +497,17 @@ export default function TimelineGantt({
                   // Read-only with no click handler: nothing to activate, so it must not be a button.
                   const interactive = editable || Boolean(onTaskClick)
                   const barLabel = `${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`
-                  const barClassName = `absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left ${
+                  const barClassName = `gantt-bar absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left ${
                     editable ? 'touch-none cursor-grab' : 'cursor-default'
                   } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
-                  const barStyle = { left: geom.left, width: geom.width, backgroundColor: colors.bg, border: `1.5px solid ${colors.border}` }
+                  const barStyle = {
+                    left: geom.left,
+                    // Rendered width only — `geom.width` still drives the drag maths. A one-day
+                    // task is a 4-12px sliver at Quarter/Month zoom, too small to grab or see.
+                    width: editable ? Math.max(geom.width, MIN_BAR_PX) : geom.width,
+                    backgroundColor: colors.bg,
+                    border: `1.5px solid ${colors.border}`,
+                  }
                   const barChildren = (
                     <>
                       {editable && (
@@ -490,15 +531,20 @@ export default function TimelineGantt({
                     </>
                   )
                   return (
-                    <div key={task.id} className="flex items-stretch hover:bg-input-bg/20 transition-colors">
+                    <div key={task.id} className="gantt-row flex items-stretch hover:bg-input-bg/20 transition-colors">
                       <div
                         className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center gap-2 min-w-0"
                         style={{ width: labelWidth, minWidth: labelWidth }}
                       >
                         <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-border" />
-                        <span className="text-[11px] text-text-secondary truncate">{task.title}</span>
+                        <span
+                          className="text-[11px] text-text-secondary whitespace-normal leading-snug line-clamp-2 break-words"
+                          title={task.title}
+                        >
+                          {task.title}
+                        </span>
                       </div>
-                      <div className="relative h-8" style={{ width: trackW }}>
+                      <div className="relative min-h-[32px]" style={{ width: trackW }}>
                         {interactive ? (
                           <button
                             type="button"
@@ -527,12 +573,12 @@ export default function TimelineGantt({
 
                 {/* Not-scheduled tray */}
                 {undated.length > 0 && (
-                  <div className="flex items-stretch" data-testid="tray">
+                  <div className="gantt-row flex items-stretch" data-testid="tray">
                     <div
                       className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center min-w-0"
                       style={{ width: labelWidth, minWidth: labelWidth }}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted truncate">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted whitespace-normal leading-snug line-clamp-2">
                         {t('timeline.notScheduled', { n: undated.length })}
                       </span>
                     </div>
@@ -599,7 +645,7 @@ export default function TimelineGantt({
           <div className="w-0.5 h-4 bg-accent/60" />
           <span className="text-[11px] text-text-secondary">{t('timeline.today')}</span>
         </div>
-        <span className="ml-auto text-[10px] text-text-muted hidden md:inline">
+        <span data-print-hide className="ml-auto text-[10px] text-text-muted hidden md:inline">
           {editable ? t('timeline.dragHint') : t('timeline.readOnlyHint')}
         </span>
       </div>

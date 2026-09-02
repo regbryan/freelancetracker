@@ -72,6 +72,34 @@ export function resizeRange(r: DateRange, edge: 'start' | 'end', days: number): 
 
 export const MAX_SPAN_DAYS = 1461
 
+/** Smallest and largest valid ISO date in the list, or null when there are none. */
+function dateBounds(dates: Array<string | null | undefined>): { min: string; max: string } | null {
+  let min: string | null = null
+  let max: string | null = null
+  for (const d of dates) {
+    if (!d || !isValidISODate(d)) continue
+    if (min === null || d < min) min = d
+    if (max === null || d > max) max = d
+  }
+  return min === null || max === null ? null : { min, max }
+}
+
+/**
+ * Shared tail of the two range builders: clamp an over-long span back toward
+ * today (never toward the near end, so today stays inside the range), then pad
+ * a week before and a fortnight after.
+ */
+function padAndClamp(min: string, max: string, today: string): DateRange {
+  const half = Math.floor(MAX_SPAN_DAYS / 2)
+  if (diffDays(min, max) > MAX_SPAN_DAYS) {
+    const lo = addDays(today, -half)
+    const hi = addDays(today, half)
+    if (min < lo) min = lo
+    if (max > hi) max = hi
+  }
+  return { start: addDays(min, -7), end: addDays(max, 14) }
+}
+
 /**
  * Visible range: min(earliest, today-30) - 7 .. max(latest, today+90) + 14.
  * Inputs that are not yyyy-mm-dd are ignored. If the raw span would exceed
@@ -81,19 +109,44 @@ export const MAX_SPAN_DAYS = 1461
 export function computeRange(dates: Array<string | null | undefined>, today: string): DateRange {
   let min = addDays(today, -30)
   let max = addDays(today, 90)
-  for (const d of dates) {
-    if (!d || !isValidISODate(d)) continue
-    if (d < min) min = d
-    if (d > max) max = d
+  const bounds = dateBounds(dates)
+  if (bounds) {
+    if (bounds.min < min) min = bounds.min
+    if (bounds.max > max) max = bounds.max
   }
-  const half = Math.floor(MAX_SPAN_DAYS / 2)
-  if (diffDays(min, max) > MAX_SPAN_DAYS) {
-    const lo = addDays(today, -half)
-    const hi = addDays(today, half)
-    if (min < lo) min = lo
-    if (max > hi) max = hi
-  }
-  return { start: addDays(min, -7), end: addDays(max, 14) }
+  return padAndClamp(min, max, today)
+}
+
+/**
+ * Content-driven range: min(earliest, today) - 7 .. max(latest, today) + 14.
+ *
+ * `computeRange` always reserves today-30..today+90, which for a project whose
+ * work finished months ago pushes every bar off the left of the first screen.
+ * This one hugs the actual content and only stretches as far as today so the
+ * today line still has somewhere to land. Same ISO validation and the same
+ * MAX_SPAN_DAYS clamp; with no valid dates it falls back to `computeRange`.
+ */
+export function computeContentRange(dates: Array<string | null | undefined>, today: string): DateRange {
+  const bounds = dateBounds(dates)
+  if (!bounds) return computeRange([], today)
+  const min = bounds.min < today ? bounds.min : today
+  const max = bounds.max > today ? bounds.max : today
+  return padAndClamp(min, max, today)
+}
+
+/**
+ * Day offset the view should open at: today when today falls inside the content,
+ * otherwise the earliest dated thing — scrolling to today in a plan that ended in
+ * March shows a screenful of empty track. Never negative.
+ */
+export function initialScrollDay(
+  range: DateRange,
+  dates: Array<string | null | undefined>,
+  today: string,
+): number {
+  const bounds = dateBounds(dates)
+  const target = !bounds || (today >= bounds.min && today <= bounds.max) ? today : bounds.min
+  return Math.max(0, diffDays(range.start, target))
 }
 
 export function totalDays(range: DateRange): number {

@@ -8,6 +8,8 @@ import {
   shiftRange,
   resizeRange,
   computeRange,
+  computeContentRange,
+  initialScrollDay,
   monthTicks,
   dayTicks,
   weekendSpans,
@@ -106,6 +108,95 @@ describe('computeRange', () => {
     expect(range.end).toBe(addDays(addDays(today, 730), 14))
     expect(totalDays(range)).toBeLessThanOrEqual(MAX_SPAN_DAYS + 22)
     expect(range.start <= today && today <= range.end).toBe(true)
+  })
+})
+
+describe('computeContentRange', () => {
+  const today = '2026-09-01'
+
+  it('falls back to computeRange when there are no dates', () => {
+    expect(computeContentRange([], today)).toEqual(computeRange([], today))
+  })
+
+  it('falls back to computeRange when no input is a valid ISO date', () => {
+    expect(computeContentRange(['2026-13-45', ' ', null, '2026-05-01T12:00:00+00:00'], today)).toEqual(
+      computeRange([], today),
+    )
+  })
+
+  it('hugs the content instead of reserving today-30 .. today+90', () => {
+    // computeRange would start at 2026-07-26; the content starts much later.
+    expect(computeContentRange(['2026-10-01', '2026-10-20'], today)).toEqual({
+      start: '2026-08-25', // today - 7, since today is earlier than the content
+      end: '2026-11-03', // latest + 14
+    })
+  })
+
+  it('stretches back to today when all the work is in the future', () => {
+    const range = computeContentRange(['2027-01-10'], today)
+    expect(range).toEqual({ start: '2026-08-25', end: '2027-01-24' })
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+
+  it('stretches forward to today when all the work is in the past', () => {
+    const range = computeContentRange(['2026-03-01', '2026-03-20'], today)
+    expect(range).toEqual({ start: '2026-02-22', end: '2026-09-15' })
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+
+  it('ignores nulls and invalid dates but keeps the valid ones', () => {
+    expect(computeContentRange(['2026-09-10', null, 'nope', '2026-02-30', '2026-09-20'], today)).toEqual({
+      start: '2026-08-25',
+      end: '2026-10-04',
+    })
+  })
+
+  it('clamps a far-past date toward today instead of excluding today', () => {
+    const range = computeContentRange(['2016-09-01'], today)
+    expect(range.start).toBe(addDays(addDays(today, -730), -7))
+    expect(range.end).toBe(addDays(today, 14))
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+
+  it('clamps both ends when dates are far in the past and future', () => {
+    const range = computeContentRange(['2016-09-01', '2226-09-01'], today)
+    expect(range.start).toBe(addDays(addDays(today, -730), -7))
+    expect(range.end).toBe(addDays(addDays(today, 730), 14))
+    expect(totalDays(range)).toBeLessThanOrEqual(MAX_SPAN_DAYS + 22)
+  })
+})
+
+describe('initialScrollDay', () => {
+  const today = '2026-09-01'
+
+  it('uses today when today falls inside the content', () => {
+    const dates = ['2026-08-01', '2026-10-01']
+    const range = computeContentRange(dates, today)
+    expect(initialScrollDay(range, dates, today)).toBe(diffDays(range.start, today))
+  })
+
+  it('uses the earliest date when all the work is in the past', () => {
+    const dates = ['2026-03-01', '2026-03-20']
+    const range = computeContentRange(dates, today)
+    expect(initialScrollDay(range, dates, today)).toBe(diffDays(range.start, '2026-03-01'))
+    // Seven days of padding sit before the earliest task, and nothing more.
+    expect(initialScrollDay(range, dates, today)).toBe(7)
+  })
+
+  it('uses the earliest date when all the work is in the future', () => {
+    const dates = ['2027-01-10', '2027-02-01']
+    const range = computeContentRange(dates, today)
+    expect(initialScrollDay(range, dates, today)).toBe(diffDays(range.start, '2027-01-10'))
+  })
+
+  it('falls back to today when there are no valid dates', () => {
+    const range = computeContentRange([], today)
+    expect(initialScrollDay(range, [], today)).toBe(diffDays(range.start, today))
+  })
+
+  it('never returns a negative offset', () => {
+    // A range that starts after the target (only reachable by passing a mismatched range).
+    expect(initialScrollDay({ start: '2026-10-01', end: '2026-12-01' }, ['2026-03-01'], today)).toBe(0)
   })
 })
 

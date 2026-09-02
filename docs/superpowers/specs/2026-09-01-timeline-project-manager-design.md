@@ -156,6 +156,43 @@ a deliberately task-free bird's-eye view, and the default zoom becomes Week. The
 `TimelineGantt` component, its props, and the drag interaction are unchanged; only the
 page's selection model and the controls above the grid changed.
 
+A second review the same day, with the same data, rejected four more things and they were
+fixed together:
+
+- **The range follows the content, not the calendar.** `computeRange` always reserved
+  today−30..today+90, so a project whose work ran in March opened on a screenful of empty
+  track with every bar off to the left. `computeContentRange(dates, today)` spans
+  min(earliest, today)−7 .. max(latest, today)+14 — same ISO validation, same
+  `MAX_SPAN_DAYS` clamp toward today, falling back to `computeRange` when nothing is
+  dated. `initialScrollDay(range, dates, today)` decides where the view opens: today when
+  today lies inside the content, otherwise the earliest dated thing, never negative. The
+  mount/zoom auto-scroll puts that day ~15% from the left of the track (it was today at
+  25%); the `lastZoomRef` guard still keeps a refetch from yanking the viewport.
+  `computeRange` stays for anything that genuinely wants a today-anchored window.
+- **Labels are readable.** The default label column is 320 px (was 220, which clipped
+  titles at ~25 characters); project and task labels wrap to two lines
+  (`line-clamp-2` + `whitespace-normal` + `leading-snug`) and keep a `title` with the full
+  text. Rows grow to fit — tracks are `min-h` rather than fixed `h-8`/`h-10`, with the row
+  `flex items-stretch` so the track matches the row and the bar stays vertically centred.
+  The read-only portal keeps its 150 px column and wraps too. Editable bars are *drawn* at
+  a minimum 16 px (`Math.max(width, 16)` on the rendered width only — drag geometry still
+  uses the true width) so a one-day task at Month or Quarter zoom can be grabbed.
+- **Done tasks are hidden by default.** A "Hide done" pill sits with the zoom control,
+  defaulting on and persisted in `localStorage['timeline.hideDone']` (only the literal
+  `'false'` turns it off). Tasks with `status === 'done'` are dropped before they reach the
+  Gantt, and a muted `{n} done hidden` count appears beside the toggle. Per-project mode
+  only; Overview has no task rows to filter.
+- **The timeline prints.** A "Print / PDF" button calls `window.print()`. The `@media
+  print` block in `src/index.css` drops everything carrying `data-print-hide` (sidebar,
+  top bar, bottom nav, hero, WorkTabs, insight banner, the controls row, the drag hint),
+  reveals a print-only header rendered by `Timeline.tsx` with the project name (or
+  "Overview"), the visible date range and the print date, makes the Gantt's scroll
+  container `overflow: visible`, prints sticky label cells as `position: static`, keeps
+  rows off page breaks with `break-inside: avoid`, and forces bar and weekend colours with
+  `print-color-adjust: exact`. The sheet is `@page { size: landscape; margin: 12mm }` and
+  the whole grid is scaled with `zoom: var(--print-scale)`, a variable `TimelineGantt`
+  sets to `min(1, 1000 / (labelWidth + trackW))`.
+
 ## Collaborators
 
 ### Schema — `supabase_migration_project_members.sql`

@@ -2455,3 +2455,26 @@ not touched.
 - [x] `src/pages/Timeline.test.tsx`: the six existing tests kept (the stale-`?project=` one rewritten for the new fallback, the zoom one switched to Quarter since Week is now the default), plus new tests for the opening selection and its URL/localStorage writes, Overview's bars/hint/insight and absent task bars, chip switching, and the Week default.
 - [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors, `npx vitest run` 159 tests passing.
 - [x] Design doc updated: "Navigation", "Page behaviour (`/timeline`)", and a "Revision 2026-09-02 — one project at a time" note.
+
+#### Follow-up, same day: readable, content-driven, printable
+
+A second review of `/timeline` with the same real data (18 projects, 122 mostly one-day
+tasks with long bracketed titles) raised four more problems: the grid opened scrolled to
+today while the selected project's work was months earlier, so every visible track was
+empty; the 220 px label column clipped titles at ~25 characters; done tasks buried the
+live ones; and there was no way to put the plan on paper or in front of a client.
+
+- [x] `src/lib/timelineMath.ts`: new `computeContentRange(dates, today)` — min(earliest valid date, today) − 7 .. max(latest valid date, today) + 14, same ISO validation and same `MAX_SPAN_DAYS` clamp toward today as `computeRange`, falling back to `computeRange([], today)` when nothing is dated. `computeRange` kept and refactored onto the shared `dateBounds` / `padAndClamp` helpers, so its behaviour is unchanged.
+- [x] `src/lib/timelineMath.ts`: new `initialScrollDay(range, dates, today)` — today's offset when today lies inside [earliest, latest], the earliest date's offset otherwise, clamped to ≥ 0.
+- [x] `src/lib/timelineMath.test.ts`: 13 new cases covering the fallback, invalid-only input, past-only and future-only content, the clamps, and every `initialScrollDay` branch including the never-negative rule.
+- [x] `TimelineGantt` builds its range with `computeContentRange` and auto-scrolls `initialScrollDay(...) * px` to ~15% from the left of the track on mount and zoom change; the `lastZoomRef` guard, drag, overrides, and the props handoff are untouched.
+- [x] Default `labelWidth` 220 → 320; project and task label cells wrap to two lines (`line-clamp-2 whitespace-normal leading-snug break-words`) and keep a `title` with the full text; rows use `min-h-[40px]` / `min-h-[32px]` tracks under `flex items-stretch` instead of fixed `h-10` / `h-8`, so a two-line label grows its row and the bar stays centred. The portal still passes 150 and now wraps as well.
+- [x] Editable bars are rendered at a minimum 16 px wide (`Math.max(width, MIN_BAR_PX)` on `style.width` only, commented in place); drag geometry keeps using the true width so a widened sliver never lies about the dates it saves. Read-only bars keep their true width.
+- [x] `src/components/TimelineGantt.test.tsx`: the day-offset test now computes its expectation with `computeContentRange`, as does the prop-handoff test; new tests for a past-only range starting a week before the earliest task and for read-only bars keeping their true width; the one-day-bar test now asserts the 16 px floor; `getByTitle` queries anchored to `/^Title:/` now that label cells carry a `title` too.
+- [x] `src/pages/Timeline.tsx`: "Hide done" checkbox pill beside the zoom control, default on, persisted in `localStorage['timeline.hideDone']` (only `'false'` turns it off), with a muted `{n} done hidden` count when any are hidden. Done tasks are filtered out before `TimelineGantt` sees them; Overview is unaffected because it passes no tasks.
+- [x] `src/pages/Timeline.tsx`: "Print / PDF" button (lucide `Printer`) calling `window.print()`, and a `hidden print:block` header above the Gantt with the project name (or "Overview"), the visible range as `MMM d, yyyy – MMM d, yyyy` (from the same `computeContentRange` inputs the Gantt uses), and the print date.
+- [x] `src/index.css`: `@media print` block — `[data-print-hide]` display:none (sidebar, top bar, bottom nav, sidebar spacer, hero, WorkTabs, insight banner, controls row, Overview hint, drag hint), `main` padding/overflow reset, `overflow: visible` on the Gantt and its scroll container, `position: static` on sticky label cells, `break-inside: avoid` on `.gantt-row`, `print-color-adjust: exact` on `.gantt-bar` and weekend shading, `zoom: var(--print-scale)` (set from React as `min(1, 1000 / (labelWidth + trackW))`), and `@page { size: landscape; margin: 12mm }`.
+- [x] `data-print-hide` added to `Sidebar`, `TopBar`, `BottomNav`, and the `Layout` sidebar spacer — attribute only, no behaviour change on screen.
+- [x] i18n: `timeline.hideDone`, `timeline.doneHidden`, `timeline.print`, `timeline.printedOn` added to both dictionaries beside the other `timeline.*` keys.
+- [x] `src/pages/Timeline.test.tsx`: new tests for the default hide (with the count), the absent count when nothing is done, un-ticking the toggle (restores the bars and writes `'false'`), honouring a stored `'false'`, and a smoke test that Print calls a mocked `window.print`.
+- [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings, unchanged), `npx vitest run` 179 tests passing (was 159).

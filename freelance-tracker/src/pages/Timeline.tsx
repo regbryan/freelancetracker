@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Loader2, AlertCircle, X } from 'lucide-react'
+import { Loader2, AlertCircle, X, Printer } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import { useRole } from '../hooks/useWorkspaceRole'
@@ -8,12 +8,13 @@ import TimelineInsight from '../components/TimelineInsight'
 import WorkTabs from '../components/WorkTabs'
 import TimelineGantt from '../components/TimelineGantt'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
-import { diffDays, todayISO, type Zoom } from '../lib/timelineMath'
+import { computeContentRange, diffDays, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
 import { OVERVIEW, quickPickProjects, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
 
 const ZOOMS: Zoom[] = ['week', 'month', 'quarter']
 const ZOOM_KEY = 'timeline.zoom'
+const HIDE_DONE_KEY = 'timeline.hideDone'
 const LAST_PROJECT_KEY = 'timeline.lastProject'
 const REFRESH_MS = 60_000
 /** Focus and visibilitychange often fire together; don't refetch twice for one return. */
@@ -46,6 +47,18 @@ function readZoom(): Zoom {
   }
 }
 
+/**
+ * Done tasks are history, not plan: 122 mostly-finished one-day tasks buried the
+ * handful that still matter, so the filter defaults on and only 'false' turns it off.
+ */
+function readHideDone(): boolean {
+  try {
+    return localStorage.getItem(HIDE_DONE_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
 function readLastProject(): string | null {
   try {
     return localStorage.getItem(LAST_PROJECT_KEY)
@@ -73,7 +86,11 @@ function segmentClass(active: boolean): string {
 function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
   const { t } = useI18n()
   return (
-    <div className="rounded-[16px] text-white relative overflow-hidden" style={{ backgroundColor: '#0a1223', minHeight: '160px' }}>
+    <div
+      data-print-hide
+      className="rounded-[16px] text-white relative overflow-hidden"
+      style={{ backgroundColor: '#0a1223', minHeight: '160px' }}
+    >
       <img
         src="/timeline-hero.webp"
         alt=""
@@ -102,7 +119,7 @@ function TimelineHero({ activeCount, endingSoon }: { activeCount: number; ending
 }
 
 export default function Timeline() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const role = useRole()
   const [searchParams, setSearchParams] = useSearchParams()
   const { projects, loading: projectsLoading, error: projectsError, updateProject } = useProjects()
@@ -118,6 +135,15 @@ export default function Timeline() {
       /* private mode */
     }
   }, [zoom])
+
+  const [hideDone, setHideDone] = useState<boolean>(readHideDone)
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDE_DONE_KEY, String(hideDone))
+    } catch {
+      /* private mode */
+    }
+  }, [hideDone])
 
   // Read storage once. After the first render the URL is the source of truth, and
   // re-reading would let a sibling tab yank this one to a different project.
@@ -189,10 +215,16 @@ export default function Timeline() {
     () => (isOverview ? projects : selectedProject ? [selectedProject] : []),
     [isOverview, projects, selectedProject],
   )
-  const visibleTasks = useMemo(
+  const projectTasks = useMemo(
     () => (isOverview ? [] : tasks.filter((tk) => tk.project_id === selection)),
     [isOverview, tasks, selection],
   )
+  // Overview has no task rows at all, so the filter only ever bites in per-project mode.
+  const visibleTasks = useMemo(
+    () => (hideDone ? projectTasks.filter((tk) => tk.status !== 'done') : projectTasks),
+    [hideDone, projectTasks],
+  )
+  const doneHidden = projectTasks.length - visibleTasks.length
   const quickPicks = useMemo(() => quickPickProjects(projects, selection), [projects, selection])
   const allProjectsByName = useMemo(() => projects.slice().sort((a, b) => a.name.localeCompare(b.name)), [projects])
 
@@ -241,16 +273,37 @@ export default function Timeline() {
     return days >= 0 && days <= 14
   }).length
   const fetchError = projectsError ?? tasksError
+  // Same inputs TimelineGantt feeds computeContentRange, so the printed header names
+  // the range the printed grid actually covers.
+  const printRange = computeContentRange(
+    [
+      ...visibleProjects.flatMap((p) => [p.start_date, p.end_date]),
+      ...visibleTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+    ],
+    today,
+  )
+  const longDate = (iso: string) =>
+    parseDate(iso).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
 
   return (
     <div className="p-6 flex flex-col gap-5">
       <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
-      <WorkTabs />
+      <div data-print-hide>
+        <WorkTabs />
+      </div>
       {/* The insight reasons about the whole business, so it belongs with the whole business. */}
-      {role === 'owner' && isOverview && <TimelineInsight projects={projects} tasks={tasks} />}
+      {role === 'owner' && isOverview && (
+        <div data-print-hide>
+          <TimelineInsight projects={projects} tasks={tasks} />
+        </div>
+      )}
 
       {/* Controls */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div data-print-hide className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex flex-wrap rounded-lg border border-border bg-surface p-0.5 gap-0.5">
             <button
@@ -296,7 +349,27 @@ export default function Timeline() {
             </select>
           </label>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-border bg-surface px-2.5 text-[11px] font-semibold text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+            <input
+              type="checkbox"
+              checked={hideDone}
+              onChange={(e) => setHideDone(e.target.checked)}
+              className="w-3.5 h-3.5 accent-accent cursor-pointer"
+            />
+            {t('timeline.hideDone')}
+          </label>
+          {doneHidden > 0 && (
+            <span className="text-[11px] text-text-muted">{t('timeline.doneHidden', { n: doneHidden })}</span>
+          )}
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-border bg-surface px-2.5 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+          >
+            <Printer size={13} />
+            {t('timeline.print')}
+          </button>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.zoomLabel')}</span>
           <div role="radiogroup" aria-label={t('timeline.zoomLabel')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
             {ZOOMS.map((z) => {
@@ -344,7 +417,17 @@ export default function Timeline() {
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {isOverview && <p className="text-[12px] text-text-muted">{t('timeline.overviewHint')}</p>}
+          {isOverview && <p data-print-hide className="text-[12px] text-text-muted">{t('timeline.overviewHint')}</p>}
+          {/* Screen shows the hero and the switcher; paper gets this instead. */}
+          <div className="hidden print:block">
+            <h2 className="text-[16px] font-bold text-text-primary">
+              {isOverview ? t('timeline.overview') : (selectedProject?.name ?? t('timeline.overview'))}
+            </h2>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              {longDate(printRange.start)} – {longDate(printRange.end)} ·{' '}
+              {t('timeline.printedOn', { date: longDate(today) })}
+            </p>
+          </div>
           <TimelineGantt
             projects={visibleProjects}
             tasks={visibleTasks}
