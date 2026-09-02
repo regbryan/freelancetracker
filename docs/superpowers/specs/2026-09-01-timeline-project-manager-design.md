@@ -522,3 +522,15 @@ no `milestone_id` set):
 
 The prefix→milestone data migration (`supabase_migration_milestones_from_prefixes.sql`)
 has NOT been run; it waits for Reggie's go-ahead after he has seen milestones working.
+
+
+### Prefix backfill run (2026-09-02)
+
+`supabase_migration_milestones_from_prefixes.sql` (owner-scoped to
+`reggie@inspiredideationstrategies.com`, backup table `tasks_prefix_backup_20260902`
+with RLS on and no policies) run once with Reggie's approval after the step-0 preview was
+reviewed. Result: 7 milestones created in "Hubspot/Salesforce Integration & Clean up"
+(SiFive Onboarding, SiFive SOW, Popl->SF, Verify Domain, Lead Automation, Gideon,
+Hubspot Audit; sort_order 0–6 by first date), 52 tasks linked and their titles stripped
+of the bracket, 0 tasks still prefixed, 52 backup rows, task total unchanged at 122.
+Restore statement is in the migration file.
