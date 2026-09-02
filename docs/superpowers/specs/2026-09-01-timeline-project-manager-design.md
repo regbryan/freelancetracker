@@ -159,8 +159,8 @@ added later without changing the table shape.
 |---|---|---|
 | `project_members` | owner manages | ALL: `EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND p.user_id = auth.uid())` |
 | `project_members` | member sees own row | SELECT: `lower(email) = lower(auth.jwt()->>'email')` |
-| `projects` | replace `users_own_projects` | SELECT: `user_id = auth.uid() OR is_project_member(id)`; INSERT/UPDATE/DELETE: `user_id = auth.uid()` (unchanged for writes) |
-| `tasks` | replace `users_own_tasks` | ALL: `user_id = auth.uid() OR is_project_member(project_id)`; WITH CHECK: same expression (a member may insert a task only on a project they belong to) |
+| `projects` | keep `users_own_projects`; add `members_read_projects` | SELECT: `is_project_member(id)`. Writes stay owner-only through the existing ALL policy. |
+| `tasks` | replace `users_own_tasks`; add `members_manage_tasks` | Owner policy (ALL, USING and WITH CHECK): `user_id = auth.uid() OR EXISTS (project owned by auth.uid())`, so tasks a collaborator creates stay visible to the owner. Member policy (ALL, USING and WITH CHECK): `is_project_member(project_id)`. |
 
 `clients`, `time_entries`, `invoices`, `invoice_items`, `expenses`, `communications`,
 `meeting_notes`, `contracts`, gmail tokens: **no change.** The portal views are
