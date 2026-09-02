@@ -114,6 +114,9 @@ describe('Portal', () => {
     // The undated task renders as a plain span, never as a clickable button.
     expect(screen.queryByRole('button', { name: /^Unscheduled kickoff/ })).not.toBeInTheDocument()
     expect(screen.getByText('Unscheduled kickoff').tagName).toBe('SPAN')
+    // Dated task bars are non-interactive too: no click handler is wired up in the portal.
+    expect(screen.queryByRole('button', { name: /Design review/ })).not.toBeInTheDocument()
+    expect(screen.getByText('View only · scroll sideways to see more')).toBeInTheDocument()
   })
 
   it('clicking List shows the cards, hides the gantt, and persists the choice', async () => {
@@ -135,12 +138,13 @@ describe('Portal', () => {
     expect(screen.getByText('Design review').closest('li')).toBeInTheDocument()
   })
 
-  it('shows the empty message with zero projects, without the gantt or list', () => {
+  it('shows the empty message with zero projects, without the gantt, list, or toggle', () => {
     hooks.projects = []
     hooks.tasks = []
     renderPage()
 
     expect(screen.getByText(/no projects/i)).toBeInTheDocument()
     expect(screen.queryByTestId('gantt-scroll')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 })

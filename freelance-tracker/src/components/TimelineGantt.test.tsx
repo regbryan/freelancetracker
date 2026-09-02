@@ -84,11 +84,14 @@ describe('TimelineGantt render', () => {
   })
 
   it('read-only mode renders no resize handles and ignores chip clicks', () => {
-    setup({ editable: false })
+    // No onTaskClick either: this is the shape the read-only portal renders in.
+    setup({ editable: false, onTaskClick: undefined })
     expect(document.querySelectorAll('[data-edge]')).toHaveLength(0)
     // The chip is not a disabled button, it is not a button at all.
     expect(screen.queryByRole('button', { name: 'Launch plan' })).toBeNull()
     expect(screen.getByText('Launch plan')).toBeInTheDocument()
+    // The task bar itself is not a button either when there is nothing to activate.
+    expect(screen.queryByRole('button', { name: /Brand audit/ })).toBeNull()
   })
 
   it('week zoom draws day numbers and weekend shading', () => {
@@ -174,8 +177,9 @@ describe('TimelineGantt drag', () => {
   })
 
   it('read-only mode never calls onTaskDates on drag', () => {
-    const { onTaskDates } = setup({ editable: false })
-    const el = bar()
+    // No onTaskClick either, so the bar renders as a non-interactive role="img", not a button.
+    const { onTaskDates } = setup({ editable: false, onTaskClick: undefined })
+    const el = screen.getByTitle(/Brand audit/)
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
     fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })

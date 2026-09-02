@@ -118,9 +118,15 @@ export default function Portal() {
       <h1 className="text-text-primary text-[18px] font-bold mb-1">
         {t('portal.greeting', { name: clients[0].name })}
       </h1>
-      <div className="flex items-center justify-between gap-3 mb-5">
+      {ordered.length === 0 ? (
+        <div className="bg-surface rounded-[14px] shadow-card p-8 text-center text-text-muted text-[13px]">
+          {t('portal.noProjects')}
+        </div>
+      ) : (
+      <>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('portal.yourProjects')}</p>
-        <div role="radiogroup" aria-label={t('portal.yourProjects')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+        <div role="radiogroup" aria-label={t('portal.viewLabel')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
           {(['timeline', 'list'] as const).map((v) => {
             const active = v === view
             return (
@@ -140,18 +146,13 @@ export default function Portal() {
         </div>
       </div>
 
-      {ordered.length === 0 && (
-        <div className="bg-surface rounded-[14px] shadow-card p-8 text-center text-text-muted text-[13px]">
-          {t('portal.noProjects')}
-        </div>
-      )}
-
-      {ordered.length > 0 && view === 'timeline' && (
+      {view === 'timeline' && (
         <TimelineGantt
           projects={ordered.map((p) => ({ id: p.id, name: p.name, status: p.status, start_date: p.start_date, end_date: p.end_date }))}
           tasks={tasks.map((tk) => ({ id: tk.id, project_id: tk.project_id, title: tk.title, status: tk.status, start_date: tk.start_date, due_date: tk.due_date }))}
           zoom="month"
           editable={false}
+          labelWidth={150}
         />
       )}
 
@@ -216,6 +217,8 @@ export default function Portal() {
           )
         })}
       </div>
+      )}
+      </>
       )}
     </PortalLayout>
   )

@@ -490,6 +490,7 @@ const en: Dict = {
   'timeline.empty': 'No projects yet. Create a project to start planning.',
   'timeline.saveFailed': 'Could not save dates: {error}',
   'timeline.dragHint': 'Drag a bar to move it · drag an edge to change its length · click to edit',
+  'timeline.readOnlyHint': 'View only · scroll sideways to see more',
   'timeline.editTask': 'Edit task',
 
   // Time Tracker
@@ -564,6 +565,7 @@ const en: Dict = {
   'portal.greeting': 'Welcome, {name}',
   'portal.viewTimeline': 'Timeline',
   'portal.viewList': 'List',
+  'portal.viewLabel': 'View',
 
   // Collaborators
   'collab.title': 'Collaborators',
@@ -2009,6 +2011,7 @@ const es: Dict = {
   'timeline.empty': 'Aún no hay proyectos. Crea un proyecto para empezar a planificar.',
   'timeline.saveFailed': 'No se pudieron guardar las fechas: {error}',
   'timeline.dragHint': 'Arrastra una barra para moverla · arrastra un borde para cambiar su duración · haz clic para editar',
+  'timeline.readOnlyHint': 'Solo lectura · desplázate hacia los lados para ver más',
   'timeline.editTask': 'Editar tarea',
 
   // Time Tracker
@@ -2083,6 +2086,7 @@ const es: Dict = {
   'portal.greeting': 'Bienvenido, {name}',
   'portal.viewTimeline': 'Cronología',
   'portal.viewList': 'Lista',
+  'portal.viewLabel': 'Vista',
 
   // Collaborators
   'collab.title': 'Colaboradores',

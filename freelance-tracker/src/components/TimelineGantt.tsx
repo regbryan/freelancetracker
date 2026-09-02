@@ -61,6 +61,8 @@ export interface TimelineGanttProps {
   onScheduleTask?: (id: string, dates: TaskDates) => Promise<void>
   /** Fixes "today" for deterministic tests. */
   today?: string
+  /** Width of the sticky project/task label column. Defaults to LABEL_W. */
+  labelWidth?: number
 }
 
 export const LABEL_W = 220
@@ -120,15 +122,17 @@ function TrackBg({
   todayLeft,
   px,
   width,
+  labelWidth,
 }: {
   weekends: { offsetDays: number; days: number }[]
   months: Tick[]
   todayLeft: number
   px: number
   width: number
+  labelWidth: number
 }) {
   return (
-    <div className="absolute z-0 pointer-events-none" style={{ left: LABEL_W, top: 0, height: '100%', width }}>
+    <div className="absolute z-0 pointer-events-none" style={{ left: labelWidth, top: 0, height: '100%', width }}>
       {weekends.map((w) => (
         <div
           key={w.offsetDays}
@@ -156,6 +160,7 @@ export default function TimelineGantt({
   onTaskClick,
   onScheduleTask,
   today: todayProp,
+  labelWidth = LABEL_W,
 }: TimelineGanttProps) {
   const { t, lang } = useI18n()
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
@@ -197,8 +202,8 @@ export default function TimelineGantt({
     if (!el) return
     if (lastZoomRef.current === zoom) return
     lastZoomRef.current = zoom
-    el.scrollLeft = Math.max(0, todayLeft - Math.max(0, el.clientWidth - LABEL_W) * 0.25)
-  }, [zoom, todayLeft])
+    el.scrollLeft = Math.max(0, todayLeft - Math.max(0, el.clientWidth - labelWidth) * 0.25)
+  }, [zoom, todayLeft, labelWidth])
 
   // Escape cancels an in-progress drag.
   useEffect(() => {
@@ -353,12 +358,12 @@ export default function TimelineGantt({
         tabIndex={0}
         aria-label={t('timeline.projectTask')}
       >
-        <div style={{ width: LABEL_W + trackW }}>
+        <div style={{ width: labelWidth + trackW }}>
           {/* Header */}
           <div className="flex border-b border-border bg-input-bg/60">
             <div
               className="sticky left-0 z-10 bg-input-bg shrink-0 border-r border-border px-4 py-2.5"
-              style={{ width: LABEL_W, minWidth: LABEL_W }}
+              style={{ width: labelWidth, minWidth: labelWidth }}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.projectTask')}</span>
             </div>
@@ -384,7 +389,7 @@ export default function TimelineGantt({
 
           {/* Rows. One background layer sits behind them all. */}
           <div className="relative">
-            <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} />
+            <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} labelWidth={labelWidth} />
             {projects.map((project) => {
             const projectTasks = tasks.filter((tk) => tk.project_id === project.id)
             const dated = projectTasks
@@ -404,7 +409,7 @@ export default function TimelineGantt({
                 <div className="flex items-stretch hover:bg-input-bg/30 transition-colors group">
                   <div
                     className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-3 flex items-center gap-2 min-w-0"
-                    style={{ width: LABEL_W, minWidth: LABEL_W }}
+                    style={{ width: labelWidth, minWidth: labelWidth }}
                   >
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <span className="text-[12px] font-semibold text-text-primary truncate">{project.name}</span>
@@ -419,8 +424,8 @@ export default function TimelineGantt({
                         onPointerUp={endDrag}
                         onPointerCancel={cancelDrag}
                         onLostPointerCapture={cancelDrag}
-                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none touch-none ${
-                          editable && canEditProjects ? 'cursor-grab' : ''
+                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none ${
+                          editable && canEditProjects ? 'touch-none cursor-grab' : ''
                         } ${projectDragging ? 'ring-2 ring-accent/40' : ''}`}
                         style={{ left: projectGeom.left, width: projectGeom.width, backgroundColor: color + '22', border: `2px solid ${color}` }}
                         title={`${project.name}: ${fmt(projectRange.start)} – ${fmt(projectRange.end)}`}
@@ -455,50 +460,66 @@ export default function TimelineGantt({
                   const showLabel = geom.width >= 24
                   const colors = TASK_STATUS_COLORS[task.status] ?? TASK_STATUS_COLORS.todo
                   const dragging = isDragging('task', task.id)
+                  // Read-only with no click handler: nothing to activate, so it must not be a button.
+                  const interactive = editable || Boolean(onTaskClick)
+                  const barLabel = `${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`
+                  const barClassName = `absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left ${
+                    editable ? 'touch-none cursor-grab' : 'cursor-default'
+                  } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
+                  const barStyle = { left: geom.left, width: geom.width, backgroundColor: colors.bg, border: `1.5px solid ${colors.border}` }
+                  const barChildren = (
+                    <>
+                      {editable && (
+                        <>
+                          <span data-edge="start" className="absolute left-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
+                          <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
+                        </>
+                      )}
+                      {dragging && (
+                        <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                          {fmt(r.start)} – {fmt(r.end)}
+                        </span>
+                      )}
+                      {showLabel && (
+                        <span className="min-w-0 flex-1 overflow-hidden">
+                          <span className="block text-[9px] font-medium truncate pointer-events-none" style={{ color: colors.border }}>
+                            {task.title}
+                          </span>
+                        </span>
+                      )}
+                    </>
+                  )
                   return (
                     <div key={task.id} className="flex items-stretch hover:bg-input-bg/20 transition-colors">
                       <div
                         className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center gap-2 min-w-0"
-                        style={{ width: LABEL_W, minWidth: LABEL_W }}
+                        style={{ width: labelWidth, minWidth: labelWidth }}
                       >
                         <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-border" />
                         <span className="text-[11px] text-text-secondary truncate">{task.title}</span>
                       </div>
                       <div className="relative h-8" style={{ width: trackW }}>
-                        <button
-                          type="button"
-                          aria-label={`${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`}
-                          onPointerDown={(e) => beginDrag(e, 'task', task.id, r)}
-                          onPointerMove={moveDrag}
-                          onPointerUp={endDrag}
-                          onPointerCancel={cancelDrag}
-                          onLostPointerCapture={cancelDrag}
-                          onClick={(e) => onBarClick(e, 'task', task.id)}
-                          className={`absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left touch-none ${
-                            editable ? 'cursor-grab' : 'cursor-default'
-                          } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}
-                          style={{ left: geom.left, width: geom.width, backgroundColor: colors.bg, border: `1.5px solid ${colors.border}` }}
-                          title={`${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`}
-                        >
-                          {editable && (
-                            <>
-                              <span data-edge="start" className="absolute left-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
-                              <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
-                            </>
-                          )}
-                          {dragging && (
-                            <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
-                              {fmt(r.start)} – {fmt(r.end)}
-                            </span>
-                          )}
-                          {showLabel && (
-                            <span className="min-w-0 flex-1 overflow-hidden">
-                              <span className="block text-[9px] font-medium truncate pointer-events-none" style={{ color: colors.border }}>
-                                {task.title}
-                              </span>
-                            </span>
-                          )}
-                        </button>
+                        {interactive ? (
+                          <button
+                            type="button"
+                            aria-label={barLabel}
+                            onPointerDown={(e) => beginDrag(e, 'task', task.id, r)}
+                            onPointerMove={moveDrag}
+                            onPointerUp={endDrag}
+                            onPointerCancel={cancelDrag}
+                            onLostPointerCapture={cancelDrag}
+                            onClick={(e) => onBarClick(e, 'task', task.id)}
+                            className={barClassName}
+                            style={barStyle}
+                            title={barLabel}
+                          >
+                            {barChildren}
+                          </button>
+                        ) : (
+                          <div role="img" aria-label={barLabel} className={barClassName} style={barStyle} title={barLabel}>
+                            {barChildren}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -509,13 +530,13 @@ export default function TimelineGantt({
                   <div className="flex items-stretch" data-testid="tray">
                     <div
                       className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center min-w-0"
-                      style={{ width: LABEL_W, minWidth: LABEL_W }}
+                      style={{ width: labelWidth, minWidth: labelWidth }}
                     >
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted truncate">
                         {t('timeline.notScheduled', { n: undated.length })}
                       </span>
                     </div>
-                    <div className="sticky z-10 flex items-center gap-1.5 px-2 py-1.5 flex-wrap" style={{ left: LABEL_W }}>
+                    <div className="sticky z-10 flex items-center gap-1.5 px-2 py-1.5 flex-wrap" style={{ left: labelWidth }}>
                       {undated.map((task) =>
                         editable ? (
                           <button
@@ -573,9 +594,9 @@ export default function TimelineGantt({
           <div className="w-0.5 h-4 bg-accent/60" />
           <span className="text-[11px] text-text-secondary">{t('timeline.today')}</span>
         </div>
-        {editable && (
-          <span className="ml-auto text-[10px] text-text-muted hidden md:inline">{t('timeline.dragHint')}</span>
-        )}
+        <span className="ml-auto text-[10px] text-text-muted hidden md:inline">
+          {editable ? t('timeline.dragHint') : t('timeline.readOnlyHint')}
+        </span>
       </div>
     </div>
   )
