@@ -83,6 +83,7 @@ function makeTask(over: Partial<Task> = {}): Task {
     start_date: '2026-09-10',
     due_date: '2026-09-12',
     meeting_note_id: null,
+    milestone_id: null,
     assignee: 'owner',
     created_at: '2026-08-01T00:00:00Z',
     updated_at: '2026-08-01T00:00:00Z',

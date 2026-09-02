@@ -11,13 +11,15 @@ export interface Task {
   start_date: string | null;
   due_date: string | null;
   meeting_note_id: string | null;
+  milestone_id: string | null;
   assignee: string;
   created_at: string;
   updated_at: string;
 }
 
-export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'start_date'> & {
+export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'start_date' | 'milestone_id'> & {
   start_date?: string | null;
+  milestone_id?: string | null;
 };
 export type TaskUpdate = Partial<TaskInsert>;
 

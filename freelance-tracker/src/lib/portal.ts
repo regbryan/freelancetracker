@@ -25,6 +25,16 @@ export interface PortalTask {
   start_date: string | null
   due_date: string | null
   updated_at: string | null
+  milestone_id: string | null
+}
+
+export interface PortalMilestone {
+  id: string
+  project_id: string
+  name: string
+  start_date: string | null
+  end_date: string | null
+  sort_order: number
 }
 
 export interface GroupedTasks {

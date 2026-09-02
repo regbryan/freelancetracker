@@ -59,6 +59,7 @@ function task(over: Partial<PortalTask> = {}): PortalTask {
     start_date: '2026-09-05',
     due_date: '2026-09-10',
     updated_at: null,
+    milestone_id: null,
     ...over,
   }
 }

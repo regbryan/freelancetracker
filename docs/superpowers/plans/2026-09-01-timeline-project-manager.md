@@ -2478,3 +2478,26 @@ live ones; and there was no way to put the plan on paper or in front of a client
 - [x] i18n: `timeline.hideDone`, `timeline.doneHidden`, `timeline.print`, `timeline.printedOn` added to both dictionaries beside the other `timeline.*` keys.
 - [x] `src/pages/Timeline.test.tsx`: new tests for the default hide (with the count), the absent count when nothing is done, un-ticking the toggle (restores the bars and writes `'false'`), honouring a stored `'false'`, and a smoke test that Print calls a mocked `window.print`.
 - [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings, unchanged), `npx vitest run` 179 tests passing (was 159).
+
+### Task 14: Milestones layer
+
+Started 2026-09-02 after the owner's visual review, using Milestones PM+ as the reference:
+Projects → Milestones → Tasks, a Gantt drawn at milestone level with tasks nested and
+collapsed by default, shared by print/PDF and the client portal. The owner's data already
+encodes phases as bracketed title prefixes (52 of 122 tasks, 7 distinct prefixes in one
+project), so a one-time backfill turns those prefixes into real milestones and strips them
+from the titles. Spec: "Revision 2026-09-02 (b) — Milestones layer" in the design doc.
+Four steps; the migrations are files only — Reggie applies them after reviewing.
+
+- [x] **Step 1 — schema, portal view, types, hook, helpers.**
+  - [x] `supabase_migration_milestones.sql`: `public.milestones` (project cascade, `user_id` defaulting to `auth.uid()`, non-blank name, optional ordered dates, `sort_order`, timestamps), `tasks.milestone_id → milestones(id) ON DELETE SET NULL`, indexes `idx_tasks_milestone_id` and `idx_milestones_project_sort`, RLS with `owner_manages_milestones` + `members_manage_milestones` and deliberately no `auth.uid() = user_id` clause (same lesson as the tasks policies), the new definer view `portal_milestones`, `portal_tasks` recreated with `milestone_id` appended last, and the grants. No `updated_at` trigger: the repo has no such function, so the app sets the column.
+  - [x] `supabase_migration_milestones_from_prefixes.sql`: one-time, owner-run backfill — a milestone per `(project, ^[prefix])` group with the group's min/max task dates and its rank as `sort_order`, then the tasks linked and their prefixes stripped, ending in a SELECT reporting milestones, linked tasks, and any task still prefixed.
+  - [x] `src/hooks/useTasks.ts`: `Task.milestone_id`, optional in `TaskInsert`.
+  - [x] `src/hooks/useMilestones.ts`: `Milestone` / `MilestoneInsert` / `MilestoneUpdate` and `useMilestones(projectId?)` — ordered by `sort_order` then `start_date`, all milestones when no project id, `isCancelled` guard, PGRST205 treated as an empty list, `updateMilestone` sending `updated_at` and replacing the returned row, `deleteMilestone` using `.select('id')` and throwing `'failed'` on an empty result.
+  - [x] `src/lib/milestones.ts`: `milestoneRange`, `milestoneProgress`, `groupTasksByMilestone`, `sortMilestones` — pure, structural types so both `Task` and `PortalTask` fit.
+  - [x] `src/lib/portal.ts` + `src/hooks/usePortalData.ts`: `PortalMilestone`, `PortalTask.milestone_id`, and a fourth read of `portal_milestones` whose PGRST205 is swallowed so the portal keeps working before the migration.
+  - [x] Tests: `src/lib/milestones.test.ts` (11) and `src/hooks/useMilestones.test.ts` (6, mocked query builder).
+  - [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings, unchanged), `npx vitest run` 196 tests passing (was 179).
+- [ ] **Step 2 — Gantt.** `milestones` prop, milestone rows with chevron, `done/total` and a progress-filled bar spanning its own dates or its tasks' extent, tasks nested one level and collapsed by default, "Unassigned" group only when the project has milestones, drag/resize when editable, Overview diamonds at milestone end dates, hide-done still hides tasks only.
+- [ ] **Step 3 — page and forms.** "+ Milestone" button and dialog (name, start, end, delete) on `/timeline`, expansion state per project in `localStorage['timeline.expanded.<projectId>']`, `TaskForm` milestone select passed from the Timeline page, i18n keys in both dictionaries.
+- [ ] **Step 4 — portal, print, and the prefix migration.** Portal Gantt renders milestones read-only with working collapse, print reflects what is displayed, then Reggie applies both migrations and the backfill is verified against the real data.
