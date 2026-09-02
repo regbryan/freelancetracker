@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock } from 'lucide-react'
+import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock, GanttChartSquare } from 'lucide-react'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useProject, useProjects } from '../hooks/useProjects'
 import { useClients } from '../hooks/useClients'
@@ -335,6 +335,13 @@ export default function ProjectDetail() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to={`/timeline?project=${project.id}`}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
+            >
+              <GanttChartSquare size={12} />
+              {t('projectDetail.openTimeline')}
+            </Link>
             <button
               onClick={() => setProjectFormOpen(true)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"

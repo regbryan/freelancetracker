@@ -9,8 +9,11 @@ import {
   Calendar,
   Plus,
   Mail,
+  GanttChartSquare,
+  CheckSquare,
 } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 // Consolidated nav (was 12 items, now 7):
 // - "Work" rolls up Tasks + Timeline + Time Tracker
@@ -28,11 +31,16 @@ const navItems: NavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/clients', labelKey: 'nav.clients', label: 'Clients', icon: Users },
   { to: '/projects', labelKey: 'nav.projects', label: 'Projects', icon: FolderKanban },
-  { to: '/tasks', label: 'Work', icon: Briefcase, matchAny: ['/tasks', '/timeline', '/time'] },
+  { to: '/timeline', label: 'Work', icon: Briefcase, matchAny: ['/tasks', '/timeline', '/time'] },
   { to: '/meetings', labelKey: 'nav.meetings', label: 'Meetings', icon: BookOpen },
   { to: '/calendar', labelKey: 'nav.calendar', label: 'Calendar', icon: Calendar },
   { to: '/emails', labelKey: 'nav.emails', label: 'Emails', icon: Mail },
   { to: '/invoices', label: 'Billing', icon: Wallet, matchAny: ['/invoices', '/contracts', '/expenses'] },
+]
+
+const collaboratorItems: NavItem[] = [
+  { to: '/timeline', labelKey: 'nav.timeline', label: 'Timeline', icon: GanttChartSquare },
+  { to: '/tasks', labelKey: 'nav.tasks', label: 'Tasks', icon: CheckSquare },
 ]
 
 interface SidebarProps {
@@ -44,6 +52,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { t } = useI18n()
+  const role = useRole()
+  const items = role === 'collaborator' ? collaboratorItems : navItems
 
   return (
     <aside
@@ -72,7 +82,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex flex-col gap-0.5 px-2.5 pt-3 flex-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = item.to === '/'
             ? location.pathname === '/'
             : item.matchAny
@@ -101,17 +111,19 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </nav>
 
       {/* Quick Create */}
-      <div className="px-2.5 pb-4 pt-2 mt-auto border-t border-sidebar-border">
-        <button
-          onClick={() => { navigate('/projects?new=1'); onClose(); }}
-          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] text-text-nav hover:text-white hover:bg-white/10 transition-all group"
-        >
-          <div className="w-5 h-5 rounded-md bg-white/10 group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all">
-            <Plus size={12} />
-          </div>
-          <span className="font-medium">{t('nav.newProject')}</span>
-        </button>
-      </div>
+      {role !== 'collaborator' && (
+        <div className="px-2.5 pb-4 pt-2 mt-auto border-t border-sidebar-border">
+          <button
+            onClick={() => { navigate('/projects?new=1'); onClose(); }}
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] text-text-nav hover:text-white hover:bg-white/10 transition-all group"
+          >
+            <div className="w-5 h-5 rounded-md bg-white/10 group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all">
+              <Plus size={12} />
+            </div>
+            <span className="font-medium">{t('nav.newProject')}</span>
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

@@ -1,16 +1,18 @@
 import { NavLink } from 'react-router-dom'
 import { CheckSquare, GanttChartSquare, Clock } from 'lucide-react'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 /**
  * Shared sub-nav for the consolidated "Work" surface.
- * Mounted at the top of /tasks, /timeline, and /time so users can
- * flip between the three views without going back to the sidebar.
+ * Mounted at the top of /timeline, /tasks, and /time. Timeline comes first
+ * because it is the planning home; collaborators never see the Timer.
  */
 export default function WorkTabs() {
+  const role = useRole()
   const tabs = [
-    { to: '/tasks', label: 'List', icon: CheckSquare },
     { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
-    { to: '/time', label: 'Timer', icon: Clock },
+    { to: '/tasks', label: 'List', icon: CheckSquare },
+    ...(role === 'collaborator' ? [] : [{ to: '/time', label: 'Timer', icon: Clock }]),
   ]
   return (
     <div className="flex items-center gap-1 border-b border-border -mb-px">
@@ -29,9 +31,7 @@ export default function WorkTabs() {
             <>
               <t.icon size={13} strokeWidth={isActive ? 2 : 1.5} />
               {t.label}
-              {isActive && (
-                <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />
-              )}
+              {isActive && <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-accent rounded-full" />}
             </>
           )}
         </NavLink>
