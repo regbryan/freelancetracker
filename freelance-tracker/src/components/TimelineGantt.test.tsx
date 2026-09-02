@@ -88,3 +88,105 @@ describe('TimelineGantt render', () => {
     expect(screen.getAllByText('1').length).toBeGreaterThan(0)
   })
 })
+
+describe('TimelineGantt drag', () => {
+  const px = PX_PER_DAY.month
+
+  function bar() {
+    return screen.getByRole('button', { name: /Brand audit/ })
+  }
+
+  it('dragging a bar 3 days right saves both dates shifted by 3', async () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-13', due_date: '2026-09-15' })
+  })
+
+  it('dragging the end handle changes only the due date', () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    const endHandle = el.querySelector('[data-edge="end"]')!
+    fireEvent.pointerDown(endHandle, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 2 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 2 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-10', due_date: '2026-09-14' })
+  })
+
+  it('dragging the start handle past the end clamps to a one-day bar', () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    const startHandle = el.querySelector('[data-edge="start"]')!
+    fireEvent.pointerDown(startHandle, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 10 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 10 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-12', due_date: '2026-09-12' })
+  })
+
+  it('a movement under 3px is a click and opens the task instead of saving', () => {
+    const { onTaskDates, onTaskClick } = setup()
+    const el = bar()
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 102, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 102, pointerId: 1 })
+    expect(onTaskDates).not.toHaveBeenCalled()
+    expect(onTaskClick).toHaveBeenCalledWith('t1')
+  })
+
+  it('Escape during a drag cancels without saving and restores the position', () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    const before = el.style.left
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 5 * px, pointerId: 1 })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.pointerUp(el, { clientX: 100 + 5 * px, pointerId: 1 })
+    expect(onTaskDates).not.toHaveBeenCalled()
+    expect(bar().style.left).toBe(before)
+  })
+
+  it('reverts to the original position when the save rejects', async () => {
+    const onTaskDates = vi.fn().mockRejectedValue(new Error('RLS denied'))
+    setup({ onTaskDates })
+    const el = bar()
+    const before = el.style.left
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalled()
+    await screen.findByRole('button', { name: /Brand audit/ }) // flush microtasks
+    await new Promise((r) => setTimeout(r, 0))
+    expect(bar().style.left).toBe(before)
+  })
+
+  it('read-only mode never calls onTaskDates on drag', () => {
+    const { onTaskDates } = setup({ editable: false })
+    const el = bar()
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onTaskDates).not.toHaveBeenCalled()
+  })
+
+  it('project bars only drag when canEditProjects is true', () => {
+    const onProjectDates = vi.fn().mockResolvedValue(undefined)
+    setup({ onProjectDates, canEditProjects: false })
+    const el = screen.getByTitle(/ProSeries Marketing:/)
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onProjectDates).not.toHaveBeenCalled()
+  })
+
+  it('project bars drag when canEditProjects is true', () => {
+    const onProjectDates = vi.fn().mockResolvedValue(undefined)
+    setup({ onProjectDates, canEditProjects: true })
+    const el = screen.getByTitle(/ProSeries Marketing:/)
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onProjectDates).toHaveBeenCalledWith('p1', { start_date: '2026-09-04', end_date: '2026-11-03' })
+  })
+})
