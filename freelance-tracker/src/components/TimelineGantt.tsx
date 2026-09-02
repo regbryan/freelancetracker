@@ -186,12 +186,17 @@ export default function TimelineGantt({
   >({})
   const seqRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const lastZoomRef = useRef<Zoom | null>(null)
   const dragActive = drag !== null
 
   // Scroll so today sits ~25% from the left of the track on mount and zoom change.
+  // A refetch can shift range.start (and so todayLeft) without the user asking for
+  // anything; re-running then would yank the viewport back mid-read.
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    if (lastZoomRef.current === zoom) return
+    lastZoomRef.current = zoom
     el.scrollLeft = Math.max(0, todayLeft - Math.max(0, el.clientWidth - LABEL_W) * 0.25)
   }, [zoom, todayLeft])
 
