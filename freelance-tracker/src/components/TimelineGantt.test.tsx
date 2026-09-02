@@ -76,15 +76,19 @@ describe('TimelineGantt render', () => {
   })
 
   it('read-only mode renders no resize handles and ignores chip clicks', () => {
-    const { onScheduleTask } = setup({ editable: false })
+    setup({ editable: false })
     expect(document.querySelectorAll('[data-edge]')).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: 'Launch plan' }))
-    expect(onScheduleTask).not.toHaveBeenCalled()
+    // The chip is not a disabled button, it is not a button at all.
+    expect(screen.queryByRole('button', { name: 'Launch plan' })).toBeNull()
+    expect(screen.getByText('Launch plan')).toBeInTheDocument()
   })
 
   it('week zoom draws day numbers and weekend shading', () => {
     setup({ zoom: 'week' })
-    expect(document.querySelectorAll('[data-testid="weekend"]').length).toBeGreaterThan(0)
+    const weekends = document.querySelectorAll('[data-testid="weekend"]')
+    expect(weekends.length).toBeGreaterThan(0)
+    // bg-input-bg is white on a white surface, i.e. invisible shading.
+    expect(weekends[0]).toHaveClass('bg-bg/70')
     expect(screen.getAllByText('1').length).toBeGreaterThan(0)
   })
 })
@@ -100,7 +104,7 @@ describe('TimelineGantt drag', () => {
     const { onTaskDates } = setup()
     const el = bar()
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-13', due_date: '2026-09-15' })
   })
@@ -110,7 +114,7 @@ describe('TimelineGantt drag', () => {
     const el = bar()
     const endHandle = el.querySelector('[data-edge="end"]')!
     fireEvent.pointerDown(endHandle, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 2 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 2 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 2 * px, pointerId: 1 })
     expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-10', due_date: '2026-09-14' })
   })
@@ -120,7 +124,7 @@ describe('TimelineGantt drag', () => {
     const el = bar()
     const startHandle = el.querySelector('[data-edge="start"]')!
     fireEvent.pointerDown(startHandle, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 10 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 10 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 10 * px, pointerId: 1 })
     expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-12', due_date: '2026-09-12' })
   })
@@ -129,7 +133,7 @@ describe('TimelineGantt drag', () => {
     const { onTaskDates, onTaskClick } = setup()
     const el = bar()
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 102, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 102, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 102, pointerId: 1 })
     expect(onTaskDates).not.toHaveBeenCalled()
     expect(onTaskClick).toHaveBeenCalledWith('t1')
@@ -140,7 +144,7 @@ describe('TimelineGantt drag', () => {
     const el = bar()
     const before = el.style.left
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 5 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 5 * px, pointerId: 1, buttons: 1 })
     fireEvent.keyDown(window, { key: 'Escape' })
     fireEvent.pointerUp(el, { clientX: 100 + 5 * px, pointerId: 1 })
     expect(onTaskDates).not.toHaveBeenCalled()
@@ -153,7 +157,7 @@ describe('TimelineGantt drag', () => {
     const el = bar()
     const before = el.style.left
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(onTaskDates).toHaveBeenCalled()
     await screen.findByRole('button', { name: /Brand audit/ }) // flush microtasks
@@ -165,7 +169,7 @@ describe('TimelineGantt drag', () => {
     const { onTaskDates } = setup({ editable: false })
     const el = bar()
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(onTaskDates).not.toHaveBeenCalled()
   })
@@ -175,7 +179,7 @@ describe('TimelineGantt drag', () => {
     setup({ onProjectDates, canEditProjects: false })
     const el = screen.getByTitle(/ProSeries Marketing:/)
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(onProjectDates).not.toHaveBeenCalled()
   })
@@ -185,8 +189,85 @@ describe('TimelineGantt drag', () => {
     setup({ onProjectDates, canEditProjects: true })
     const el = screen.getByTitle(/ProSeries Marketing:/)
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
-    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(onProjectDates).toHaveBeenCalledWith('p1', { start_date: '2026-09-04', end_date: '2026-11-03' })
+  })
+
+  it('a cancelled pointer does not keep dragging on later hover', () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    const before = el.style.left
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 2 * px, pointerId: 1, buttons: 1 })
+    expect(bar().style.left).not.toBe(before)
+    fireEvent.pointerCancel(el, { pointerId: 1 })
+    expect(bar().style.left).toBe(before)
+    // A later hover (no button held) must not resume the abandoned drag.
+    fireEvent.pointerMove(el, { clientX: 100 + 9 * px, pointerId: 1 })
+    fireEvent.pointerUp(el, { clientX: 100 + 9 * px, pointerId: 1 })
+    expect(onTaskDates).not.toHaveBeenCalled()
+    expect(bar().style.left).toBe(before)
+  })
+
+  it('two rapid drags on the same bar accumulate and only the failing one reverts', async () => {
+    const { onTaskDates } = setup()
+    const before = parseFloat(bar().style.left)
+    fireEvent.pointerDown(bar(), { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar(), { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar(), { clientX: 100 + 3 * px, pointerId: 1 })
+    fireEvent.pointerDown(bar(), { clientX: 500, button: 0, pointerId: 2 })
+    fireEvent.pointerMove(bar(), { clientX: 500 + 2 * px, pointerId: 2, buttons: 1 })
+    fireEvent.pointerUp(bar(), { clientX: 500 + 2 * px, pointerId: 2 })
+    // The second drag starts from the optimistic position, not from the stale props.
+    expect(onTaskDates.mock.calls).toEqual([
+      ['t1', { start_date: '2026-09-13', due_date: '2026-09-15' }],
+      ['t1', { start_date: '2026-09-15', due_date: '2026-09-17' }],
+    ])
+    await screen.findByRole('button', { name: /Brand audit/ })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(bar().style.left).toBe(`${before + 5 * px}px`)
+  })
+
+  it('a successful save keeps the bar in place while props are unchanged', async () => {
+    const { onTaskDates } = setup()
+    const before = parseFloat(bar().style.left)
+    fireEvent.pointerDown(bar(), { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar(), { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar(), { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalled()
+    await screen.findByRole('button', { name: /Brand audit/ })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(bar().style.left).toBe(`${before + 3 * px}px`)
+  })
+
+  it('a second pointer cannot hijack an active drag', () => {
+    const { onTaskDates, onTaskClick } = setup()
+    const el = bar()
+    const other = screen.getByRole('button', { name: /Kickoff/ })
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 5 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerDown(other, { clientX: 300, button: 0, pointerId: 2 })
+    fireEvent.pointerUp(other, { clientX: 300, pointerId: 2 })
+    expect(onTaskClick).not.toHaveBeenCalledWith('t3')
+    // The foreign pointer must not commit our drag either; only pointer 1 ends it.
+    expect(onTaskDates).not.toHaveBeenCalled()
+    fireEvent.pointerUp(el, { clientX: 100 + 5 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-15', due_date: '2026-09-17' })
+  })
+
+  it('the live range label appears above the bar only while dragging', () => {
+    setup()
+    const el = bar()
+    expect(screen.queryByText('Sep 13 – Sep 15')).toBeNull()
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    expect(screen.getByText('Sep 13 – Sep 15')).toBeInTheDocument()
+    // The bar's own text stays the title so it is still identifiable mid-drag.
+    expect(el).toHaveTextContent('Brand audit')
+    // A one-day bar is 12px wide, too narrow for a title.
+    expect(screen.getByRole('button', { name: /Kickoff/ }).textContent).toBe('')
+    fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(screen.queryByText('Sep 13 – Sep 15')).toBeNull()
   })
 })

@@ -84,6 +84,7 @@ type DragState = {
   kind: 'task' | 'project'
   id: string
   mode: 'move' | 'start' | 'end'
+  pointerId: number
   originX: number
   orig: DateRange
   current: DateRange
@@ -94,35 +95,38 @@ function keyOf(kind: 'task' | 'project', id: string): string {
   return `${kind}:${id}`
 }
 
-/** Weekend shading, month gridlines, and the today line behind a row's bars. Top-level so it is a stable component. */
+/**
+ * Weekend shading, month gridlines, and the today line. Rendered ONCE behind every row
+ * as a full-height layer, not per row. Top-level so it is a stable component.
+ */
 function TrackBg({
-  height,
   weekends,
   months,
   todayLeft,
   px,
+  width,
 }: {
-  height: number
   weekends: { offsetDays: number; days: number }[]
   months: Tick[]
   todayLeft: number
   px: number
+  width: number
 }) {
   return (
-    <>
+    <div className="absolute z-0 pointer-events-none" style={{ left: LABEL_W, top: 0, height: '100%', width }}>
       {weekends.map((w) => (
         <div
           key={w.offsetDays}
           data-testid="weekend"
-          className="absolute top-0 bg-input-bg/60"
-          style={{ left: w.offsetDays * px, width: w.days * px, height }}
+          className="absolute top-0 bg-bg/70"
+          style={{ left: w.offsetDays * px, width: w.days * px, height: '100%' }}
         />
       ))}
       {months.map((tick) => (
-        <div key={tick.iso} className="absolute top-0 w-px bg-border/30" style={{ left: tick.offsetDays * px, height }} />
+        <div key={tick.iso} className="absolute top-0 w-px bg-border/30" style={{ left: tick.offsetDays * px, height: '100%' }} />
       ))}
-      <div className="absolute top-0 w-0.5 bg-accent/20" style={{ left: todayLeft, height }} />
-    </>
+      <div className="absolute top-0 w-0.5 bg-accent/20" style={{ left: todayLeft, height: '100%' }} />
+    </div>
   )
 }
 
@@ -162,8 +166,10 @@ export default function TimelineGantt({
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
-  const [overrides, setOverrides] = useState<Record<string, DateRange>>({})
+  const [overrides, setOverrides] = useState<Record<string, { range: DateRange; seq: number }>>({})
+  const seqRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const dragActive = drag !== null
 
   // Scroll so today sits ~25% from the left of the track on mount and zoom change.
   useEffect(() => {
@@ -174,7 +180,7 @@ export default function TimelineGantt({
 
   // Escape cancels an in-progress drag.
   useEffect(() => {
-    if (!drag) return
+    if (!dragActive) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         dragRef.current = null
@@ -183,7 +189,33 @@ export default function TimelineGantt({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [drag])
+  }, [dragActive])
+
+  // Once the saved dates arrive back through props, drop the optimistic override
+  // so the bar hands off to real data without snapping.
+  useEffect(() => {
+    setOverrides((o) => {
+      const next = { ...o }
+      let changed = false
+      for (const [key, val] of Object.entries(o)) {
+        const sep = key.indexOf(':')
+        const id = key.slice(sep + 1)
+        let base: DateRange | null = null
+        if (key.slice(0, sep) === 'task') {
+          const tk = tasks.find((x) => x.id === id)
+          base = tk ? entityRange(tk.start_date, tk.due_date) : null
+        } else {
+          const pr = projects.find((x) => x.id === id)
+          base = pr ? entityRange(pr.start_date, pr.end_date) : null
+        }
+        if (base && base.start === val.range.start && base.end === val.range.end) {
+          delete next[key]
+          changed = true
+        }
+      }
+      return changed ? next : o
+    })
+  }, [projects, tasks])
 
   function fmt(iso: string): string {
     return parseDate(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' })
@@ -195,16 +227,27 @@ export default function TimelineGantt({
 
   function displayRange(kind: 'task' | 'project', id: string, base: DateRange): DateRange {
     if (drag && drag.kind === kind && drag.id === id) return drag.current
-    return overrides[keyOf(kind, id)] ?? base
+    return overrides[keyOf(kind, id)]?.range ?? base
   }
 
-  // ---- drag handlers (tested in Task 4) ----
+  // ---- drag handlers (tested in TimelineGantt.test.tsx) ----
   function beginDrag(e: ReactPointerEvent<HTMLElement>, kind: 'task' | 'project', id: string, orig: DateRange) {
     if (!editable) return
     if (kind === 'project' && !canEditProjects) return
     if (e.button !== 0) return
+    // One drag at a time: a second pointer must not hijack the one in flight.
+    if (dragRef.current) return
     const edge = (e.target as HTMLElement).dataset.edge as 'start' | 'end' | undefined
-    const st: DragState = { kind, id, mode: edge ?? 'move', originX: e.clientX, orig, current: orig, moved: false }
+    const st: DragState = {
+      kind,
+      id,
+      mode: edge ?? 'move',
+      pointerId: e.pointerId,
+      originX: e.clientX,
+      orig,
+      current: orig,
+      moved: false,
+    }
     dragRef.current = st
     setDrag(st)
     try {
@@ -212,12 +255,23 @@ export default function TimelineGantt({
     } catch {
       /* jsdom has no pointer capture */
     }
+    e.currentTarget.focus?.()
     e.preventDefault()
+  }
+
+  /** Abandon the drag without saving (pointer cancelled, or capture lost to the OS). */
+  function cancelDrag() {
+    if (!dragRef.current) return
+    dragRef.current = null
+    setDrag(null)
   }
 
   function moveDrag(e: ReactPointerEvent<HTMLElement>) {
     const st = dragRef.current
     if (!st) return
+    if (e.pointerId !== st.pointerId) return
+    // The button was released without us seeing pointerup (e.g. released off-window).
+    if (e.buttons === 0) return
     const dx = e.clientX - st.originX
     const moved = st.moved || Math.abs(dx) >= CLICK_PX
     const d = pxToDays(dx, px)
@@ -227,9 +281,10 @@ export default function TimelineGantt({
     setDrag(next)
   }
 
-  function endDrag() {
+  function endDrag(e: ReactPointerEvent<HTMLElement>) {
     const st = dragRef.current
     if (!st) return
+    if (e.pointerId !== st.pointerId) return
     dragRef.current = null
     setDrag(null)
     if (!st.moved) {
@@ -238,20 +293,22 @@ export default function TimelineGantt({
     }
     if (st.current.start === st.orig.start && st.current.end === st.orig.end) return
     const key = keyOf(st.kind, st.id)
-    setOverrides((o) => ({ ...o, [key]: st.current }))
+    // The optimistic position sticks until props catch up; only a rejection rolls it back,
+    // and only if a newer drag has not already replaced it.
+    const seq = ++seqRef.current
+    setOverrides((o) => ({ ...o, [key]: { range: st.current, seq } }))
     const p =
       st.kind === 'task'
         ? onTaskDates?.(st.id, { start_date: st.current.start, due_date: st.current.end })
         : onProjectDates?.(st.id, { start_date: st.current.start, end_date: st.current.end })
-    Promise.resolve(p)
-      .catch(() => undefined)
-      .finally(() =>
-        setOverrides((o) => {
-          const rest = { ...o }
-          delete rest[key]
-          return rest
-        }),
-      )
+    Promise.resolve(p).catch(() =>
+      setOverrides((o) => {
+        if (o[key]?.seq !== seq) return o
+        const rest = { ...o }
+        delete rest[key]
+        return rest
+      }),
+    )
   }
 
   /** Keyboard activation only — pointer clicks are resolved in endDrag. */
@@ -264,7 +321,13 @@ export default function TimelineGantt({
 
   return (
     <div className="bg-surface rounded-[14px] shadow-card border border-border overflow-hidden">
-      <div ref={scrollRef} className="overflow-x-auto" data-testid="gantt-scroll">
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto"
+        data-testid="gantt-scroll"
+        tabIndex={0}
+        aria-label={t('timeline.projectTask')}
+      >
         <div style={{ width: LABEL_W + trackW }}>
           {/* Header */}
           <div className="flex border-b border-border bg-input-bg/60">
@@ -294,8 +357,10 @@ export default function TimelineGantt({
             </div>
           </div>
 
-          {/* Rows */}
-          {projects.map((project) => {
+          {/* Rows. One background layer sits behind them all. */}
+          <div className="relative">
+            <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} />
+            {projects.map((project) => {
             const projectTasks = tasks.filter((tk) => tk.project_id === project.id)
             const dated = projectTasks
               .map((tk) => ({ task: tk, range: entityRange(tk.start_date, tk.due_date) }))
@@ -320,16 +385,16 @@ export default function TimelineGantt({
                     <span className="text-[12px] font-semibold text-text-primary truncate">{project.name}</span>
                   </div>
                   <div className="relative h-10" style={{ width: trackW }}>
-                    <TrackBg height={40} weekends={weekends} months={months} todayLeft={todayLeft} px={px} />
                     {projectRange && projectGeom && (
                       <div
-                        role={editable && canEditProjects ? 'button' : undefined}
-                        tabIndex={editable && canEditProjects ? 0 : undefined}
+                        role="img"
                         aria-label={`${project.name}: ${fmt(projectRange.start)} – ${fmt(projectRange.end)}`}
-                        onPointerDown={(e) => beginDrag(e, 'project', project.id, baseProjectRange!)}
+                        onPointerDown={(e) => beginDrag(e, 'project', project.id, projectRange)}
                         onPointerMove={moveDrag}
                         onPointerUp={endDrag}
-                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 overflow-hidden select-none ${
+                        onPointerCancel={cancelDrag}
+                        onLostPointerCapture={cancelDrag}
+                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none touch-none ${
                           editable && canEditProjects ? 'cursor-grab' : ''
                         } ${projectDragging ? 'ring-2 ring-accent/40' : ''}`}
                         style={{ left: projectGeom.left, width: projectGeom.width, backgroundColor: color + '22', border: `2px solid ${color}` }}
@@ -341,9 +406,18 @@ export default function TimelineGantt({
                             <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
                           </>
                         )}
-                        <span className="text-[9px] font-semibold whitespace-nowrap truncate" style={{ color }}>
-                          {fmt(projectRange.start)} – {fmt(projectRange.end)}
-                        </span>
+                        {projectDragging && (
+                          <span className="absolute -top-4 left-0 z-20 whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                            {fmt(projectRange.start)} – {fmt(projectRange.end)}
+                          </span>
+                        )}
+                        {projectGeom.width >= 24 && (
+                          <span className="min-w-0 flex-1 overflow-hidden">
+                            <span className="block text-[9px] font-semibold truncate" style={{ color }}>
+                              {fmt(projectRange.start)} – {fmt(projectRange.end)}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -353,6 +427,7 @@ export default function TimelineGantt({
                 {dated.map(({ task, range: baseRange }) => {
                   const r = displayRange('task', task.id, baseRange)
                   const geom = barGeometry(r, range.start, px)
+                  const showLabel = geom.width >= 24
                   const colors = TASK_STATUS_COLORS[task.status] ?? TASK_STATUS_COLORS.todo
                   const dragging = isDragging('task', task.id)
                   return (
@@ -365,15 +440,16 @@ export default function TimelineGantt({
                         <span className="text-[11px] text-text-secondary truncate">{task.title}</span>
                       </div>
                       <div className="relative h-8" style={{ width: trackW }}>
-                        <TrackBg height={32} weekends={weekends} months={months} todayLeft={todayLeft} px={px} />
                         <button
                           type="button"
                           aria-label={`${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`}
-                          onPointerDown={(e) => beginDrag(e, 'task', task.id, baseRange)}
+                          onPointerDown={(e) => beginDrag(e, 'task', task.id, r)}
                           onPointerMove={moveDrag}
                           onPointerUp={endDrag}
+                          onPointerCancel={cancelDrag}
+                          onLostPointerCapture={cancelDrag}
                           onClick={(e) => onBarClick(e, 'task', task.id)}
-                          className={`absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 overflow-hidden select-none text-left ${
+                          className={`absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left touch-none ${
                             editable ? 'cursor-grab' : 'cursor-default'
                           } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}
                           style={{ left: geom.left, width: geom.width, backgroundColor: colors.bg, border: `1.5px solid ${colors.border}` }}
@@ -385,9 +461,18 @@ export default function TimelineGantt({
                               <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
                             </>
                           )}
-                          <span className="text-[9px] font-medium whitespace-nowrap truncate pointer-events-none" style={{ color: colors.border }}>
-                            {dragging ? `${fmt(r.start)} – ${fmt(r.end)}` : task.title}
-                          </span>
+                          {dragging && (
+                            <span className="absolute -top-4 left-0 z-20 whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                              {fmt(r.start)} – {fmt(r.end)}
+                            </span>
+                          )}
+                          {showLabel && (
+                            <span className="min-w-0 flex-1 overflow-hidden">
+                              <span className="block text-[9px] font-medium truncate pointer-events-none" style={{ color: colors.border }}>
+                                {task.title}
+                              </span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -406,27 +491,33 @@ export default function TimelineGantt({
                       </span>
                     </div>
                     <div className="sticky z-10 flex items-center gap-1.5 px-2 py-1.5 flex-wrap" style={{ left: LABEL_W }}>
-                      {undated.map((task) => (
-                        <button
-                          key={task.id}
-                          type="button"
-                          disabled={!editable}
-                          title={editable ? t('timeline.scheduleHint') : undefined}
-                          onClick={() => {
-                            if (!editable) return
-                            onScheduleTask?.(task.id, { start_date: today, due_date: addDays(today, 6) })
-                          }}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40 hover:border-accent hover:text-accent transition-colors disabled:cursor-default disabled:hover:border-border disabled:hover:text-text-secondary"
-                        >
-                          {task.title}
-                        </button>
-                      ))}
+                      {undated.map((task) =>
+                        editable ? (
+                          <button
+                            key={task.id}
+                            type="button"
+                            title={t('timeline.scheduleHint')}
+                            onClick={() => onScheduleTask?.(task.id, { start_date: today, due_date: addDays(today, 6) })}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40 hover:border-accent hover:text-accent transition-colors"
+                          >
+                            {task.title}
+                          </button>
+                        ) : (
+                          <span
+                            key={task.id}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40"
+                          >
+                            {task.title}
+                          </span>
+                        ),
+                      )}
                     </div>
                   </div>
                 )}
-              </div>
-            )
-          })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
