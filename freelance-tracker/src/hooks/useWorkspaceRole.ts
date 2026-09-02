@@ -59,10 +59,8 @@ async function hasRows(table: MembershipTable, filter?: { column: string; value:
   return (data?.length ?? 0) > 0
 }
 
-/** Runs the membership queries and classifies the current user. */
-async function classify(): Promise<WorkspaceRole> {
-  const { data } = await supabase.auth.getUser()
-  const email = (data.user?.email ?? '').toLowerCase()
+/** Runs the membership queries and classifies the current user by their (already known) email. */
+async function classify(email: string): Promise<WorkspaceRole> {
   const [owns, member, portal] = await Promise.all([
     hasRows('clients'),
     email ? hasRows('project_members', { column: 'email', value: email }) : Promise.resolve(false),
@@ -71,26 +69,35 @@ async function classify(): Promise<WorkspaceRole> {
   return resolveRole(owns, member, portal)
 }
 
+type Identity = { id: string; email: string } | null
+
+function toIdentity(user: { id: string; email?: string } | null | undefined): Identity {
+  return user ? { id: user.id, email: (user.email ?? '').toLowerCase() } : null
+}
+
 /**
  * Classifies the signed-in user as owner/collaborator/portal, and
  * re-classifies whenever the signed-in user changes (cross-tab sign-in as
- * someone else, USER_UPDATED) without requiring a remount.
+ * someone else, USER_UPDATED) without requiring a remount. Classification
+ * runs exactly once per distinct user id — a token refresh or any other
+ * auth event that reports the same id does not re-trigger it, so OwnerGate
+ * never drops back to its spinner (and remounts Layout) for no reason.
  */
 export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boolean } {
   const [role, setRole] = useState<WorkspaceRole | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [identity, setIdentity] = useState<Identity>(null)
 
-  // Track the signed-in user's id so the classification effect below can
-  // re-run when it changes.
+  // Track the signed-in user's id/email so the classification effect below
+  // can run once we know who's signed in, and re-run when that changes.
   useEffect(() => {
     let cancelled = false
     supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) setUserId(data.user?.id ?? null)
+      if (!cancelled) setIdentity(toIdentity(data.user))
     })
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null)
+      setIdentity(toIdentity(session?.user))
     })
     return () => {
       cancelled = true
@@ -99,15 +106,18 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
   }, [])
 
   useEffect(() => {
+    if (identity === null) return
     let cancelled = false
     setRole(null)
-    classify().then((resolved) => {
+    classify(identity.email).then((resolved) => {
       if (!cancelled) setRole(resolved)
     })
     return () => {
       cancelled = true
     }
-  }, [userId])
+    // Re-run only when the user id itself changes, not on every identity
+    // object (e.g. a token-refresh auth event for the same user).
+  }, [identity?.id])
 
   return { role, loading: role === null }
 }

@@ -57,8 +57,10 @@ class QueryBuilder implements PromiseLike<Fixture> {
 
 const emptyFixture: Fixture = { data: [], error: null }
 
+type MockSession = { user?: { id: string; email?: string } } | null
+
 let eqLog: EqCall[]
-let authChangeCallback: ((event: string, session: { user?: { id: string } } | null) => void) | null
+let authChangeCallback: ((event: string, session: MockSession) => void) | null
 
 function mockTables(fixtures: Partial<Record<'clients' | 'project_members' | 'portal_clients', Fixture>>) {
   mockSupabase.from.mockImplementation((table: string) => new QueryBuilder(table, fixtures[table as keyof typeof fixtures] ?? emptyFixture, eqLog))
@@ -74,7 +76,7 @@ beforeEach(() => {
   mockSupabase.auth.getUser.mockReset()
   mockSupabase.from.mockReset()
   mockSupabase.auth.onAuthStateChange.mockReset()
-  mockSupabase.auth.onAuthStateChange.mockImplementation((cb: (event: string, session: { user?: { id: string } } | null) => void) => {
+  mockSupabase.auth.onAuthStateChange.mockImplementation((cb: (event: string, session: MockSession) => void) => {
     authChangeCallback = cb
     return { data: { subscription: { unsubscribe: vi.fn() } } }
   })
@@ -112,7 +114,7 @@ describe('isCollaboratorPath', () => {
 })
 
 describe('useWorkspaceRole', () => {
-  it('starts loading, then resolves owner when clients has a row', async () => {
+  it('starts loading, then resolves owner when clients has a row, querying all 3 tables exactly once', async () => {
     mockUser({ id: 'u1', email: 'owner@example.com' })
     mockTables({ clients: { data: [{ id: 'c1' }], error: null } })
 
@@ -122,6 +124,19 @@ describe('useWorkspaceRole', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.role).toBe('owner')
+    expect(mockSupabase.from).toHaveBeenCalledTimes(3)
+  })
+
+  it('skips the project_members query (and makes only 2 calls) when the user has no email', async () => {
+    mockUser({ id: 'u1a' })
+    mockTables({ clients: { data: [{ id: 'c1' }], error: null } })
+
+    const { result } = renderHook(() => useWorkspaceRole())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.role).toBe('owner')
+    expect(mockSupabase.from).toHaveBeenCalledTimes(2)
+    expect(eqLog).toEqual([])
   })
 
   it('resolves collaborator, filtering project_members by the caller\'s own lower-cased email', async () => {
@@ -189,10 +204,28 @@ describe('useWorkspaceRole', () => {
     })
 
     act(() => {
-      authChangeCallback?.('SIGNED_IN', { user: { id: 'u2' } })
+      authChangeCallback?.('SIGNED_IN', { user: { id: 'u2', email: 'owner@example.com' } })
     })
 
     await waitFor(() => expect(mockSupabase.from.mock.calls.length).toBeGreaterThan(callsBefore))
     await waitFor(() => expect(result.current.role).toBe('owner'))
+  })
+
+  it('does not re-run classification when onAuthStateChange reports the same user id', async () => {
+    mockUser({ id: 'u1', email: 'owner@example.com' })
+    mockTables({ clients: { data: [{ id: 'c1' }], error: null } })
+
+    const { result } = renderHook(() => useWorkspaceRole())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.role).toBe('owner')
+    const callsAfterMount = mockSupabase.from.mock.calls.length
+
+    await act(async () => {
+      authChangeCallback?.('TOKEN_REFRESHED', { user: { id: 'u1', email: 'owner@example.com' } })
+      await Promise.resolve()
+    })
+
+    expect(mockSupabase.from.mock.calls.length).toBe(callsAfterMount)
+    expect(result.current.role).toBe('owner')
   })
 })
