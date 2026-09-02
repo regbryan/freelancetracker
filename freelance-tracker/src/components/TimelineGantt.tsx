@@ -65,7 +65,7 @@ export interface TimelineGanttProps {
   labelWidth?: number
 }
 
-export const LABEL_W = 220
+const LABEL_W = 220
 const EDGE_PX = 8
 const CLICK_PX = 3
 
@@ -543,7 +543,12 @@ export default function TimelineGantt({
                             key={task.id}
                             type="button"
                             title={t('timeline.scheduleHint')}
-                            onClick={() => onScheduleTask?.(task.id, { start_date: today, due_date: addDays(today, 6) })}
+                            // The page's handler re-throws after showing its banner, so the
+                            // promise must be swallowed here or a failed schedule becomes an
+                            // unhandled rejection (and a duplicate Sentry report).
+                            onClick={() => {
+                              void Promise.resolve(onScheduleTask?.(task.id, { start_date: today, due_date: addDays(today, 6) })).catch(() => undefined)
+                            }}
                             className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40 hover:border-accent hover:text-accent transition-colors"
                           >
                             {task.title}

@@ -91,14 +91,18 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
   }, [fetchTasks]);
 
   const updateTask = useCallback(async (id: string, updates: TaskUpdate): Promise<Task> => {
+    // maybeSingle, not single: RLS makes a task the caller can no longer reach
+    // (membership revoked mid-session) look like a zero-row update, and single()
+    // would surface that as a cryptic PGRST116 instead of something we can map.
     const { data, error: updateError } = await supabase
       .from('tasks')
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) throw updateError;
+    if (!data) throw new Error('no-access');
     setTasks(prev => prev.map(t => t.id === id ? (data as Task) : t));
     return data;
   }, []);

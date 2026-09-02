@@ -34,7 +34,8 @@ Decisions from discovery:
 ## Navigation
 
 - Sidebar "Work" item now links to `/timeline`. `WorkTabs` order becomes
-  **Timeline · List · Timer**. Nothing else in the sidebar changes.
+  **Timeline · Tasks · Timer**. The tab labels are translated, via the `nav.timeline`,
+  `nav.tasks`, and `nav.timer` keys. Nothing else in the sidebar changes.
 - `/timeline` gains a project filter (select, "All projects" default). It reads and
   writes `?project=<id>` so the URL is shareable.
 - `ProjectDetail` gets one "Open timeline" button linking to `/timeline?project=<id>`.
@@ -59,6 +60,8 @@ interface TimelineGanttProps {
   onProjectDates?: (id: string, dates: { start_date: string; end_date: string }) => Promise<void>
   onTaskClick?: (id: string) => void
   onScheduleTask?: (id: string, dates: { start_date: string; due_date: string }) => Promise<void>
+  today?: string                    // fixes "today" for deterministic tests
+  labelWidth?: number               // label column width; default 220, portal passes 150
 }
 ```
 
@@ -66,9 +69,11 @@ interface TimelineGanttProps {
 
 - Fixed pixel scale per zoom: week = 40 px/day, month = 12 px/day, quarter = 4 px/day.
   Total width = `totalDays × pxPerDay`. The grid scrolls horizontally inside the card;
-  the 220 px label column is sticky-left.
+  the label column is sticky-left and its width is the `labelWidth` prop (220 by
+  default, 150 in the portal).
 - Visible range = min(earliest date, today − 30d) − 7d to max(latest date, today + 90d)
-  + 14d, same as today.
+  + 14d, same as today, then clamped to about four years around today
+  (`MAX_SPAN_DAYS = 1461`) so one stray date cannot blow the track width up.
 - On mount and on zoom change, scroll so today sits about 25% from the left edge.
 - Axis header: month ticks at every zoom; week view also draws day numbers and shades
   Saturday/Sunday columns.
@@ -138,6 +143,9 @@ CREATE UNIQUE INDEX idx_project_members_project_email
   ON public.project_members (project_id, lower(email));
 CREATE INDEX idx_project_members_email_lower ON public.project_members (lower(email));
 
+ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, DELETE ON public.project_members TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.is_project_member(p_project_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
@@ -147,6 +155,7 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
   );
 $$;
 REVOKE ALL ON FUNCTION public.is_project_member(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_project_member(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_project_member(UUID) TO authenticated;
 ```
 
@@ -160,7 +169,7 @@ added later without changing the table shape.
 | `project_members` | owner manages | ALL: `EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND p.user_id = auth.uid())` |
 | `project_members` | member sees own row | SELECT: `lower(email) = lower(auth.jwt()->>'email')` |
 | `projects` | keep `users_own_projects`; add `members_read_projects` | SELECT: `is_project_member(id)`. Writes stay owner-only through the existing ALL policy. |
-| `tasks` | replace `users_own_tasks`; add `members_manage_tasks` | Owner policy (ALL, USING and WITH CHECK): `user_id = auth.uid() OR EXISTS (project owned by auth.uid())`, so tasks a collaborator creates stay visible to the owner. Member policy (ALL, USING and WITH CHECK): `is_project_member(project_id)`. |
+| `tasks` | replace `users_own_tasks`; add `members_manage_tasks` | Owner policy (ALL, USING and WITH CHECK): `EXISTS (project owned by auth.uid())` — purely project-based, so tasks a collaborator creates stay visible to the owner. The original `user_id = auth.uid() OR …` clause was removed because in WITH CHECK it let any signed-in user insert a task into a project they do not own by stamping their own `user_id` on it (see Security verification below). Member policy (ALL, USING and WITH CHECK): `is_project_member(project_id)`. |
 
 `clients`, `time_entries`, `invoices`, `invoice_items`, `expenses`, `communications`,
 `meeting_notes`, `contracts`, gmail tokens: **no change.** The portal views are
@@ -177,7 +186,8 @@ unchanged), which the UI already tolerates (`project.clients?.name`).
 - New `src/hooks/useProjectMembers(projectId)`: list / add(email) / remove(id).
 - Card lists member emails with a remove button, plus an email input and "Add" button.
   Emails are trimmed and lower-cased before insert. Duplicate → inline error.
-- Visible only when `role === 'owner'`.
+- Owner-only, enforced twice: `OwnerGate` redirects a non-owner away from
+  `/projects/:id` entirely, and the card itself mounts only when `role === 'owner'`.
 - No invitation email is sent in v1. Reggie tells the colleague to sign up at the normal
   login page with that exact email.
 
@@ -199,12 +209,19 @@ queries in parallel: `clients` (owned rows), `portal_clients`, `project_members`
 
 ### Collaborator UI
 
-- `Sidebar` shows two items for collaborators: **Timeline** and **List** (the Tasks
-  page). The "New Project" quick-create button is hidden.
+- `Sidebar` shows two items for collaborators: **Timeline** and **Tasks**. The
+  "New Project" quick-create button is hidden.
 - `WorkTabs` hides Timer for collaborators.
+- `TopBar`'s account menu hides the Settings item for collaborators (`/settings` is
+  not a collaborator path, so it would only bounce back to `/timeline`). The language
+  toggle and sign-out stay.
 - `/tasks` works as-is: `useTasks()` returns only tasks the RLS lets through, and the
   project selector in `TaskForm` is fed by `useProjects()`, which returns only shared
-  projects. `TopBar` search / command palette results are limited by the same RLS.
+  projects. Its project group headers show the project name as plain text for
+  collaborators — no link into `/projects/:id`, which they cannot open.
+- The command palette (`CommandPalette`) hides the Log-time action and all project
+  results for collaborators, and routes task results to `/tasks` rather than to the
+  task's project page. Results are additionally limited by the same RLS.
 - `TimelineInsight` (the "runway" banner) is hidden for collaborators; it reasons
   about the whole business.
 
@@ -221,6 +238,10 @@ queries in parallel: `clients` (owned rows), `portal_clients`, `project_members`
 ## Error handling
 
 - Drag save failure: revert + toast (message from Supabase error).
+- Access lost mid-session (membership revoked while the page is open): the update
+  matches zero rows under RLS, `useTasks.updateTask` throws `no-access`, and the
+  Timeline banner shows `timeline.accessLost` ("You no longer have access to this
+  project. Refresh to update your view.") instead of a raw Postgrest message.
 - Collaborator opening a route they cannot use: redirect to `/timeline` (no error).
 - Adding a member email that is already present: inline "already added".
 - A member whose auth email differs in case from the invited email still matches

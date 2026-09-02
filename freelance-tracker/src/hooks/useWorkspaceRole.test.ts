@@ -25,17 +25,17 @@ interface MockSupabase {
 const mockSupabase = supabase as unknown as MockSupabase
 
 type Fixture = { data: Array<{ id: string }> | null; error: { code?: string; message?: string } | null }
-type EqCall = { table: string; column: string; value: string }
+type FilterCall = { table: string; op: 'eq' | 'ilike'; column: string; value: string }
 
 /** Minimal stand-in for a Postgrest query builder: chains, and resolves like a promise. */
 class QueryBuilder implements PromiseLike<Fixture> {
   table: string
   fixture: Fixture
-  eqLog: EqCall[]
-  constructor(table: string, fixture: Fixture, eqLog: EqCall[]) {
+  filterLog: FilterCall[]
+  constructor(table: string, fixture: Fixture, filterLog: FilterCall[]) {
     this.table = table
     this.fixture = fixture
-    this.eqLog = eqLog
+    this.filterLog = filterLog
   }
   select(): this {
     return this
@@ -44,7 +44,11 @@ class QueryBuilder implements PromiseLike<Fixture> {
     return this
   }
   eq(column: string, value: string): this {
-    this.eqLog.push({ table: this.table, column, value })
+    this.filterLog.push({ table: this.table, op: 'eq', column, value })
+    return this
+  }
+  ilike(column: string, value: string): this {
+    this.filterLog.push({ table: this.table, op: 'ilike', column, value })
     return this
   }
   then<TResult1 = Fixture, TResult2 = never>(
@@ -60,11 +64,11 @@ const emptyFixture: Fixture = { data: [], error: null }
 type MockSession = { user?: { id: string; email?: string } } | null
 type GetUserResult = { data: { user: { id: string; email?: string } | null }; error: null }
 
-let eqLog: EqCall[]
+let filterLog: FilterCall[]
 let authChangeCallback: ((event: string, session: MockSession) => void) | null
 
 function mockTables(fixtures: Partial<Record<'clients' | 'project_members' | 'portal_clients', Fixture>>) {
-  mockSupabase.from.mockImplementation((table: string) => new QueryBuilder(table, fixtures[table as keyof typeof fixtures] ?? emptyFixture, eqLog))
+  mockSupabase.from.mockImplementation((table: string) => new QueryBuilder(table, fixtures[table as keyof typeof fixtures] ?? emptyFixture, filterLog))
 }
 
 function mockUser(user: { id: string; email?: string } | null) {
@@ -72,7 +76,7 @@ function mockUser(user: { id: string; email?: string } | null) {
 }
 
 beforeEach(() => {
-  eqLog = []
+  filterLog = []
   authChangeCallback = null
   mockSupabase.auth.getUser.mockReset()
   mockSupabase.from.mockReset()
@@ -137,10 +141,10 @@ describe('useWorkspaceRole', () => {
 
     expect(result.current.role).toBe('owner')
     expect(mockSupabase.from).toHaveBeenCalledTimes(2)
-    expect(eqLog).toEqual([])
+    expect(filterLog).toEqual([])
   })
 
-  it('resolves collaborator, filtering project_members by the caller\'s own lower-cased email', async () => {
+  it('resolves collaborator, filtering project_members case-insensitively by the caller\'s own lower-cased email', async () => {
     mockUser({ id: 'u2', email: 'Colleague@Example.com' })
     mockTables({
       clients: emptyFixture,
@@ -152,8 +156,8 @@ describe('useWorkspaceRole', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.role).toBe('collaborator')
-    expect(eqLog).toContainEqual({ table: 'project_members', column: 'email', value: 'colleague@example.com' })
-    expect(eqLog.some((c) => c.value === 'Colleague@Example.com')).toBe(false)
+    expect(filterLog).toContainEqual({ table: 'project_members', op: 'ilike', column: 'email', value: 'colleague@example.com' })
+    expect(filterLog.some((c) => c.value === 'Colleague@Example.com')).toBe(false)
   })
 
   it('treats a missing project_members table (PGRST205) as owner silently, but warns on other errors', async () => {
@@ -245,7 +249,7 @@ describe('useWorkspaceRole', () => {
 
     await waitFor(() => expect(mockSupabase.from.mock.calls.length).toBeGreaterThan(callsAfterMount))
     await waitFor(() => expect(result.current.role).toBe('owner'))
-    expect(eqLog).toContainEqual({ table: 'project_members', column: 'email', value: 'renamed@example.com' })
+    expect(filterLog).toContainEqual({ table: 'project_members', op: 'ilike', column: 'email', value: 'renamed@example.com' })
   })
 
   it('ignores a getUser() result that resolves after a newer identity already arrived via onAuthStateChange', async () => {
@@ -272,7 +276,7 @@ describe('useWorkspaceRole', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.role).toBe('collaborator')
-    expect(eqLog).toContainEqual({ table: 'project_members', column: 'email', value: 'new@example.com' })
+    expect(filterLog).toContainEqual({ table: 'project_members', op: 'ilike', column: 'email', value: 'new@example.com' })
     const callsAfterEvent = mockSupabase.from.mock.calls.length
 
     // The stale getUser() call (for a different, older user) finally settles.
@@ -283,6 +287,6 @@ describe('useWorkspaceRole', () => {
 
     expect(mockSupabase.from.mock.calls.length).toBe(callsAfterEvent)
     expect(result.current.role).toBe('collaborator')
-    expect(eqLog.at(-1)).toEqual({ table: 'project_members', column: 'email', value: 'new@example.com' })
+    expect(filterLog.at(-1)).toEqual({ table: 'project_members', op: 'ilike', column: 'email', value: 'new@example.com' })
   })
 })

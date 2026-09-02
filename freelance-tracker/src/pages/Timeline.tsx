@@ -30,6 +30,7 @@ type DialogTask = {
   priority: string
   startDate?: string
   dueDate?: string
+  /** Carried for completeness only — TaskForm shows its project picker only when passed a `projects` prop, which this page does not do. */
   projectId?: string
 }
 
@@ -146,6 +147,9 @@ export default function Timeline() {
   if (!ready && !projectsLoading && !tasksLoading) setReady(true)
 
   function failMessage(err: unknown): string {
+    // useTasks throws 'no-access' when RLS returns zero rows for an update —
+    // the caller lost access to the project mid-session.
+    if (err instanceof Error && err.message === 'no-access') return t('timeline.accessLost')
     return t('timeline.saveFailed', { error: err instanceof Error ? err.message : String(err) })
   }
 

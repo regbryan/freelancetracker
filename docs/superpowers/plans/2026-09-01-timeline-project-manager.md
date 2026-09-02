@@ -54,7 +54,7 @@
 - Create: `src/lib/timelineMath.ts`
 - Test: `src/lib/timelineMath.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/timelineMath.test.ts`:
 
@@ -204,12 +204,12 @@ describe('entityRange', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/timelineMath.test.ts`
 Expected: FAIL — "Failed to resolve import './timelineMath'".
 
-- [ ] **Step 3: Implement the module**
+- [x] **Step 3: Implement the module**
 
 Create `src/lib/timelineMath.ts`:
 
@@ -354,12 +354,12 @@ export function entityRange(start: string | null, end: string | null): DateRange
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/lib/timelineMath.test.ts`
 Expected: PASS, 23 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/lib/timelineMath.ts freelance-tracker/src/lib/timelineMath.test.ts && git commit -m "feat(timeline): pure date and pixel math for the gantt
@@ -374,7 +374,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/lib/i18n.tsx` (en block near line 465–481, es block near line 1958–1974)
 
-- [ ] **Step 1: Replace the English timeline keys**
+- [x] **Step 1: Replace the English timeline keys**
 
 In `src/lib/i18n.tsx`, in the `en` dictionary, find these two lines and delete them:
 
@@ -412,7 +412,7 @@ Then find the line `  'timeline.today': 'Today',` in the `en` dictionary and ins
   'portal.viewList': 'List',
 ```
 
-- [ ] **Step 2: Replace the Spanish timeline keys**
+- [x] **Step 2: Replace the Spanish timeline keys**
 
 In the `es` dictionary, delete:
 
@@ -450,12 +450,12 @@ Find `  'timeline.today': 'Hoy',` in the `es` dictionary and insert immediately 
   'portal.viewList': 'Lista',
 ```
 
-- [ ] **Step 3: Verify the two dictionaries still type-check and nothing references the removed keys**
+- [x] **Step 3: Verify the two dictionaries still type-check and nothing references the removed keys**
 
 Run: `grep -rn "timeline.noDates" src` → expected: only `src/pages/Timeline.tsx` (it is rewritten in Task 4).
 Run: `npx tsc -b --noEmit` → expected: no output (clean). Note: `tsc -b` with project references may not accept `--noEmit`; if it errors on the flag, run `npx tsc -p tsconfig.app.json --noEmit` instead.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/lib/i18n.tsx && git commit -m "feat(i18n): timeline zoom/filter/tray, collaborators, and portal view strings (en, es)
@@ -473,7 +473,7 @@ Drag comes in Task 4. This task renders rows, bars, the tray, the header, and th
 - Create: `src/components/TimelineGantt.tsx`
 - Test: `src/components/TimelineGantt.test.tsx`
 
-- [ ] **Step 1: Write the failing render tests**
+- [x] **Step 1: Write the failing render tests**
 
 Create `src/components/TimelineGantt.test.tsx`:
 
@@ -570,12 +570,12 @@ describe('TimelineGantt render', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/components/TimelineGantt.test.tsx`
 Expected: FAIL — cannot resolve `./TimelineGantt`.
 
-- [ ] **Step 3: Implement the static component**
+- [x] **Step 3: Implement the static component**
 
 Create `src/components/TimelineGantt.tsx`:
 
@@ -1048,19 +1048,19 @@ export default function TimelineGantt({
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/components/TimelineGantt.test.tsx`
 Expected: PASS, 7 tests.
 
 If "week zoom draws day numbers" fails because `getAllByText('1')` matches nothing, check the day-number `<span>`s render `parseDate(tick.iso).getDate()` as a number (React renders numbers fine); if it fails on multiple matches that is acceptable since `getAllByText` is used.
 
-- [ ] **Step 5: Lint**
+- [x] **Step 5: Lint**
 
 Run: `npm run lint`
 Expected: no errors. If the hooks plugin flags anything in this file, fix it rather than suppressing it; `TrackBg` is deliberately top-level so the static-components rule stays quiet.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/components/TimelineGantt.tsx freelance-tracker/src/components/TimelineGantt.test.tsx && git commit -m "feat(timeline): reusable TimelineGantt with pixel zoom, sticky labels, and not-scheduled tray
@@ -1078,7 +1078,7 @@ The handlers already exist in Task 3's code. This task proves them with tests an
 - Modify: `src/components/TimelineGantt.test.tsx`
 - Modify (only if a test fails): `src/components/TimelineGantt.tsx`
 
-- [ ] **Step 1: Add the interaction tests**
+- [x] **Step 1: Add the interaction tests**
 
 Append to `src/components/TimelineGantt.test.tsx` (inside the file, after the first `describe`):
 
@@ -1186,7 +1186,7 @@ describe('TimelineGantt drag', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `npx vitest run src/components/TimelineGantt.test.tsx`
 Expected: PASS, 16 tests.
@@ -1196,7 +1196,7 @@ Known pitfalls if something fails:
 - **Escape test fails because pointerUp still commits:** ensure `endDrag` reads `dragRef.current` (cleared by the Escape handler), not the `drag` state.
 - **Revert test fails:** the `finally` that deletes the override must run after the rejection; the two `await`s in the test flush it. If still flaky, wrap the final assertion in `await waitFor(() => expect(bar().style.left).toBe(before))` (import `waitFor` from Testing Library).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/components/TimelineGantt.test.tsx freelance-tracker/src/components/TimelineGantt.tsx && git commit -m "test(timeline): drag, resize, clamp, click, escape, and revert behaviour
@@ -1215,7 +1215,7 @@ Done before the page rewrite because the page reads the role.
 - Test: `src/hooks/useWorkspaceRole.test.ts`
 - Rewrite: `src/components/OwnerGate.tsx`
 
-- [ ] **Step 1: Write the failing test for the pure resolver**
+- [x] **Step 1: Write the failing test for the pure resolver**
 
 Create `src/hooks/useWorkspaceRole.test.ts`:
 
@@ -1251,12 +1251,12 @@ describe('isCollaboratorPath', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run src/hooks/useWorkspaceRole.test.ts`
 Expected: FAIL — cannot resolve `./useWorkspaceRole`.
 
-- [ ] **Step 3: Implement the hook and context**
+- [x] **Step 3: Implement the hook and context**
 
 Create `src/hooks/useWorkspaceRole.ts`:
 
@@ -1320,12 +1320,12 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
 }
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `npx vitest run src/hooks/useWorkspaceRole.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Rewrite `OwnerGate`**
+- [x] **Step 5: Rewrite `OwnerGate`**
 
 Replace the whole of `src/components/OwnerGate.tsx` with:
 
@@ -1361,12 +1361,12 @@ export default function OwnerGate({ children }: { children: ReactNode }) {
 }
 ```
 
-- [ ] **Step 6: Type-check and lint**
+- [x] **Step 6: Type-check and lint**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npm run lint`
 Expected: clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/hooks/useWorkspaceRole.ts freelance-tracker/src/hooks/useWorkspaceRole.test.ts freelance-tracker/src/components/OwnerGate.tsx && git commit -m "feat(auth): workspace role (owner/collaborator/portal) with context and route gate
@@ -1381,7 +1381,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Rewrite: `src/pages/Timeline.tsx`
 
-- [ ] **Step 1: Replace the page**
+- [x] **Step 1: Replace the page**
 
 Replace the whole of `src/pages/Timeline.tsx` with:
 
@@ -1657,7 +1657,7 @@ export default function Timeline() {
 }
 ```
 
-- [ ] **Step 2: Type-check, lint, and run the whole suite**
+- [x] **Step 2: Type-check, lint, and run the whole suite**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npm run lint && npx vitest run`
 Expected: clean; all tests pass (23 existing + 23 + 16 + 5 = 67).
@@ -1675,7 +1675,7 @@ Start the dev server (use the `run` skill or `npm run dev`), open `http://localh
 
 Take one screenshot at 1440 wide and save it to `~/dev/freelancetracker/freelance-tracker/verify/2026-09-01-timeline-month.png` (create the folder if needed; it is fine to commit it, matching the repo's habit of committing screenshots).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/pages/Timeline.tsx freelance-tracker/verify && git commit -m "feat(timeline): drag-editable planner page with zoom, project filter, task dialog, and periodic refresh
@@ -1694,7 +1694,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Modify: `src/components/Layout.tsx`
 - Modify: `src/pages/ProjectDetail.tsx` (header button row, ~line 335)
 
-- [ ] **Step 1: Sidebar**
+- [x] **Step 1: Sidebar**
 
 In `src/components/Sidebar.tsx`:
 
@@ -1748,7 +1748,7 @@ const collaboratorItems: NavItem[] = [
 
 7. Wrap the Quick Create block so it is owner-only: change `<div className="px-2.5 pb-4 pt-2 mt-auto border-t border-sidebar-border">` … `</div>` to be rendered as `{role !== 'collaborator' && ( ...that div... )}`.
 
-- [ ] **Step 2: WorkTabs**
+- [x] **Step 2: WorkTabs**
 
 Replace the whole of `src/components/WorkTabs.tsx` with:
 
@@ -1796,7 +1796,7 @@ export default function WorkTabs() {
 }
 ```
 
-- [ ] **Step 3: BottomNav**
+- [x] **Step 3: BottomNav**
 
 In `src/components/BottomNav.tsx`:
 
@@ -1814,7 +1814,7 @@ const collaboratorItems = [
 4. Inside the component after `const { t } = useI18n()`, add `const role = useRole()` and `const items = role === 'collaborator' ? collaboratorItems : navItems`.
 5. Change `{navItems.map((item) => {` to `{items.map((item) => {`.
 
-- [ ] **Step 4: Layout — no quick-log for collaborators**
+- [x] **Step 4: Layout — no quick-log for collaborators**
 
 In `src/components/Layout.tsx`:
 
@@ -1823,7 +1823,7 @@ In `src/components/Layout.tsx`:
 3. In the keyboard effect, change the quick-log branch to `if (canLogTime && (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {` and add `canLogTime` to the effect's dependency array: `}, [canLogTime])`.
 4. Change `<QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />` to `{canLogTime && <QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />}`.
 
-- [ ] **Step 5: ProjectDetail "Open timeline" button**
+- [x] **Step 5: ProjectDetail "Open timeline" button**
 
 In `src/pages/ProjectDetail.tsx`, add `GanttChartSquare` to the lucide import on line 3. Then in the header button row (the `<div className="flex items-center gap-2 shrink-0">` that holds the Edit and Delete buttons, ~line 335), insert **before** the Edit button:
 
@@ -1839,7 +1839,7 @@ In `src/pages/ProjectDetail.tsx`, add `GanttChartSquare` to the lucide import on
 
 `Link` is already imported on line 2.
 
-- [ ] **Step 6: Type-check, lint, tests**
+- [x] **Step 6: Type-check, lint, tests**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npm run lint && npx vitest run`
 Expected: clean, 67 tests pass.
@@ -1848,7 +1848,7 @@ Expected: clean, 67 tests pass.
 
 With the dev server running as owner: the sidebar "Work" lands on `/timeline`; the tabs read Timeline · List · Timer; a project page shows "Open timeline" and it opens the filtered timeline.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/components/Sidebar.tsx freelance-tracker/src/components/WorkTabs.tsx freelance-tracker/src/components/BottomNav.tsx freelance-tracker/src/components/Layout.tsx freelance-tracker/src/pages/ProjectDetail.tsx && git commit -m "feat(nav): timeline is the Work landing; collaborator shell; open-timeline link on project
@@ -1863,7 +1863,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Create: `supabase_migration_project_members.sql`
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 Create `freelance-tracker/supabase_migration_project_members.sql`:
 
@@ -1959,7 +1959,7 @@ GRANT SELECT, INSERT, DELETE ON public.project_members TO authenticated;
 COMMIT;
 ```
 
-- [ ] **Step 2: Commit the file (not yet applied)**
+- [x] **Step 2: Commit the file (not yet applied)**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/supabase_migration_project_members.sql && git commit -m "feat(db): project_members table, is_project_member(), and collaborator RLS on projects/tasks
@@ -1967,15 +1967,15 @@ cd ~/dev/freelancetracker && git add freelance-tracker/supabase_migration_projec
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 3: CHECKPOINT — ask Reggie before applying**
+- [x] **Step 3: CHECKPOINT — ask Reggie before applying**
 
 This migration changes production RLS (the app has no separate staging database). Stop and ask Reggie, in chat, for explicit approval to apply `supabase_migration_project_members.sql` to Supabase project `pnilvktjzpnyqhnowuhs`. Do not proceed to Step 4 without a clear yes.
 
-- [ ] **Step 4: Apply (after approval)**
+- [x] **Step 4: Apply (after approval)**
 
 Either paste the file into the Supabase SQL editor, or use the Supabase MCP `apply_migration` tool with name `project_members` and the file's contents. Expected: success, no errors.
 
-- [ ] **Step 5: Verify the policies exist**
+- [x] **Step 5: Verify the policies exist**
 
 Run in the SQL editor (or via MCP `execute_sql`):
 
@@ -1996,7 +1996,7 @@ Expected rows include `owner_manages_members`, `member_sees_own_row`, `members_r
 - Create: `src/components/ProjectCollaboratorsCard.tsx`
 - Modify: `src/pages/ProjectDetail.tsx` (insert before `<Tabs`, ~line 413)
 
-- [ ] **Step 1: Write the failing test for email normalisation**
+- [x] **Step 1: Write the failing test for email normalisation**
 
 Create `src/hooks/useProjectMembers.test.ts`:
 
@@ -2017,12 +2017,12 @@ describe('normalizeEmail', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run src/hooks/useProjectMembers.test.ts`
 Expected: FAIL — cannot resolve `./useProjectMembers`.
 
-- [ ] **Step 3: Implement the hook**
+- [x] **Step 3: Implement the hook**
 
 Create `src/hooks/useProjectMembers.ts`:
 
@@ -2102,12 +2102,12 @@ export function useProjectMembers(projectId: string | undefined) {
 }
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `npx vitest run src/hooks/useProjectMembers.test.ts`
 Expected: PASS, 2 tests.
 
-- [ ] **Step 5: Create the card component**
+- [x] **Step 5: Create the card component**
 
 Create `src/components/ProjectCollaboratorsCard.tsx`:
 
@@ -2200,7 +2200,7 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
 }
 ```
 
-- [ ] **Step 6: Mount the card on ProjectDetail**
+- [x] **Step 6: Mount the card on ProjectDetail**
 
 In `src/pages/ProjectDetail.tsx`:
 1. Add `import ProjectCollaboratorsCard from '../components/ProjectCollaboratorsCard'` after the `EmailSyncButton` import.
@@ -2212,7 +2212,7 @@ In `src/pages/ProjectDetail.tsx`:
 
 The page is owner-only (collaborators are redirected away from `/projects/*`), so no role check is needed here.
 
-- [ ] **Step 7: Type-check, lint, tests**
+- [x] **Step 7: Type-check, lint, tests**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npm run lint && npx vitest run`
 Expected: clean, 69 tests pass.
@@ -2221,7 +2221,7 @@ Expected: clean, 69 tests pass.
 
 On a project page as owner: the Collaborators card shows "No collaborators yet"; adding `test.colleague@example.com` lists it; adding it again shows the duplicate message; Remove deletes it.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/hooks/useProjectMembers.ts freelance-tracker/src/hooks/useProjectMembers.test.ts freelance-tracker/src/components/ProjectCollaboratorsCard.tsx freelance-tracker/src/pages/ProjectDetail.tsx && git commit -m "feat(collab): project collaborators hook and owner card
@@ -2236,7 +2236,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/pages/Portal.tsx`
 
-- [ ] **Step 1: Add the view toggle and the read-only Gantt**
+- [x] **Step 1: Add the view toggle and the read-only Gantt**
 
 In `src/pages/Portal.tsx`:
 
@@ -2318,7 +2318,7 @@ function readView(): PortalView {
 
 Keep the existing `ordered.length === 0` empty-state block as it is, above both branches.
 
-- [ ] **Step 2: Type-check, lint, tests**
+- [x] **Step 2: Type-check, lint, tests**
 
 Run: `npx tsc -p tsconfig.app.json --noEmit && npm run lint && npx vitest run`
 Expected: clean, 69 tests pass.
@@ -2327,7 +2327,7 @@ Expected: clean, 69 tests pass.
 
 Open `http://localhost:5173/portal` in a private window and sign in with the magic link as a client email that exists in `clients` (the earlier portal verification used one; ask Reggie if unknown). Confirm the Timeline toggle is default, bars render, nothing is draggable, and List shows the old cards. Screenshot at 1440 → `verify/2026-09-01-portal-timeline.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/dev/freelancetracker && git add freelance-tracker/src/pages/Portal.tsx freelance-tracker/verify && git commit -m "feat(portal): read-only timeline view with list toggle
@@ -2359,7 +2359,7 @@ Signed in as the collaborator:
 - Project bar has no grab cursor and cannot be dragged.
 Screenshot the collaborator's timeline at 1440 → `verify/2026-09-01-collaborator-timeline.png`.
 
-- [ ] **Step 4: Verify RLS directly in SQL**
+- [x] **Step 4: Verify RLS directly in SQL**
 
 In the Supabase SQL editor, replace the placeholders and run:
 
@@ -2387,7 +2387,7 @@ Every comment on the right is the expected result. If any differs, stop and fix 
 
 As owner, remove the collaborator from SHARED. As the collaborator, reload `/timeline`: the workspace-role check now finds zero member rows, so the account resolves to `owner` with an empty workspace (this is the "fresh signup" branch and is acceptable). Confirm SHARED's tasks are gone.
 
-- [ ] **Step 6: Record**
+- [x] **Step 6: Record**
 
 Append a short "Security verification 2026-09-01" section with the SQL results to the bottom of `docs/superpowers/specs/2026-09-01-timeline-project-manager-design.md` and commit:
 

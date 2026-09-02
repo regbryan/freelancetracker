@@ -43,12 +43,16 @@ type MembershipTable = 'clients' | 'project_members' | 'portal_clients'
  * optional column/value filter scopes the query to the caller's own rows
  * (needed for project_members, where RLS also lets an owner see rows for
  * projects they own — an unfiltered count would misclassify them).
+ * The filter uses ilike, not eq: the RLS policy compares lower() on both
+ * sides, so a case-sensitive client filter would classify a member whose
+ * stored email differs in case from their auth email as an owner.
  * PGRST205 ("table not found") is expected until the project_members
  * migration runs, so it's swallowed silently; any other error is logged.
  */
 async function hasRows(table: MembershipTable, filter?: { column: string; value: string }): Promise<boolean> {
   let query = supabase.from(table).select('id').limit(1)
-  if (filter) query = query.eq(filter.column, filter.value)
+  // filter.value is already lower-cased by toIdentity().
+  if (filter) query = query.ilike(filter.column, filter.value)
   const { data, error } = await query
   if (error) {
     if (error.code !== 'PGRST205') {

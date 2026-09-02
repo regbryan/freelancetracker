@@ -489,9 +489,9 @@ const en: Dict = {
   'timeline.scheduleHint': 'Click to place at today, then drag',
   'timeline.empty': 'No projects yet. Create a project to start planning.',
   'timeline.saveFailed': 'Could not save dates: {error}',
+  'timeline.accessLost': 'You no longer have access to this project. Refresh to update your view.',
   'timeline.dragHint': 'Drag a bar to move it · drag an edge to change its length · click to edit',
   'timeline.readOnlyHint': 'View only · scroll sideways to see more',
-  'timeline.editTask': 'Edit task',
 
   // Time Tracker
   'timeTracker.tracking': 'Tracking',
@@ -2010,9 +2010,9 @@ const es: Dict = {
   'timeline.scheduleHint': 'Haz clic para colocarlo hoy y luego arrastrarlo',
   'timeline.empty': 'Aún no hay proyectos. Crea un proyecto para empezar a planificar.',
   'timeline.saveFailed': 'No se pudieron guardar las fechas: {error}',
+  'timeline.accessLost': 'Ya no tienes acceso a este proyecto. Actualiza la página para ver los cambios.',
   'timeline.dragHint': 'Arrastra una barra para moverla · arrastra un borde para cambiar su duración · haz clic para editar',
   'timeline.readOnlyHint': 'Solo lectura · desplázate hacia los lados para ver más',
-  'timeline.editTask': 'Editar tarea',
 
   // Time Tracker
   'timeTracker.tracking': 'Seguimiento',

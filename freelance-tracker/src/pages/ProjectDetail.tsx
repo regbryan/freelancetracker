@@ -26,6 +26,7 @@ import type { ReplyTarget } from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
 import ProjectCollaboratorsCard from '../components/ProjectCollaboratorsCard'
+import { useRole } from '../hooks/useWorkspaceRole'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useI18n } from '../lib/i18n'
@@ -48,6 +49,9 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t, lang } = useI18n()
+  // Belt and braces beside OwnerGate's redirect: a non-owner never gets this far,
+  // but the collaborator-management card should not mount for one if they did.
+  const role = useRole()
 
   const formatDate = (iso: string | null): string => {
     if (!iso) return '--'
@@ -421,7 +425,7 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      <ProjectCollaboratorsCard projectId={project.id} />
+      {role === 'owner' && <ProjectCollaboratorsCard projectId={project.id} />}
       {/* Tabs */}
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">

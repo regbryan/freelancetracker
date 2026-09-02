@@ -77,6 +77,35 @@ describe('TimelineGantt render', () => {
     expect(onScheduleTask).toHaveBeenCalledWith('t2', { start_date: '2026-09-01', due_date: '2026-09-07' })
   })
 
+  it('a rejected tray schedule is caught, not left as an unhandled rejection', async () => {
+    // The Timeline page re-throws after showing its banner, so the chip's own
+    // promise must be swallowed here or Sentry double-reports the same failure.
+    // `process` isn't in the app tsconfig's lib, so reach it through globalThis.
+    const proc = (globalThis as unknown as {
+      process: { on(e: string, f: () => void): void; off(e: string, f: () => void): void }
+    }).process
+    const unhandled = vi.fn()
+    proc.on('unhandledRejection', unhandled)
+    try {
+      // A plain function, not vi.fn(): a Vitest spy attaches its own handler to
+      // the promise it returns (to record settledResults), which would mark the
+      // rejection handled and hide the very bug this test is about.
+      let calls = 0
+      const onScheduleTask = () => {
+        calls += 1
+        return Promise.reject(new Error('nope'))
+      }
+      setup({ onScheduleTask })
+      expect(() => fireEvent.click(screen.getByRole('button', { name: 'Launch plan' }))).not.toThrow()
+      expect(calls).toBe(1)
+      // Let the rejection settle and any unhandled-rejection event fire.
+      await new Promise((r) => setTimeout(r, 0))
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      proc.off('unhandledRejection', unhandled)
+    }
+  })
+
   it('a task with only a due date renders as a one-day bar', () => {
     setup()
     const bar = screen.getByRole('button', { name: /Kickoff/ })
