@@ -24,6 +24,7 @@ import EmailComposer from '../components/EmailComposer'
 import type { ReplyTarget } from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
+import ProjectCollaboratorsCard from '../components/ProjectCollaboratorsCard'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useI18n } from '../lib/i18n'
@@ -416,6 +417,7 @@ export default function ProjectDetail() {
         </div>
       </div>
 
+      <ProjectCollaboratorsCard projectId={project.id} />
       {/* Tabs */}
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
