@@ -399,3 +399,53 @@ is new; the remaining items pre-date this work (portal definer views, backup tab
 
 Not yet done: browser walkthrough as owner, collaborator, and portal client
 (needs a signed-in session), and screenshots per CLAUDE.md.
+
+
+## Revision 2026-09-02 (b) — Milestones layer
+
+Decided after the owner's visual review, using Milestones PM+ (Passage Technology,
+Salesforce-native) as the reference: Projects → Milestones → Tasks, a Gantt drawn at
+milestone level with tasks nested and **collapsed by default**, and sharing by print/PDF
+and the client portal. Owner's data already encodes phases as bracketed title prefixes
+(52 of 122 tasks, 7 distinct prefixes in one project); those become milestones.
+
+### Schema — `supabase_migration_milestones.sql`
+- `public.milestones (id, project_id → projects cascade, user_id default auth.uid(),
+  name not blank, start_date, end_date, sort_order int default 0, created_at, updated_at)`.
+- `tasks.milestone_id uuid null → milestones(id) on delete set null`, indexed.
+- RLS on `milestones`: `owner_manages_milestones` (ALL, project owned by auth.uid()) and
+  `members_manage_milestones` (ALL, `is_project_member(project_id)`). No `user_id`
+  clause (same lesson as tasks).
+- Portal: new definer view `portal_milestones (id, project_id, name, start_date,
+  end_date, sort_order)` scoped by client email like the other portal views;
+  `portal_tasks` gains `milestone_id` (column appended).
+- One-time data migration `supabase_migration_milestones_from_prefixes.sql`: for each
+  (project, `^\[prefix\]`) group create a milestone named `prefix` with the group's
+  min/max task dates, ordered by first date; point the tasks at it and strip the prefix
+  from their titles.
+
+### Gantt
+- New prop `milestones?: GanttMilestone[]` (`id, project_id, name, start_date, end_date,
+  sort_order`), `expandedMilestoneIds: Set<string>` + `onToggleMilestone(id)` (page owns
+  the state, persisted per project in localStorage `timeline.expanded.<projectId>`),
+  `onMilestoneDates?`, `onMilestoneClick?`.
+- Per-project rows: project row → for each milestone (by `sort_order`, then start): a
+  bold milestone row with a chevron, name, `done/total` count, and a bar spanning its own
+  dates or, when it has none, the extent of its tasks; the bar carries a fill proportional
+  to done tasks. Collapsed by default; expanded shows its tasks nested one level deeper.
+  Tasks with no milestone go under an "Unassigned" group only when the project has at
+  least one milestone; otherwise the flat layout is unchanged.
+- Milestone bars drag/resize like project bars when `editable` (members may edit
+  milestones: RLS allows it). Click opens the milestone dialog.
+- Overview: project bar plus a small diamond at each milestone's end date.
+- Hide-done hides tasks only; a fully-done milestone still shows its bar at 100%.
+
+### Page and forms
+- Timeline page: "+ Milestone" button when a project is selected (inline dialog: name,
+  start, end). Milestone dialog also allows delete (tasks keep their dates, lose the link).
+- `TaskForm` gains an optional `milestones` prop that renders a milestone select; the
+  Timeline page passes it; Tasks and ProjectDetail pages are unchanged for now.
+- `useMilestones(projectId)`: list / create / update / remove.
+- Portal: `usePortalData` also reads `portal_milestones`; the Gantt renders milestones
+  read-only, collapse toggles still work.
+- Print: prints what is displayed (collapsed or expanded).
