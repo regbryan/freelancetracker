@@ -31,7 +31,7 @@
 -- happens to be bracketed ("[URGENT]", "[Client]", "[v2]") — those would become
 -- milestones too, and the prefix would be stripped from the title. Fix or
 -- re-title any of those BEFORE running the rest of the file.
-WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggieebryant@gmail.com')
+WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggie@inspiredideationstrategies.com')
 SELECT p.name                                              AS project_name,
        btrim(substring(t.title FROM '^\[([^\]]+)\]'))      AS prefix,
        count(*)                                            AS task_count,
@@ -56,7 +56,7 @@ ORDER BY p.name, prefix;
 -- statement below silently matches zero rows and the run "succeeds" doing nothing.
 DO $$
 DECLARE
-  v_owner_email CONSTANT TEXT := 'reggieebryant@gmail.com';
+  v_owner_email CONSTANT TEXT := 'reggie@inspiredideationstrategies.com';
   v_owner       UUID;
 BEGIN
   SELECT id INTO v_owner FROM auth.users WHERE email = v_owner_email;
@@ -93,7 +93,7 @@ WHERE false;
 ALTER TABLE public.tasks_prefix_backup_20260902 ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.tasks_prefix_backup_20260902 FROM PUBLIC, anon, authenticated;
 
-WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggieebryant@gmail.com')
+WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggie@inspiredideationstrategies.com')
 INSERT INTO public.tasks_prefix_backup_20260902 (id, title, milestone_id, backed_up_at)
 SELECT t.id, t.title, t.milestone_id, now()
 FROM public.tasks t
@@ -122,7 +122,7 @@ DECLARE
   v_created INTEGER;
   v_linked  INTEGER;
 BEGIN
-  SELECT id INTO v_owner FROM auth.users WHERE email = 'reggieebryant@gmail.com';
+  SELECT id INTO v_owner FROM auth.users WHERE email = 'reggie@inspiredideationstrategies.com';
 
   -- 3. One milestone per (project, prefix) that does not have one yet.
   WITH prefixed AS (
@@ -197,7 +197,7 @@ END $$;
 -- equal `tasks_skipped_blank_title`: those keep their prefix by design, because
 -- stripping it would leave them with no title at all. Any excess above that is
 -- worth investigating before the transaction is committed.
-WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggieebryant@gmail.com'),
+WITH owner AS (SELECT id FROM auth.users WHERE email = 'reggie@inspiredideationstrategies.com'),
 owned AS (
   SELECT t.id, t.title, t.milestone_id
   FROM public.tasks t
