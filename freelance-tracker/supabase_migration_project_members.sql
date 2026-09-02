@@ -73,18 +73,16 @@ CREATE POLICY members_read_projects ON public.projects
   FOR SELECT
   USING (public.is_project_member(id));
 
--- 5. tasks: owner access becomes project-based; members get full task access
+-- 5. tasks: owner access becomes purely project-based; members get full task
+--    access on their projects. Deliberately NO `auth.uid() = user_id` clause:
+--    with it, any signed-in user (including a portal client who knows a project
+--    id from portal_projects) could insert a task into someone else's project,
+--    and the owner would then see it. Found during RLS verification 2026-09-02.
 DROP POLICY IF EXISTS users_own_tasks ON public.tasks;
 CREATE POLICY users_own_tasks ON public.tasks
   FOR ALL
-  USING (
-    auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM public.projects p WHERE p.id = project_id AND p.user_id = auth.uid())
-  )
-  WITH CHECK (
-    auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM public.projects p WHERE p.id = project_id AND p.user_id = auth.uid())
-  );
+  USING (EXISTS (SELECT 1 FROM public.projects p WHERE p.id = project_id AND p.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.projects p WHERE p.id = project_id AND p.user_id = auth.uid()));
 
 DROP POLICY IF EXISTS members_manage_tasks ON public.tasks;
 CREATE POLICY members_manage_tasks ON public.tasks
