@@ -54,6 +54,7 @@ import Timeline from './Timeline'
 function makeProject(over: Partial<Project> = {}): Project {
   return {
     id: 'p1',
+    user_id: 'u1',
     client_id: 'c1',
     name: 'Alpha',
     description: null,

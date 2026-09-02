@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { Loader2, UserPlus, X, Users } from 'lucide-react'
 import { useProjectMembers } from '../hooks/useProjectMembers'
 import { useI18n } from '../lib/i18n'
@@ -14,6 +14,15 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const errorId = useId()
+
+  function mapError(err: unknown): string {
+    console.error(err)
+    const m = err instanceof Error ? err.message : ''
+    if (m === 'duplicate') return t('collab.duplicate')
+    if (m === 'invalid') return t('collab.invalidEmail')
+    return t('collab.failed')
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -23,8 +32,7 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
       await addMember(email)
       setEmail('')
     } catch (err) {
-      const m = err instanceof Error ? err.message : ''
-      setError(m === 'duplicate' ? t('collab.duplicate') : m === 'invalid' ? t('collab.invalidEmail') : m || t('collab.failed'))
+      setError(mapError(err))
     } finally {
       setSaving(false)
     }
@@ -51,7 +59,7 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
               <span className="text-[12px] text-text-primary truncate">{m.email}</span>
               <button
                 type="button"
-                onClick={() => removeMember(m.id).catch((err) => setError(err instanceof Error ? err.message : t('collab.failed')))}
+                onClick={() => removeMember(m.id).then(() => setError(null)).catch((err) => setError(mapError(err)))}
                 className="flex items-center gap-1 text-[11px] text-text-muted hover:text-negative transition-colors"
                 aria-label={`${t('collab.remove')} ${m.email}`}
               >
@@ -67,9 +75,18 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
         <input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            setError(null)
+          }}
           placeholder={t('collab.emailPlaceholder')}
-          aria-label={t('collab.emailPlaceholder')}
+          aria-label={t('collab.emailLabel')}
+          autoComplete="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           className="flex-1 h-9 rounded-lg border border-border bg-input-bg px-3 text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
         />
         <button
@@ -82,7 +99,7 @@ export default function ProjectCollaboratorsCard({ projectId }: Props) {
           {t('collab.add')}
         </button>
       </form>
-      {error && <p className="text-negative text-[11px]" role="alert">{error}</p>}
+      {error && <p id={errorId} className="text-negative text-[11px]" role="alert">{error}</p>}
     </div>
   )
 }

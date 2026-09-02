@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom'
 import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock, GanttChartSquare } from 'lucide-react'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useProject, useProjects } from '../hooks/useProjects'
+import { useAuth } from '../hooks/useAuth'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
@@ -55,6 +56,7 @@ export default function ProjectDetail() {
   }
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
+  const { user } = useAuth()
   const { projects: allProjects, deleteProject, updateProject } = useProjects()
   const { clients } = useClients()
   const {
@@ -300,6 +302,8 @@ export default function ProjectDetail() {
       </div>
     )
   }
+
+  if (user && project.user_id !== user.id) return <Navigate to={`/timeline?project=${project.id}`} replace />
 
   const status = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.active
 

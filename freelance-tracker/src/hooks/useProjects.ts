@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 export interface Project {
   id: string;
+  user_id: string;
   client_id: string;
   name: string;
   description: string | null;
@@ -23,7 +24,7 @@ export interface Project {
   };
 }
 
-export type ProjectInsert = Omit<Project, 'id' | 'created_at' | 'updated_at' | 'clients' | 'billing_type' | 'monthly_rate' | 'start_date' | 'end_date'> & {
+export type ProjectInsert = Omit<Project, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'clients' | 'billing_type' | 'monthly_rate' | 'start_date' | 'end_date'> & {
   /** Defaults to 'hourly' at the database level if omitted. */
   billing_type?: 'hourly' | 'monthly';
   monthly_rate?: number | null;
