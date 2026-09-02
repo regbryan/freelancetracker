@@ -449,3 +449,15 @@ and the client portal. Owner's data already encodes phases as bracketed title pr
 - Portal: `usePortalData` also reads `portal_milestones`; the Gantt renders milestones
   read-only, collapse toggles still work.
 - Print: prints what is displayed (collapsed or expanded).
+
+### Visual direction
+Quiet professional tool, per `PRODUCT.md`: the data is the interface, chrome only where
+it does a job. The stock-photo hero and the "insight" card are gone from `/timeline`
+(`TimelineHero` and `TimelineInsight` deleted); the page opens on a plain header row —
+project switcher, name, date span and task counts — with Print / PDF as the only action.
+Controls are flat and standard: a native `<select>` for the project, a bordered segmented
+control for zoom, a plain checkbox for Hide done, no pill chips, no gradients, no tiny
+uppercase tracked labels. The Gantt is a bordered box, not a shadowed cream card, and its
+bars are solid 3px-radius blocks — tan for to-do, green for in progress, sage for done,
+navy for the project — with the today line at full accent and a small "Today" flag in the
+header. The legend is one line under the chart, unlabelled.

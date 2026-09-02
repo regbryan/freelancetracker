@@ -46,10 +46,6 @@ vi.mock('../hooks/useWorkspaceRole', () => ({
   useRole: () => 'owner',
 }))
 
-// The insight banner does its own date math and adds noise; the page is what's under
-// test, so it stands in as a marker we can assert on.
-vi.mock('../components/TimelineInsight', () => ({ default: () => <div data-testid="insight" /> }))
-
 import Timeline from './Timeline'
 
 function makeProject(over: Partial<Project> = {}): Project {
@@ -197,10 +193,28 @@ describe('Timeline page', () => {
 
     // Beta is the more recently updated active project.
     await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?project=p2'))
-    expect(screen.getByRole('combobox')).toHaveValue('p2')
-    expect(screen.queryByTestId('insight')).not.toBeInTheDocument()
-    // Alpha still has a chip in the switcher; what it must not have is a row in the grid.
+    expect(screen.getByRole('combobox', { name: 'Project' })).toHaveValue('p2')
+    // Alpha is still an option in the switcher; what it must not have is a row in the grid.
     expect(screen.queryByRole('img', { name: /^Alpha:/ })).not.toBeInTheDocument()
+  })
+
+  it('the header names the project and counts its tasks, with no hero copy', () => {
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', title: 'Old logo pass', status: 'done' })]
+    renderPage()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Alpha' })).toBeInTheDocument()
+    expect(screen.getByText(/Sep 1, 2026 – Oct 31, 2026 · 2 tasks · 1 open/)).toBeInTheDocument()
+    // The stock-photo hero and its quote are gone for good.
+    expect(screen.queryByText(/Your Runway/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Time is the axis/)).not.toBeInTheDocument()
+  })
+
+  it('a project with no dates says so instead of printing a range', () => {
+    hooks.projects = [makeProject({ start_date: null, end_date: null })]
+    hooks.tasks = []
+    renderPage()
+
+    expect(screen.getByText(/No dates yet · 0 tasks · 0 open/)).toBeInTheDocument()
   })
 
   it('zoom choice persists in localStorage', async () => {
@@ -232,7 +246,7 @@ describe('Timeline page', () => {
     expect(screen.queryByRole('img', { name: /^Alpha:/ })).not.toBeInTheDocument()
   })
 
-  it('?project=all shows one bar per project, no tasks, the hint, and the insight', async () => {
+  it('?project=all shows one bar per project, no tasks, and the hint', async () => {
     hooks.projects = [alpha(), beta()]
     hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
     renderPage(['/timeline?project=all'])
@@ -242,24 +256,31 @@ describe('Timeline page', () => {
     expect(screen.queryByRole('button', { name: /^Brand audit:/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Kickoff:/ })).not.toBeInTheDocument()
     expect(screen.getByText('One bar per project. Pick a project to plan its tasks.')).toBeInTheDocument()
-    expect(screen.getByTestId('insight')).toBeInTheDocument()
     await waitFor(() => expect(localStorage.getItem('timeline.lastProject')).toBe('all'))
   })
 
-  it('clicking a project chip switches to that project and updates the URL', async () => {
+  it('choosing a project in the switcher switches to it and updates the URL', async () => {
     const user = userEvent.setup()
     hooks.projects = [alpha(), beta()]
     hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
     renderPage(['/timeline?project=all'])
 
-    await user.click(screen.getByRole('button', { name: 'Alpha' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'p1')
 
     await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?project=p1'))
-    expect(screen.getByRole('button', { name: 'Alpha' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('combobox', { name: 'Project' })).toHaveValue('p1')
+    expect(screen.getByRole('heading', { level: 1, name: 'Alpha' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Brand audit:/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Kickoff:/ })).not.toBeInTheDocument()
-    expect(screen.queryByTestId('insight')).not.toBeInTheDocument()
     expect(localStorage.getItem('timeline.lastProject')).toBe('p1')
+  })
+
+  it('the switcher groups active projects apart from the rest', () => {
+    hooks.projects = [alpha(), beta(), makeProject({ id: 'p3', name: 'Gamma', status: 'completed' })]
+    renderPage()
+
+    const groups = Array.from(document.querySelectorAll('optgroup')).map((g) => g.label)
+    expect(groups).toEqual(['Active', 'Other'])
   })
 
   it('hides done tasks by default and says how many it hid', () => {

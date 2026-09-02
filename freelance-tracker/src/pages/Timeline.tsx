@@ -4,12 +4,11 @@ import { Loader2, AlertCircle, X, Printer } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import { useRole } from '../hooks/useWorkspaceRole'
-import TimelineInsight from '../components/TimelineInsight'
 import WorkTabs from '../components/WorkTabs'
 import TimelineGantt from '../components/TimelineGantt'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
-import { computeContentRange, diffDays, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
-import { OVERVIEW, quickPickProjects, resolveSelection } from '../lib/timelineSelection'
+import { computeContentRange, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
+import { OVERVIEW, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
 
 const ZOOMS: Zoom[] = ['week', 'month', 'quarter']
@@ -75,47 +74,19 @@ function writeLastProject(id: string) {
   }
 }
 
-/** The switcher chips and the zoom control are one visual family. */
-const SEGMENT_ACTIVE_STYLE = { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }
-function segmentClass(active: boolean): string {
-  return `px-2.5 h-7 rounded-md text-[11px] font-semibold transition-colors ${
-    active ? 'text-white' : 'text-text-muted hover:text-text-primary'
-  }`
-}
-
-function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
-  const { t } = useI18n()
-  return (
-    <div
-      data-print-hide
-      className="rounded-[16px] text-white relative overflow-hidden"
-      style={{ backgroundColor: '#0a1223', minHeight: '160px' }}
-    >
-      <img
-        src="/timeline-hero.webp"
-        alt=""
-        aria-hidden="true"
-        fetchPriority="high"
-        loading="eager"
-        decoding="sync"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: 'center 35%' }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(90deg, rgba(10,18,35,0.82) 0%, rgba(10,18,35,0.55) 60%, rgba(10,18,35,0.20) 100%)' }}
-      />
-      <div className="relative z-10 px-7 py-7 max-w-2xl">
-        <p className="text-white/60 text-[10px] font-semibold uppercase tracking-[2px]">{t('timeline.yourRunway')}</p>
-        <h1 className="text-[24px] font-bold tracking-[-0.4px] text-white mt-1.5">{t('timeline.title')}</h1>
-        <p className="text-white/75 text-[13px] mt-2 leading-relaxed italic">{t('timeline.heroQuote')}</p>
-        <p className="text-white/60 text-[12px] mt-3">
-          {activeCount === 1 ? t('timeline.activeProject', { n: activeCount }) : t('timeline.activeProjects', { n: activeCount })}
-          {endingSoon > 0 ? t('timeline.endingIn14', { n: endingSoon }) : ''}
-        </p>
-      </div>
-    </div>
-  )
+/**
+ * Min/max of the dates actually on screen. The header states the plan's own span,
+ * so it uses the raw bounds, not the padded track computeContentRange draws.
+ */
+function contentBounds(dates: Array<string | null | undefined>): { min: string; max: string } | null {
+  let min: string | null = null
+  let max: string | null = null
+  for (const d of dates) {
+    if (!d) continue
+    if (min === null || d < min) min = d
+    if (max === null || d > max) max = d
+  }
+  return min !== null && max !== null ? { min, max } : null
 }
 
 export default function Timeline() {
@@ -225,8 +196,15 @@ export default function Timeline() {
     [hideDone, projectTasks],
   )
   const doneHidden = projectTasks.length - visibleTasks.length
-  const quickPicks = useMemo(() => quickPickProjects(projects, selection), [projects, selection])
-  const allProjectsByName = useMemo(() => projects.slice().sort((a, b) => a.name.localeCompare(b.name)), [projects])
+  // The switcher lists active work first; everything else is still one scroll away.
+  const activeProjects = useMemo(
+    () => projects.filter((p) => p.status === 'active').sort((a, b) => a.name.localeCompare(b.name)),
+    [projects],
+  )
+  const otherProjects = useMemo(
+    () => projects.filter((p) => p.status !== 'active').sort((a, b) => a.name.localeCompare(b.name)),
+    [projects],
+  )
 
   // Adjusting state during render (React's documented pattern) rather than in an
   // effect: the first painted frame is already the real page, not a spinner.
@@ -266,12 +244,6 @@ export default function Timeline() {
   }
 
   const today = todayISO()
-  const activeCount = projects.filter((p) => p.status === 'active').length
-  const endingSoon = projects.filter((p) => {
-    if (p.status !== 'active' || !p.end_date) return false
-    const days = diffDays(today, p.end_date)
-    return days >= 0 && days <= 14
-  }).length
   const fetchError = projectsError ?? tasksError
   // Same inputs TimelineGantt feeds computeContentRange, so the printed header names
   // the range the printed grid actually covers.
@@ -289,112 +261,107 @@ export default function Timeline() {
       year: 'numeric',
     })
 
+  const headerTitle = isOverview ? t('timeline.overview') : (selectedProject?.name ?? t('timeline.overview'))
+  const bounds = contentBounds([
+    selectedProject?.start_date,
+    selectedProject?.end_date,
+    ...visibleTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+  ])
+  const headerSub = isOverview
+    ? t('timeline.overviewHint')
+    : `${bounds ? `${longDate(bounds.min)} – ${longDate(bounds.max)}` : t('timeline.noDatesYet')} · ${t('timeline.taskCounts', {
+        n: projectTasks.length,
+        m: projectTasks.filter((tk) => tk.status !== 'done').length,
+      })}`
+
   return (
     <div className="p-6 flex flex-col gap-5">
-      <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
       <div data-print-hide>
         <WorkTabs />
       </div>
-      {/* The insight reasons about the whole business, so it belongs with the whole business. */}
-      {role === 'owner' && isOverview && (
-        <div data-print-hide>
-          <TimelineInsight projects={projects} tasks={tasks} />
-        </div>
-      )}
 
-      {/* Controls */}
-      <div data-print-hide className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="inline-flex flex-wrap rounded-lg border border-border bg-surface p-0.5 gap-0.5">
-            <button
-              type="button"
-              aria-current={isOverview ? 'true' : undefined}
-              onClick={() => selectProject(OVERVIEW)}
-              className={segmentClass(isOverview)}
-              style={isOverview ? SEGMENT_ACTIVE_STYLE : undefined}
-            >
-              {t('timeline.overview')}
-            </button>
-            {quickPicks.map((p) => {
-              const active = p.id === selection
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  aria-current={active ? 'true' : undefined}
-                  onClick={() => selectProject(p.id)}
-                  className={`${segmentClass(active)} max-w-[170px] truncate`}
-                  style={active ? SEGMENT_ACTIVE_STYLE : undefined}
-                >
-                  {p.name}
-                </button>
-              )
-            })}
-          </div>
-          <label className="flex items-center gap-2 text-[12px] text-text-secondary">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.filterProject')}</span>
-            <select
-              value={selection}
-              onChange={(e) => selectProject(e.target.value)}
-              className="h-8 max-w-[200px] rounded-lg border border-border bg-surface px-2 text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
-            >
-              <option value={OVERVIEW}>{t('timeline.overview')}</option>
-              <optgroup label={t('timeline.allProjects')}>
-                {allProjectsByName.map((p) => (
+      {/* Header — which plan, over what dates, and the one action that leaves the page. */}
+      <div data-print-hide className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0 flex flex-col items-start gap-1.5">
+          <select
+            aria-label={t('timeline.filterProject')}
+            value={selection}
+            onChange={(e) => selectProject(e.target.value)}
+            className="h-8 max-w-[260px] rounded-md border border-border bg-surface px-2 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+          >
+            <option value={OVERVIEW}>{t('timeline.overview')}</option>
+            {activeProjects.length > 0 && (
+              <optgroup label={t('timeline.groupActive')}>
+                {activeProjects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
               </optgroup>
-            </select>
-          </label>
+            )}
+            {otherProjects.length > 0 && (
+              <optgroup label={t('timeline.groupOther')}>
+                {otherProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <h1 className="text-[20px] font-semibold text-text-primary tracking-[-0.01em]">{headerTitle}</h1>
+          <p className="text-[13px] text-text-secondary">{headerSub}</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <label className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-border bg-surface px-2.5 text-[11px] font-semibold text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
-            <input
-              type="checkbox"
-              checked={hideDone}
-              onChange={(e) => setHideDone(e.target.checked)}
-              className="w-3.5 h-3.5 accent-accent cursor-pointer"
-            />
-            {t('timeline.hideDone')}
-          </label>
-          {doneHidden > 0 && (
-            <span className="text-[11px] text-text-muted">{t('timeline.doneHidden', { n: doneHidden })}</span>
-          )}
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-border bg-surface px-2.5 text-[11px] font-semibold text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
-          >
-            <Printer size={13} />
-            {t('timeline.print')}
-          </button>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.zoomLabel')}</span>
-          <div role="radiogroup" aria-label={t('timeline.zoomLabel')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
-            {ZOOMS.map((z) => {
-              const key = z === 'week' ? 'timeline.zoomWeek' : z === 'month' ? 'timeline.zoomMonth' : 'timeline.zoomQuarter'
-              const active = z === zoom
-              return (
-                <button
-                  key={z}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setZoom(z)}
-                  className={segmentClass(active)}
-                  style={active ? SEGMENT_ACTIVE_STYLE : undefined}
-                >
-                  {t(key)}
-                </button>
-              )
-            })}
-          </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-surface text-[13px] text-text-primary hover:bg-bg"
+        >
+          <Printer size={13} />
+          {t('timeline.print')}
+        </button>
+      </div>
+
+      {/* Toolbar — how the chart is drawn, nothing else. */}
+      <div data-print-hide className="flex items-center gap-3 flex-wrap">
+        <div
+          role="radiogroup"
+          aria-label={t('timeline.zoomLabel')}
+          className="inline-flex rounded-md border border-border overflow-hidden"
+        >
+          {ZOOMS.map((z) => {
+            const key = z === 'week' ? 'timeline.zoomWeek' : z === 'month' ? 'timeline.zoomMonth' : 'timeline.zoomQuarter'
+            const active = z === zoom
+            return (
+              <button
+                key={z}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setZoom(z)}
+                className={`h-8 px-3 text-[13px] border-l border-border first:border-l-0 ${
+                  active ? 'bg-accent text-white' : 'bg-surface text-text-secondary hover:bg-bg'
+                }`}
+              >
+                {t(key)}
+              </button>
+            )
+          })}
         </div>
+        <label className="inline-flex items-center gap-2 text-[13px] text-text-secondary">
+          <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} className="accent-accent" />
+          {t('timeline.hideDone')}
+        </label>
+        {doneHidden > 0 && (
+          <span className="text-[13px] text-text-secondary">{t('timeline.doneHidden', { n: doneHidden })}</span>
+        )}
       </div>
 
       {error && (
-        <div role="alert" className="flex items-center gap-2 bg-negative-bg text-negative rounded-[12px] px-4 py-2.5 text-[12px]">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-md border border-negative/30 bg-negative-bg text-negative text-[13px] px-3 py-2"
+        >
           <AlertCircle size={14} />
           <span className="flex-1">{error}</span>
           <button type="button" onClick={() => setError(null)} aria-label={t('common.close')} className="p-1 rounded hover:bg-negative/10">
@@ -405,25 +372,25 @@ export default function Timeline() {
 
       {/* A failed fetch is not an empty workspace — say so, and don't auto-dismiss it. */}
       {fetchError && (
-        <div role="alert" className="flex items-center gap-2 bg-negative-bg text-negative rounded-[12px] px-4 py-2.5 text-[12px]">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-md border border-negative/30 bg-negative-bg text-negative text-[13px] px-3 py-2"
+        >
           <AlertCircle size={14} />
           <span className="flex-1">{fetchError}</span>
         </div>
       )}
 
       {projects.length === 0 && !fetchError ? (
-        <div className="bg-surface rounded-[14px] shadow-card border border-border p-12 flex items-center justify-center">
-          <p className="text-text-muted text-[13px]">{t('timeline.empty')}</p>
+        <div className="rounded-md border border-border bg-surface px-4 py-10 text-center">
+          <p className="text-text-secondary text-[13px]">{t('timeline.empty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {isOverview && <p data-print-hide className="text-[12px] text-text-muted">{t('timeline.overviewHint')}</p>}
-          {/* Screen shows the hero and the switcher; paper gets this instead. */}
+          {/* Screen shows the header block; paper gets this instead. */}
           <div className="hidden print:block">
-            <h2 className="text-[16px] font-bold text-text-primary">
-              {isOverview ? t('timeline.overview') : (selectedProject?.name ?? t('timeline.overview'))}
-            </h2>
-            <p className="text-[11px] text-text-muted mt-0.5">
+            <h2 className="text-[16px] font-bold text-text-primary">{headerTitle}</h2>
+            <p className="text-[11px] text-text-secondary mt-0.5">
               {longDate(printRange.start)} – {longDate(printRange.end)} ·{' '}
               {t('timeline.printedOn', { date: longDate(today) })}
             </p>

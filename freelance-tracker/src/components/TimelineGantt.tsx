@@ -79,11 +79,25 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: '#6b7280',
 }
 
-const TASK_STATUS_COLORS: Record<string, { bg: string; border: string }> = {
-  done: { bg: '#bbf7d0', border: '#16a34a' },
-  in_progress: { bg: '#c8dcd1', border: '#3e6b5a' },
-  todo: { bg: '#e5e7eb', border: '#9ca3af' },
+/**
+ * Bars are solid blocks, not tinted outlines: a row should read as a shape on a date
+ * at a glance, so each status is one fill plus the label colour that survives it.
+ */
+const TASK_STATUS_COLORS: Record<string, { bg: string; label: string }> = {
+  done: { bg: '#b9d3c7', label: 'text-text-primary' },
+  in_progress: { bg: '#3e6b5a', label: 'text-white' },
+  todo: { bg: '#d7d0c3', label: 'text-text-primary' },
 }
+
+/** Navy: a project bar is the container its tasks sit inside, not another status. */
+const PROJECT_BAR_BG = '#15263a'
+
+/**
+ * Bars read as solid blocks at rest; the grab zones only draw themselves when the
+ * pointer is on the bar, so the chart is not a row of handles.
+ */
+const EDGE_HINT_START = 'group-hover:border-l group-hover:border-white/40'
+const EDGE_HINT_END = 'group-hover:border-r group-hover:border-white/40'
 
 type DragState = {
   kind: 'task' | 'project'
@@ -140,14 +154,14 @@ function TrackBg({
         <div
           key={w.offsetDays}
           data-testid="weekend"
-          className="absolute top-0 bg-bg/70"
+          className="absolute top-0 bg-text-primary/[0.04]"
           style={{ left: w.offsetDays * px, width: w.days * px, height: '100%' }}
         />
       ))}
       {months.map((tick) => (
         <div key={tick.iso} className="absolute top-0 w-px bg-border/30" style={{ left: tick.offsetDays * px, height: '100%' }} />
       ))}
-      <div className="absolute top-0 w-0.5 bg-accent/20" style={{ left: todayLeft, height: '100%' }} />
+      <div className="absolute top-0 w-0.5 bg-accent" style={{ left: todayLeft, height: '100%' }} />
     </div>
   )
 }
@@ -360,7 +374,7 @@ export default function TimelineGantt({
   return (
     <div
       data-gantt
-      className="bg-surface rounded-[14px] shadow-card border border-border overflow-hidden"
+      className="bg-surface rounded-md border border-border overflow-hidden"
       style={{ '--print-scale': String(printScale) } as CSSProperties}
     >
       <div
@@ -372,12 +386,12 @@ export default function TimelineGantt({
       >
         <div style={{ width: labelWidth + trackW }}>
           {/* Header */}
-          <div className="flex border-b border-border bg-input-bg/60">
+          <div className="flex border-b border-border bg-surface">
             <div
-              className="sticky left-0 z-10 bg-input-bg shrink-0 border-r border-border px-4 py-2.5"
+              className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2.5"
               style={{ width: labelWidth, minWidth: labelWidth }}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.projectTask')}</span>
+              <span className="text-[12px] font-medium text-text-secondary">{t('timeline.projectTask')}</span>
             </div>
             <div className="relative h-9" style={{ width: trackW }}>
               {months.map((tick, i) => {
@@ -391,7 +405,7 @@ export default function TimelineGantt({
                   <div key={tick.iso} className="absolute top-0 h-full flex items-start pt-1" style={{ left: tick.offsetDays * px }}>
                     <div className="h-full w-px bg-border/50" />
                     {!crowded && (
-                      <span className="text-[10px] font-semibold text-text-muted ml-1.5 whitespace-nowrap">{monthLabel(tick.iso)}</span>
+                      <span className="text-[12px] font-medium text-text-secondary ml-1.5 whitespace-nowrap">{monthLabel(tick.iso)}</span>
                     )}
                   </div>
                 )
@@ -399,13 +413,20 @@ export default function TimelineGantt({
               {days.map((tick) => (
                 <span
                   key={tick.iso}
-                  className="absolute bottom-0.5 text-[9px] text-text-muted"
+                  className="absolute bottom-0.5 text-[11px] text-text-secondary"
                   style={{ left: tick.offsetDays * px + 2 }}
                 >
                   {parseDate(tick.iso).getDate()}
                 </span>
               ))}
-              <div className="absolute top-0 h-full w-0.5 bg-accent/60" style={{ left: todayLeft }} />
+              <div className="absolute top-0 h-full w-0.5 bg-accent" style={{ left: todayLeft }} />
+              {/* The line needs saying once, in words, where the eye first lands. */}
+              <span
+                className="absolute bottom-0.5 z-10 whitespace-nowrap pointer-events-none text-[10px] font-medium text-white bg-accent rounded-sm px-1"
+                style={{ left: todayLeft + 3 }}
+              >
+                {t('timeline.today')}
+              </span>
             </div>
           </div>
 
@@ -428,14 +449,14 @@ export default function TimelineGantt({
             return (
               <div key={project.id} className="border-b border-border last:border-0">
                 {/* Project row */}
-                <div className="gantt-row flex items-stretch hover:bg-input-bg/30 transition-colors group">
+                <div className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
                   <div
                     className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-3 flex items-center gap-2 min-w-0"
                     style={{ width: labelWidth, minWidth: labelWidth }}
                   >
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <span
-                      className="text-[12px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
+                      className="text-[13px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
                       title={project.name}
                     >
                       {project.name}
@@ -451,7 +472,7 @@ export default function TimelineGantt({
                         onPointerUp={endDrag}
                         onPointerCancel={cancelDrag}
                         onLostPointerCapture={cancelDrag}
-                        className={`gantt-bar absolute top-1/2 -translate-y-1/2 h-5 rounded-full flex items-center px-2 select-none ${
+                        className={`gantt-bar group absolute top-1/2 -translate-y-1/2 h-[18px] rounded-[3px] flex items-center px-2 select-none ${
                           editable && canEditProjects ? 'touch-none cursor-grab' : ''
                         } ${projectDragging ? 'ring-2 ring-accent/40' : ''}`}
                         style={{
@@ -459,25 +480,32 @@ export default function TimelineGantt({
                           // Rendered width only: the drag maths keeps using the true width, so
                           // widening a sliver never lies about the dates it saves.
                           width: editable && canEditProjects ? Math.max(projectGeom.width, MIN_BAR_PX) : projectGeom.width,
-                          backgroundColor: color + '22',
-                          border: `2px solid ${color}`,
+                          backgroundColor: PROJECT_BAR_BG,
                         }}
                         title={`${project.name}: ${fmt(projectRange.start)} – ${fmt(projectRange.end)}`}
                       >
                         {editable && canEditProjects && (
                           <>
-                            <span data-edge="start" className="absolute left-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
-                            <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
+                            <span
+                              data-edge="start"
+                              className={`absolute left-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_START}`}
+                              style={{ width: EDGE_PX }}
+                            />
+                            <span
+                              data-edge="end"
+                              className={`absolute right-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_END}`}
+                              style={{ width: EDGE_PX }}
+                            />
                           </>
                         )}
                         {projectDragging && (
-                          <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                          <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
                             {fmt(projectRange.start)} – {fmt(projectRange.end)}
                           </span>
                         )}
                         {projectGeom.width >= 24 && (
                           <span className="min-w-0 flex-1 overflow-hidden">
-                            <span className="block text-[9px] font-semibold truncate" style={{ color }}>
+                            <span className="block text-[9px] font-semibold truncate text-white">
                               {fmt(projectRange.start)} – {fmt(projectRange.end)}
                             </span>
                           </span>
@@ -497,7 +525,7 @@ export default function TimelineGantt({
                   // Read-only with no click handler: nothing to activate, so it must not be a button.
                   const interactive = editable || Boolean(onTaskClick)
                   const barLabel = `${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`
-                  const barClassName = `gantt-bar absolute top-1/2 -translate-y-1/2 h-4 rounded flex items-center px-1.5 select-none text-left ${
+                  const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-4 rounded-[3px] flex items-center px-1.5 select-none text-left ${
                     editable ? 'touch-none cursor-grab' : 'cursor-default'
                   } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
                   const barStyle = {
@@ -506,24 +534,31 @@ export default function TimelineGantt({
                     // task is a 4-12px sliver at Quarter/Month zoom, too small to grab or see.
                     width: editable ? Math.max(geom.width, MIN_BAR_PX) : geom.width,
                     backgroundColor: colors.bg,
-                    border: `1.5px solid ${colors.border}`,
                   }
                   const barChildren = (
                     <>
                       {editable && (
                         <>
-                          <span data-edge="start" className="absolute left-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
-                          <span data-edge="end" className="absolute right-0 top-0 h-full cursor-ew-resize" style={{ width: EDGE_PX }} />
+                          <span
+                            data-edge="start"
+                            className={`absolute left-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_START}`}
+                            style={{ width: EDGE_PX }}
+                          />
+                          <span
+                            data-edge="end"
+                            className={`absolute right-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_END}`}
+                            style={{ width: EDGE_PX }}
+                          />
                         </>
                       )}
                       {dragging && (
-                        <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                        <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
                           {fmt(r.start)} – {fmt(r.end)}
                         </span>
                       )}
                       {showLabel && (
                         <span className="min-w-0 flex-1 overflow-hidden">
-                          <span className="block text-[9px] font-medium truncate pointer-events-none" style={{ color: colors.border }}>
+                          <span className={`block text-[9px] font-medium truncate pointer-events-none ${colors.label}`}>
                             {task.title}
                           </span>
                         </span>
@@ -531,14 +566,14 @@ export default function TimelineGantt({
                     </>
                   )
                   return (
-                    <div key={task.id} className="gantt-row flex items-stretch hover:bg-input-bg/20 transition-colors">
+                    <div key={task.id} className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
                       <div
                         className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center gap-2 min-w-0"
                         style={{ width: labelWidth, minWidth: labelWidth }}
                       >
                         <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-border" />
                         <span
-                          className="text-[11px] text-text-secondary whitespace-normal leading-snug line-clamp-2 break-words"
+                          className="text-[13px] text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
                           title={task.title}
                         >
                           {task.title}
@@ -578,7 +613,7 @@ export default function TimelineGantt({
                       className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 pl-8 flex items-center min-w-0"
                       style={{ width: labelWidth, minWidth: labelWidth }}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted whitespace-normal leading-snug line-clamp-2">
+                      <span className="text-[12px] text-text-secondary whitespace-normal leading-snug line-clamp-2">
                         {t('timeline.notScheduled', { n: undated.length })}
                       </span>
                     </div>
@@ -595,14 +630,14 @@ export default function TimelineGantt({
                             onClick={() => {
                               void Promise.resolve(onScheduleTask?.(task.id, { start_date: today, due_date: addDays(today, 6) })).catch(() => undefined)
                             }}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40 hover:border-accent hover:text-accent transition-colors"
+                            className="px-2 py-0.5 rounded-md border border-dashed border-border bg-surface text-[12px] text-text-secondary hover:border-accent hover:text-accent transition-colors"
                           >
                             {task.title}
                           </button>
                         ) : (
                           <span
                             key={task.id}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-dashed border-border text-text-secondary bg-input-bg/40"
+                            className="px-2 py-0.5 rounded-md border border-dashed border-border bg-surface text-[12px] text-text-secondary"
                           >
                             {task.title}
                           </span>
@@ -618,34 +653,30 @@ export default function TimelineGantt({
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-4 py-2.5 border-t border-border bg-input-bg/30 flex-wrap">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.legend')}</span>
+      {/* Legend — one line of key, no band, no heading. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-t border-border text-[12px] text-text-secondary">
         {(['active', 'completed', 'on_hold'] as const).map((s) => {
           const labelKey = s === 'active' ? 'timeline.legendActive' : s === 'completed' ? 'timeline.legendCompleted' : 'timeline.legendOnHold'
           return (
             <div key={s} className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[s] }} />
-              <span className="text-[11px] text-text-secondary">{t(labelKey)}</span>
+              <span>{t(labelKey)}</span>
             </div>
           )
         })}
-        <div className="w-px h-4 bg-border mx-1" />
-        {(['done', 'in_progress', 'todo'] as const).map((s) => {
-          const labelKey = s === 'done' ? 'timeline.legendDone' : s === 'in_progress' ? 'timeline.legendInProgress' : 'timeline.legendTodo'
-          return (
-            <div key={s} className="flex items-center gap-1.5">
-              <div className="w-8 h-2.5 rounded" style={{ backgroundColor: TASK_STATUS_COLORS[s].bg, border: `1.5px solid ${TASK_STATUS_COLORS[s].border}` }} />
-              <span className="text-[11px] text-text-secondary">{t(labelKey)}</span>
-            </div>
-          )
-        })}
-        <div className="w-px h-4 bg-border mx-1" />
+        {(['done', 'in_progress', 'todo'] as const).map((s) => (
+          <div key={s} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: TASK_STATUS_COLORS[s].bg }} />
+            <span>
+              {t(s === 'done' ? 'timeline.legendDone' : s === 'in_progress' ? 'timeline.legendInProgress' : 'timeline.legendTodo')}
+            </span>
+          </div>
+        ))}
         <div className="flex items-center gap-1.5">
-          <div className="w-0.5 h-4 bg-accent/60" />
-          <span className="text-[11px] text-text-secondary">{t('timeline.today')}</span>
+          <div className="w-0.5 h-3 bg-accent" />
+          <span>{t('timeline.today')}</span>
         </div>
-        <span data-print-hide className="ml-auto text-[10px] text-text-muted hidden md:inline">
+        <span data-print-hide className="ml-auto hidden md:inline">
           {editable ? t('timeline.dragHint') : t('timeline.readOnlyHint')}
         </span>
       </div>

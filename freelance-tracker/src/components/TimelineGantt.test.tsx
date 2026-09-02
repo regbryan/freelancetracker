@@ -150,8 +150,8 @@ describe('TimelineGantt render', () => {
     setup({ zoom: 'week' })
     const weekends = document.querySelectorAll('[data-testid="weekend"]')
     expect(weekends.length).toBeGreaterThan(0)
-    // bg-input-bg is white on a white surface, i.e. invisible shading.
-    expect(weekends[0]).toHaveClass('bg-bg/70')
+    // A tint of the ink, not of the page: white-on-white would be invisible shading.
+    expect(weekends[0]).toHaveClass('bg-text-primary/[0.04]')
     expect(screen.getAllByText('1').length).toBeGreaterThan(0)
   })
 })
