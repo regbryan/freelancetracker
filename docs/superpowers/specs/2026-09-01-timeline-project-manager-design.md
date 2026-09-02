@@ -267,3 +267,46 @@ Dependency arrows, milestones, phases, drag-and-drop from the tray onto a specif
 keyboard date nudging, realtime subscriptions, invitation emails, a read-only member
 role, per-column hiding of project rates from members, calendar sync, and any change to
 billing, time tracking, meetings, or email features.
+
+
+## Security verification (2026-09-02)
+
+Migration applied to Supabase project `pnilvktjzpnyqhnowuhs` with Reggie's approval,
+plus two follow-ups found during verification (both also in
+`supabase_migration_project_members.sql`):
+
+1. `REVOKE EXECUTE ON FUNCTION is_project_member FROM anon` (Supabase's default
+   privileges had granted it; the advisor flagged it).
+2. `users_own_tasks` is now purely project-based. The `auth.uid() = user_id`
+   clause in its WITH CHECK let any signed-in user, including a portal client who
+   knows a project id from `portal_projects`, insert a task into a project they do
+   not own, and the project-based USING clause then showed it to the owner. Verified
+   before the fix (injected row visible to owner), fixed, re-verified.
+
+Method: SQL impersonation in the Supabase MCP (`set_config('request.jwt.claims', ...)`
+then `SET LOCAL ROLE authenticated`) using the test owner `claude.uiverify.bough@gmail.com`
+(projects Site Redesign = SHARED, Brand Refresh = UNSHARED), a member row for
+`collab.verify@example.com` backed by the portal test account's auth id, and the portal
+client `acme.portal.verify@gmail.com`. All temp rows and the member row were removed
+afterwards (tasks back to 122, no owner/user mismatches).
+
+| Check (as collaborator unless noted) | Result |
+|---|---|
+| tasks on SHARED / UNSHARED / total | 3 / 0 / 3 |
+| projects / clients / time_entries / invoices / expenses / portal_clients | 1 / 0 / 0 / 0 / 0 / 0 |
+| own project_members row visible (mixed-case JWT email) | 1 |
+| UPDATE projects on SHARED | 0 rows |
+| INSERT task on SHARED, then UPDATE dates, then DELETE (separate statements) | 1 / 1 / 1 |
+| INSERT task on UNSHARED | 42501 row-level security violation (after fix; succeeded before) |
+| owner sees collaborator-created task on SHARED | yes |
+| owner INSERT/DELETE on own project; own counts unchanged | 1 / 1; 3 and 1 |
+| portal client direct `tasks` / `projects` | 0 / 0 (portal views still 2 projects) |
+| after member row removed: tasks / projects / member rows | 0 / 0 / 0 |
+
+Security advisor after the changes: only the intentional
+`authenticated_security_definer_function_executable` warning for `is_project_member`
+is new; the remaining items pre-date this work (portal definer views, backup tables,
+`gmail_tokens`, leaked-password protection).
+
+Not yet done: browser walkthrough as owner, collaborator, and portal client
+(needs a signed-in session), and screenshots per CLAUDE.md.
