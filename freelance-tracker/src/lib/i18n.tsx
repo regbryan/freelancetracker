@@ -412,6 +412,7 @@ const en: Dict = {
   'projectDetail.invStatusSent': 'Sent',
   'projectDetail.invStatusPaid': 'Paid',
   'projectDetail.invStatusOverdue': 'Overdue',
+  'projectDetail.openTimeline': 'Open timeline',
 
   // Tasks page
   'tasks.loading': 'Loading tasks...',
@@ -482,25 +483,13 @@ const en: Dict = {
   'timeline.zoomQuarter': 'Quarter',
   'timeline.zoomLabel': 'Zoom',
   'timeline.filterProject': 'Project',
-  'timeline.allProjects': 'All projects',
+  'timeline.allProjects': 'All Projects',
   'timeline.notScheduled': 'Not scheduled ({n})',
   'timeline.scheduleHint': 'Click to place at today, then drag',
   'timeline.empty': 'No projects yet. Create a project to start planning.',
   'timeline.saveFailed': 'Could not save dates: {error}',
   'timeline.dragHint': 'Drag a bar to move it · drag an edge to change its length · click to edit',
   'timeline.editTask': 'Edit task',
-  'projectDetail.openTimeline': 'Open timeline',
-  'collab.title': 'Collaborators',
-  'collab.desc': 'People who can add and edit tasks on this project. They sign up at the normal login page with this exact email.',
-  'collab.emailPlaceholder': 'colleague@example.com',
-  'collab.add': 'Add',
-  'collab.remove': 'Remove',
-  'collab.empty': 'No collaborators yet.',
-  'collab.duplicate': 'That email is already a collaborator.',
-  'collab.invalidEmail': 'Enter a valid email address.',
-  'collab.failed': 'Could not add collaborator.',
-  'portal.viewTimeline': 'Timeline',
-  'portal.viewList': 'List',
 
   // Time Tracker
   'timeTracker.tracking': 'Tracking',
@@ -572,6 +561,19 @@ const en: Dict = {
   'portal.failedToLoad': 'Failed to load your portal: {error}',
   'portal.retry': 'Retry',
   'portal.greeting': 'Welcome, {name}',
+  'portal.viewTimeline': 'Timeline',
+  'portal.viewList': 'List',
+
+  // Collaborators
+  'collab.title': 'Collaborators',
+  'collab.desc': 'People who can add and edit tasks on this project. They sign up at the normal login page with this exact email.',
+  'collab.emailPlaceholder': 'colleague@example.com',
+  'collab.add': 'Add',
+  'collab.remove': 'Remove',
+  'collab.empty': 'No collaborators yet.',
+  'collab.duplicate': 'That email is already a collaborator.',
+  'collab.invalidEmail': 'Enter a valid email address.',
+  'collab.failed': 'Something went wrong. Please try again.',
 
   // Expenses
   'expenses.tracking': 'Tracking',
@@ -1927,6 +1929,7 @@ const es: Dict = {
   'projectDetail.invStatusSent': 'Enviada',
   'projectDetail.invStatusPaid': 'Pagada',
   'projectDetail.invStatusOverdue': 'Vencida',
+  'projectDetail.openTimeline': 'Abrir cronología',
 
   // Tasks page
   'tasks.loading': 'Cargando tareas...',
@@ -1997,25 +2000,13 @@ const es: Dict = {
   'timeline.zoomQuarter': 'Trimestre',
   'timeline.zoomLabel': 'Zoom',
   'timeline.filterProject': 'Proyecto',
-  'timeline.allProjects': 'Todos los proyectos',
+  'timeline.allProjects': 'Todos los Proyectos',
   'timeline.notScheduled': 'Sin programar ({n})',
-  'timeline.scheduleHint': 'Clic para colocar hoy y luego arrastrar',
+  'timeline.scheduleHint': 'Haz clic para colocarlo hoy y luego arrastrarlo',
   'timeline.empty': 'Aún no hay proyectos. Crea un proyecto para empezar a planificar.',
   'timeline.saveFailed': 'No se pudieron guardar las fechas: {error}',
-  'timeline.dragHint': 'Arrastra una barra para moverla · arrastra un borde para cambiar su duración · clic para editar',
+  'timeline.dragHint': 'Arrastra una barra para moverla · arrastra un borde para cambiar su duración · haz clic para editar',
   'timeline.editTask': 'Editar tarea',
-  'projectDetail.openTimeline': 'Abrir cronología',
-  'collab.title': 'Colaboradores',
-  'collab.desc': 'Personas que pueden añadir y editar tareas de este proyecto. Se registran en la página de inicio de sesión normal con este mismo correo.',
-  'collab.emailPlaceholder': 'colega@ejemplo.com',
-  'collab.add': 'Añadir',
-  'collab.remove': 'Quitar',
-  'collab.empty': 'Aún no hay colaboradores.',
-  'collab.duplicate': 'Ese correo ya es colaborador.',
-  'collab.invalidEmail': 'Introduce un correo válido.',
-  'collab.failed': 'No se pudo añadir el colaborador.',
-  'portal.viewTimeline': 'Cronología',
-  'portal.viewList': 'Lista',
 
   // Time Tracker
   'timeTracker.tracking': 'Seguimiento',
@@ -2087,6 +2078,19 @@ const es: Dict = {
   'portal.failedToLoad': 'No se pudo cargar tu portal: {error}',
   'portal.retry': 'Reintentar',
   'portal.greeting': 'Bienvenido, {name}',
+  'portal.viewTimeline': 'Cronología',
+  'portal.viewList': 'Lista',
+
+  // Collaborators
+  'collab.title': 'Colaboradores',
+  'collab.desc': 'Personas que pueden agregar y editar tareas de este proyecto. Se registran en la página de inicio de sesión normal con este mismo correo.',
+  'collab.emailPlaceholder': 'colega@ejemplo.com',
+  'collab.add': 'Agregar',
+  'collab.remove': 'Quitar',
+  'collab.empty': 'Aún no hay colaboradores.',
+  'collab.duplicate': 'Ese correo ya es colaborador.',
+  'collab.invalidEmail': 'Introduce un correo válido.',
+  'collab.failed': 'Algo salió mal. Inténtalo de nuevo.',
 
   // Expenses
   'expenses.tracking': 'Seguimiento',
