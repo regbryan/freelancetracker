@@ -127,6 +127,8 @@ export default function TaskForm({
         recurrenceDayOfMonth: !isEdit && recurrence === 'monthly' ? recurrenceDayOfMonth : undefined,
       })
       onOpenChange(false)
+    } catch {
+      /* caller surfaces the message; keep the dialog open with the user's edits */
     } finally {
       setSaving(false)
     }

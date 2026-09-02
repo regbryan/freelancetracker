@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { CheckSquare, GanttChartSquare, Clock } from 'lucide-react'
 import { useRole } from '../hooks/useWorkspaceRole'
+import { useI18n } from '../lib/i18n'
 
 /**
  * Shared sub-nav for the consolidated "Work" surface.
@@ -9,10 +10,11 @@ import { useRole } from '../hooks/useWorkspaceRole'
  */
 export default function WorkTabs() {
   const role = useRole()
+  const { t } = useI18n()
   const tabs = [
-    { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
-    { to: '/tasks', label: 'List', icon: CheckSquare },
-    ...(role === 'collaborator' ? [] : [{ to: '/time', label: 'Timer', icon: Clock }]),
+    { to: '/timeline', label: t('nav.timeline'), icon: GanttChartSquare },
+    { to: '/tasks', label: t('nav.tasks'), icon: CheckSquare },
+    ...(role === 'collaborator' ? [] : [{ to: '/time', label: t('nav.timer'), icon: Clock }]),
   ]
   return (
     <div className="flex items-center gap-1 border-b border-border -mb-px">

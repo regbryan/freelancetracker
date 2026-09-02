@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle, X } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
@@ -128,8 +128,6 @@ export default function Timeline() {
   }, [refetchTasks])
 
   const [dialogTask, setDialogTask] = useState<DialogTask | null>(null)
-  /** Set when a dialog save is rejected, so the close TaskForm asks for is ignored once. */
-  const saveFailedRef = useRef(false)
 
   // A `?project=` id left over from a deleted project would otherwise hide every row.
   const effectiveFilter = projectFilter && projects.some((p) => p.id === projectFilter) ? projectFilter : ''
@@ -287,20 +285,11 @@ export default function Timeline() {
       <TaskForm
         open={dialogTask !== null}
         onOpenChange={(open) => {
-          if (open) return
-          // TaskForm asks to close as soon as onSave settles. After a failed save
-          // we swallow that one request so the dialog stays put with the user's
-          // edits; a later Cancel or Escape closes normally.
-          if (saveFailedRef.current) {
-            saveFailedRef.current = false
-            return
-          }
-          setDialogTask(null)
+          if (!open) setDialogTask(null)
         }}
         task={dialogTask}
         onSave={async (data: TaskFormData) => {
           if (!dialogTask) return
-          saveFailedRef.current = false
           try {
             await updateTask(dialogTask.id, {
               title: data.title,
@@ -312,8 +301,7 @@ export default function Timeline() {
             })
           } catch (err) {
             setError(failMessage(err))
-            saveFailedRef.current = true
-            return
+            throw err
           }
           setDialogTask(null)
         }}

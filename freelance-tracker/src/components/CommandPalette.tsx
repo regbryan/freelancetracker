@@ -7,6 +7,7 @@ import { useTasks } from '../hooks/useTasks'
 import { useInvoices } from '../hooks/useInvoices'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
 import { useI18n } from '../lib/i18n'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 interface NavResult {
   id: string
@@ -48,6 +49,7 @@ interface Props {
 export default function CommandPalette({ open, onClose, onLogTime }: Props) {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const canLogTime = useRole() !== 'collaborator'
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -68,7 +70,7 @@ export default function CommandPalette({ open, onClose, onLogTime }: Props) {
 
     const actionLabel = t('quickLog.paletteAction')
     const actionKeywords = ['log', 'time', 'hours', 'track', 'registrar', 'tiempo']
-    if (!q || actionKeywords.some((k) => k.startsWith(q) || q.startsWith(k)) || actionLabel.toLowerCase().includes(q)) {
+    if (canLogTime && (!q || actionKeywords.some((k) => k.startsWith(q) || q.startsWith(k)) || actionLabel.toLowerCase().includes(q))) {
       out.push({ id: 'action-log-time', label: actionLabel, kind: 'action', run: onLogTime })
     }
 
@@ -77,15 +79,23 @@ export default function CommandPalette({ open, onClose, onLogTime }: Props) {
         out.push({ id: `client-${c.id}`, label: c.name, sublabel: c.company ?? c.email ?? '', to: `/clients/${c.id}`, kind: 'client' })
       }
     }
-    for (const p of projects) {
-      if (matches(p.name) || matches(p.clients?.name)) {
-        out.push({ id: `project-${p.id}`, label: p.name, sublabel: p.clients?.name ?? '', to: `/projects/${p.id}`, kind: 'project' })
+    if (canLogTime) {
+      for (const p of projects) {
+        if (matches(p.name) || matches(p.clients?.name)) {
+          out.push({ id: `project-${p.id}`, label: p.name, sublabel: p.clients?.name ?? '', to: `/projects/${p.id}`, kind: 'project' })
+        }
       }
     }
     for (const t of tasks) {
       if (matches(t.title)) {
         const proj = projects.find((p) => p.id === t.project_id)
-        out.push({ id: `task-${t.id}`, label: t.title, sublabel: proj?.name ?? '', to: proj ? `/projects/${proj.id}` : '/tasks', kind: 'task' })
+        out.push({
+          id: `task-${t.id}`,
+          label: t.title,
+          sublabel: proj?.name ?? '',
+          to: canLogTime ? (proj ? `/projects/${proj.id}` : '/tasks') : '/tasks',
+          kind: 'task',
+        })
       }
     }
     for (const i of invoices) {
@@ -101,7 +111,7 @@ export default function CommandPalette({ open, onClose, onLogTime }: Props) {
 
     // Without a query, show top 8 across kinds (recent-ish — Supabase already orders by created_at desc on most)
     return q ? out.slice(0, 50) : out.slice(0, 8)
-  }, [query, projects, clients, tasks, invoices, meetingNotes, onLogTime, t])
+  }, [query, projects, clients, tasks, invoices, meetingNotes, onLogTime, t, canLogTime])
 
   // Reset highlight + focus input when the palette opens or query changes
   useEffect(() => {

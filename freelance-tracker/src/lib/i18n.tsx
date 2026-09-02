@@ -25,6 +25,7 @@ const en: Dict = {
   'nav.timeTracker': 'Time Tracker',
   'nav.home': 'Home',
   'nav.time': 'Time',
+  'nav.timer': 'Timer',
   'nav.more': 'More',
   'nav.newProject': 'New Project',
 
@@ -1547,6 +1548,7 @@ const es: Dict = {
   'nav.timeTracker': 'Control de Tiempo',
   'nav.home': 'Inicio',
   'nav.time': 'Tiempo',
+  'nav.timer': 'Temporizador',
   'nav.more': 'Más',
   'nav.newProject': 'Nuevo Proyecto',
 
