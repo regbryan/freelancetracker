@@ -639,6 +639,41 @@ describe('TimelineGantt milestones', () => {
     expect(screen.getByTitle(/^Kickoff deck:/)).toBeInTheDocument()
   })
 
+  it('a milestone with no dates and no dated tasks still gets something to click', () => {
+    // The bug this covers: no bar meant no route to the edit dialog at all, so a
+    // milestone created without dates could never be given any (or deleted).
+    const { onMilestoneClick } = setupMilestones({ milestones: [mMilestones[1]], tasks: [] })
+    const placeholder = screen.getByTestId('milestone-placeholder')
+    expect(placeholder.tagName).toBe('BUTTON')
+    const bare = computeContentRange(['2026-09-01', '2026-09-30'], TODAY)
+    expect(placeholder).toHaveStyle({ left: `${diffDays(bare.start, TODAY) * px}px`, width: `${px}px` })
+    expect(placeholder.title).toBe('No dates yet. Click to set them.')
+    // Nothing to drag: there is no range yet to move or resize.
+    expect(row('m2').querySelectorAll('[data-edge]')).toHaveLength(0)
+    fireEvent.click(placeholder)
+    expect(onMilestoneClick).toHaveBeenCalledWith('m2')
+  })
+
+  it('every milestone label carries a pencil that opens the dialog', () => {
+    const { onMilestoneClick } = setupMilestones()
+    expect(screen.getAllByRole('button', { name: 'Edit milestone' })).toHaveLength(2)
+    fireEvent.click(within(row('m2')).getByRole('button', { name: 'Edit milestone' }))
+    expect(onMilestoneClick).toHaveBeenCalledWith('m2')
+  })
+
+  it('read-only mode offers neither a pencil nor a clickable placeholder', () => {
+    setupMilestones({
+      milestones: [mMilestones[1]],
+      tasks: [],
+      editable: false,
+      onTaskClick: undefined,
+      onMilestoneClick: undefined,
+      onMilestoneDates: undefined,
+    })
+    expect(screen.queryByRole('button', { name: 'Edit milestone' })).toBeNull()
+    expect(screen.getByTestId('milestone-placeholder').tagName).toBe('DIV')
+  })
+
   it('a project with no milestones keeps the flat layout', () => {
     setupMilestones({ milestones: [] })
     expect(screen.queryByText('Unassigned')).toBeNull()

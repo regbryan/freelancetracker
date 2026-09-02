@@ -2454,6 +2454,8 @@ not touched.
 - [x] i18n: `timeline.overview` and `timeline.overviewHint` added to both dictionaries after `timeline.allProjects`; `timeline.allProjects` kept, now the select's optgroup label.
 - [x] `src/pages/Timeline.test.tsx`: the six existing tests kept (the stale-`?project=` one rewritten for the new fallback, the zoom one switched to Quarter since Week is now the default), plus new tests for the opening selection and its URL/localStorage writes, Overview's bars/hint/insight and absent task bars, chip switching, and the Week default.
 - [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors, `npx vitest run` 159 tests passing.
+
+Superseded in part by Task 14 step 3 and the visual redesign: chips replaced by a select; TimelineInsight removed.
 - [x] Design doc updated: "Navigation", "Page behaviour (`/timeline`)", and a "Revision 2026-09-02 — one project at a time" note.
 
 #### Follow-up, same day: readable, content-driven, printable

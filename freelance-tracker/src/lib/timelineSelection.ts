@@ -52,28 +52,3 @@ export function resolveSelection(
 
   return OVERVIEW
 }
-
-/**
- * The projects that get a one-click chip in the switcher: the most recently updated
- * active projects, capped at `max`.
- *
- * The selected project is always present, even when it is paused, finished, or long
- * enough down the recency list to fall outside the cap — a switcher that cannot show
- * you where you are is worse than one item shorter. When it has to be added it takes
- * the last slot, so the list never grows past `max`.
- */
-export function quickPickProjects<T extends SelectableProject>(
-  projects: readonly T[],
-  selectedId: string,
-  max = 6,
-): T[] {
-  if (max <= 0) return []
-
-  const picked = projects.filter((p) => p.status === 'active').sort(byUpdatedDesc).slice(0, max)
-  if (selectedId === OVERVIEW || picked.some((p) => p.id === selectedId)) return picked
-
-  const selected = projects.find((p) => p.id === selectedId)
-  if (!selected) return picked
-
-  return [...picked.slice(0, max - 1), selected]
-}

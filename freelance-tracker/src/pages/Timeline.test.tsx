@@ -389,12 +389,16 @@ describe('Timeline page', () => {
         vi.advanceTimersByTime(60_000)
       })
       expect(hooks.refetch).not.toHaveBeenCalled()
+      expect(hooks.refetchMilestones).not.toHaveBeenCalled()
 
       setVisibility('visible')
       act(() => {
         document.dispatchEvent(new Event('visibilitychange'))
       })
       expect(hooks.refetch).toHaveBeenCalledTimes(1)
+      // Milestones are collaborative too: refreshing only the tasks would leave a
+      // colleague's renamed or re-dated milestone stale until a full reload.
+      expect(hooks.refetchMilestones).toHaveBeenCalledTimes(1)
     } finally {
       delete (document as unknown as Record<string, unknown>).visibilityState
       vi.useRealTimers()

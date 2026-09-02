@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 import {
   milestoneRange,
@@ -530,18 +530,18 @@ export default function TimelineGantt({
     }
     const barChildren = (
       <>
-        {editable && (
-          <>
-            <span
-              data-edge="start"
-              className={`absolute left-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_START}`}
-              style={{ width: EDGE_PX }}
-            />
-            <span
-              data-edge="end"
-              className={`absolute right-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_END}`}
-              style={{ width: EDGE_PX }}
-            />
+          {editable && (
+            <>
+              <span
+                data-edge="start"
+                className={`absolute left-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_START}`}
+                style={{ width: EDGE_PX }}
+              />
+              <span
+                data-edge="end"
+                className={`absolute right-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_END}`}
+                style={{ width: EDGE_PX }}
+              />
           </>
         )}
         {dragging && (
@@ -662,6 +662,9 @@ export default function TimelineGantt({
     const fill = total > 0 ? done / total : 0
     const barLabel = r ? `${m.name}: ${fmt(r.start)} – ${fmt(r.end)}` : m.name
     const barTitle = own ? barLabel : `${barLabel} · ${t('timeline.milestoneAutoDates')}`
+    // Not just `m.name`: that is the chevron toggle's accessible name too, and two
+    // controls in one row answering to it is a screen-reader riddle.
+    const placeholderLabel = `${m.name}: ${t('timeline.milestoneNoDates')}`
     const { dated, undated } = splitTasks(shownGroup.map((g) => g.task))
 
     // Same 18px as a project bar: a milestone contains tasks, so drawing it thinner
@@ -715,7 +718,13 @@ export default function TimelineGantt({
 
     return (
       <Fragment key={m.id}>
-        <div data-testid="milestone-row" data-milestone-id={m.id} className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
+        {/* A *named* group: the bar's own `group` drives the edge-handle hints, and an
+            unnamed group here would make hovering anywhere in the row light them up. */}
+        <div
+          data-testid="milestone-row"
+          data-milestone-id={m.id}
+          className="gantt-row group/mrow flex items-stretch hover:bg-bg/50 transition-colors"
+        >
           <div
             className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2.5 pl-6 flex items-center gap-1.5 min-w-0"
             style={{ width: labelWidth, minWidth: labelWidth }}
@@ -739,6 +748,19 @@ export default function TimelineGantt({
             <span className="ml-auto shrink-0 text-[12px] text-text-secondary tabular-nums" title={countTitle}>
               {count}
             </span>
+            {/* The only way into edit/delete that does not depend on there being a bar
+                to click — a milestone with no dates and no dated tasks has none. */}
+            {onMilestoneClick && (
+              <button
+                type="button"
+                aria-label={t('timeline.editMilestone')}
+                title={t('timeline.editMilestone')}
+                onClick={() => onMilestoneClick(m.id)}
+                className="shrink-0 p-0.5 rounded-sm text-text-secondary hover:text-accent opacity-0 group-hover/mrow:opacity-100 focus:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
+                <Pencil size={12} aria-hidden="true" />
+              </button>
+            )}
           </div>
           <div className="relative min-h-[36px]" style={{ width: trackW }}>
             {r &&
@@ -765,6 +787,31 @@ export default function TimelineGantt({
                 <div role="img" aria-label={barLabel} className={barClassName} style={barStyle} title={barTitle}>
                   {barChildren}
                 </div>
+              ))}
+            {/* No dates of its own and no dated tasks to borrow from: without this the
+                row has nothing on the track at all, and the only route to edit/delete
+                would be the pencil. A one-day dashed outline at today says "put me
+                somewhere" and is not draggable — there is no range to drag yet. */}
+            {!r &&
+              (onMilestoneClick ? (
+                <button
+                  type="button"
+                  data-testid="milestone-placeholder"
+                  aria-label={placeholderLabel}
+                  title={t('timeline.milestoneNoDates')}
+                  onClick={() => onMilestoneClick(m.id)}
+                  className="absolute top-1/2 -translate-y-1/2 h-[18px] border border-dashed border-text-secondary/60 rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  style={{ left: todayLeft, width: px }}
+                />
+              ) : (
+                <div
+                  data-testid="milestone-placeholder"
+                  role="img"
+                  aria-label={placeholderLabel}
+                  title={t('timeline.milestoneNoDates')}
+                  className="absolute top-1/2 -translate-y-1/2 h-[18px] border border-dashed border-text-secondary/60 rounded-[3px]"
+                  style={{ left: todayLeft, width: px }}
+                />
               ))}
           </div>
         </div>
@@ -876,6 +923,7 @@ export default function TimelineGantt({
                   </div>
                   <div className="relative min-h-[40px]" style={{ width: trackW }}>
                     {projectRange && projectGeom && (
+                      <>
                       <div
                         role="img"
                         aria-label={`${project.name}: ${fmt(projectRange.start)} – ${fmt(projectRange.end)}`}
@@ -923,26 +971,29 @@ export default function TimelineGantt({
                           </span>
                         )}
                       </div>
+                      {/* Overview has no milestone rows, so each milestone is a diamond
+                          pinned to the top edge of the project bar at its end date. Inside
+                          the bar's own guard: a diamond floating over an undated project
+                          is pinned to nothing and reads as a stray mark. */}
+                      {overview &&
+                        projectMilestones.map((m) => {
+                          const at = m.end_date || m.start_date
+                          if (!at || !isValidISODate(at)) return null
+                          return (
+                            <span
+                              key={m.id}
+                              data-testid="milestone-diamond"
+                              title={`${m.name} · ${fmt(at)}`}
+                              // The project bar is the same navy, so without the hairline
+                              // outline the half sitting on the bar vanishes and the marker
+                              // reads as a triangle rather than a diamond.
+                              className="absolute w-2 h-2 rotate-45 bg-text-primary border border-surface -translate-x-1/2 -translate-y-1/2"
+                              style={{ left: diffDays(range.start, at) * px, top: 'calc(50% - 9px)' }}
+                            />
+                          )
+                        })}
+                      </>
                     )}
-                    {/* Overview has no milestone rows, so each milestone is a diamond
-                        pinned to the top edge of the project bar at its end date. */}
-                    {overview &&
-                      projectMilestones.map((m) => {
-                        const at = m.end_date || m.start_date
-                        if (!at || !isValidISODate(at)) return null
-                        return (
-                          <span
-                            key={m.id}
-                            data-testid="milestone-diamond"
-                            title={`${m.name} · ${fmt(at)}`}
-                            // The project bar is the same navy, so without the hairline
-                            // outline the half sitting on the bar vanishes and the marker
-                            // reads as a triangle rather than a diamond.
-                            className="absolute w-2 h-2 rotate-45 bg-text-primary border border-surface -translate-x-1/2 -translate-y-1/2"
-                            style={{ left: diffDays(range.start, at) * px, top: 'calc(50% - 9px)' }}
-                          />
-                        )
-                      })}
                   </div>
                 </div>
 

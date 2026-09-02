@@ -36,11 +36,12 @@ Decisions from discovery:
 - Sidebar "Work" item now links to `/timeline`. `WorkTabs` order becomes
   **Timeline · Tasks · Timer**. The tab labels are translated, via the `nav.timeline`,
   `nav.tasks`, and `nav.timer` keys. Nothing else in the sidebar changes.
-- `/timeline` shows **one project at a time** (revised 2026-09-02 — see below). A
-  switcher row sits above the grid: an **Overview** chip, then a chip per recently
-  updated active project, then a compact select listing every project for anything the
-  chips leave out. The chips use the same segmented pill styling as the zoom control.
-  Selection lives in the URL as `?project=<id>` or `?project=all`, so the view is
+- `/timeline` shows **one project at a time** (revised 2026-09-02 — see below). The
+  switcher is a single native `<select>` at the top of the header block: an **Overview**
+  option, then an "Active" optgroup and an "Other" optgroup, each listing its projects
+  by name. (The first cut had a row of recent-project chips ahead of the select; the
+  visual redesign dropped them — see "Visual direction" — so the select is the whole
+  switcher.) Selection lives in the URL as `?project=<id>` or `?project=all`, so the view is
   shareable, and is mirrored into `localStorage['timeline.lastProject']` so a bare
   `/timeline` reopens where the user left off.
 - `ProjectDetail` gets one "Open timeline" button linking to `/timeline?project=<id>`.
@@ -49,8 +50,8 @@ Decisions from discovery:
 ## `TimelineGantt` component
 
 New file `src/components/TimelineGantt.tsx`. The bar-rendering code currently inline in
-`src/pages/Timeline.tsx` moves here. `Timeline.tsx` keeps the hero, `WorkTabs`,
-`TimelineInsight`, the project filter, the zoom control, and data loading.
+`src/pages/Timeline.tsx` moves here. `Timeline.tsx` keeps `WorkTabs`, the project
+switcher, the zoom control, and data loading.
 
 ### Props
 
@@ -131,18 +132,15 @@ Everything testable without the DOM lives here:
 - **Overview** (`?project=all`) is the only multi-project view: `TimelineGantt` gets
   every project and `tasks={[]}`, so it draws one bar per project and no task rows.
   Project bars stay draggable for owners. A muted line above the grid
-  (`timeline.overviewHint`) says what the mode is for, and `TimelineInsight` — which
-  reasons about every project — renders only here.
+  (`timeline.overviewHint`) says what the mode is for.
 - Selection rules live in `src/lib/timelineSelection.ts` (`resolveSelection`,
-  `quickPickProjects`, `OVERVIEW`), pure and unit-tested. `resolveSelection` takes, in
+  `OVERVIEW`), pure and unit-tested. `resolveSelection` takes, in
   order: a valid `?project=` value, then a valid remembered value, then the most
   recently updated **active** project, then the most recently updated project of any
   status, then Overview when the workspace is empty. Both stored and URL values are
   re-validated against the loaded projects, so a link to a deleted project still lands
   somewhere useful. Whatever is resolved is written back to the URL with
-  `replace: true`. `quickPickProjects` returns up to six recently updated active
-  projects for the chips and always includes the current selection, even when it is
-  paused, finished, or outside the cap.
+  `replace: true`.
 - Freshness with two editors: refetch tasks on `window` `focus` and on a 60 s interval
   while the page is mounted. Last write wins; no conflict UI.
 
@@ -290,9 +288,6 @@ queries in parallel: `clients` (owned rows), `portal_clients`, `project_members`
 - The command palette (`CommandPalette`) hides the Log-time action and all project
   results for collaborators, and routes task results to `/tasks` rather than to the
   task's project page. Results are additionally limited by the same RLS.
-- `TimelineInsight` (the "runway" banner) is hidden for collaborators; it reasons
-  about the whole business.
-
 ## Client portal timeline
 
 - `Portal.tsx` gets a segmented toggle **Timeline · List** above the project cards,
@@ -436,7 +431,14 @@ and the client portal. Owner's data already encodes phases as bracketed title pr
   Tasks with no milestone go under an "Unassigned" group only when the project has at
   least one milestone; otherwise the flat layout is unchanged.
 - Milestone bars drag/resize like project bars when `editable` (members may edit
-  milestones: RLS allows it). Click opens the milestone dialog.
+  milestones: RLS allows it) **and the milestone has both of its own dates** — one
+  whose span is borrowed from its tasks has nothing of its own to write back, so it
+  renders without edge handles and ignores drags. Click opens the milestone dialog.
+- A milestone with neither its own dates nor a single dated task has no span to draw at
+  all. It gets a one-day dashed placeholder box at today (a `<button>` when
+  `onMilestoneClick` is given, never draggable), and every milestone label carries a
+  pencil button that opens the same dialog — without both, a dateless milestone would
+  be unreachable for editing or deletion.
 - Overview: project bar plus a small diamond at each milestone's end date.
 - Hide-done hides tasks only; a fully-done milestone still shows its bar at 100%.
 - **Mode and hide-done are props, not inferences** (settled while wiring the page).

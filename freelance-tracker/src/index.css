@@ -126,15 +126,17 @@
  * Print — the timeline as something you can hand a client.
  *
  * Everything that only makes sense on screen (app chrome, the hero, the
- * switcher, the tabs, the insight banner, the drag hint) carries
+ * switcher, the tabs, the toolbar, the drag hint) carries
  * `data-print-hide`; Timeline.tsx renders a print-only header in its place.
  * ------------------------------------------------------------------ */
-@page {
-  size: landscape;
-  margin: 12mm;
-}
-
 @media print {
+  /* Named page, not a global @page: landscape is right for a wide Gantt and wrong
+     for every other printable view in the app, so only the Gantt claims it. */
+  @page timeline {
+    size: landscape;
+    margin: 12mm;
+  }
+
   [data-print-hide] {
     display: none !important;
   }
@@ -151,12 +153,20 @@
   }
 
   /* Lay the whole track out, then shrink it to the sheet with the ratio
-     TimelineGantt computed from labelWidth + trackW. */
+     TimelineGantt computed from labelWidth + trackW.
+
+     print-color-adjust lives here, on the whole chart, rather than on the bars:
+     it inherits, so the today line and its flag, the month gridlines, the weekend
+     shading and the legend swatches all keep their colour too — as bar-only rules
+     they printed as a blank grid with coloured blocks floating in it. */
   [data-gantt] {
+    page: timeline;
     zoom: var(--print-scale, 1);
     border: none;
     box-shadow: none;
     overflow: visible !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   [data-gantt] [data-testid='gantt-scroll'] {
@@ -172,13 +182,5 @@
   .gantt-row {
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-
-  /* Browsers drop background colour when printing unless told not to — and the
-     bars and the weekend shading are the chart. */
-  .gantt-bar,
-  [data-testid='weekend'] {
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
   }
 }

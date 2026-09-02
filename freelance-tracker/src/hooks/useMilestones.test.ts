@@ -49,6 +49,9 @@ class QueryBuilder implements PromiseLike<Fixture> {
   single(): this {
     return this
   }
+  maybeSingle(): this {
+    return this
+  }
   then<TResult1 = Fixture, TResult2 = never>(
     onfulfilled?: ((value: Fixture) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -120,7 +123,21 @@ describe('useMilestones', () => {
     expect(result.current.milestones).toEqual([renamed])
   })
 
-  it('deleteMilestone rejects with "failed" and keeps the list when RLS filters the delete', async () => {
+  it('updateMilestone rejects with "no-access" when RLS filters the update to zero rows', async () => {
+    mockSupabase.from
+      .mockReturnValueOnce(new QueryBuilder({ data: [discovery], error: null })) // initial fetch
+      .mockReturnValueOnce(new QueryBuilder({ data: null, error: null })) // maybeSingle sees no row
+
+    const { result } = renderHook(() => useMilestones('p1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // Same message useTasks.updateTask throws, so Timeline's failMessage() turns both
+    // into "You no longer have access to this project" instead of a raw PGRST116.
+    await expect(result.current.updateMilestone('ms1', { name: 'Renamed' })).rejects.toThrow('no-access')
+    expect(result.current.milestones).toEqual([discovery])
+  })
+
+  it('deleteMilestone rejects with "no-access" and keeps the list when RLS filters the delete', async () => {
     mockSupabase.from
       .mockReturnValueOnce(new QueryBuilder({ data: [discovery], error: null })) // initial fetch
       .mockReturnValueOnce(new QueryBuilder({ data: [], error: null })) // delete().select('id') returns no rows
@@ -129,7 +146,7 @@ describe('useMilestones', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.milestones).toEqual([discovery])
 
-    await expect(result.current.deleteMilestone('ms1')).rejects.toThrow('failed')
+    await expect(result.current.deleteMilestone('ms1')).rejects.toThrow('no-access')
     expect(result.current.milestones).toEqual([discovery])
   })
 

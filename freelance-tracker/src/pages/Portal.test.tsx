@@ -206,7 +206,7 @@ describe('Portal milestones', () => {
     expect(screen.getByText('Kickoff call').closest('li')).toBeInTheDocument()
   })
 
-  it('renders a project with no milestones exactly as before', async () => {
+  it('renders a project with no milestones as a flat status list, no skipped heading level', async () => {
     const user = userEvent.setup()
     // p2 has a milestone; p1 (Website Rebuild) does not, and must stay unaffected.
     hooks.milestones = [milestone({ project_id: 'p2', name: 'Rollout' })]
@@ -216,8 +216,11 @@ describe('Portal milestones', () => {
 
     const section = screen.getByRole('heading', { name: 'Website Rebuild' }).closest('section') as HTMLElement
     expect(within(section).queryByText('Unassigned')).not.toBeInTheDocument()
-    expect(within(section).queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
-    expect(within(section).getByText(/To Do/)).toBeInTheDocument()
+    // No milestone tier here, so the status groups hang straight off the project's
+    // <h2> at h3. Jumping to h4 (the rank they take *under* a milestone) would skip
+    // a level for anyone navigating by headings.
+    expect(within(section).queryByRole('heading', { level: 4 })).not.toBeInTheDocument()
+    expect(within(section).getByRole('heading', { level: 3, name: /To Do/ })).toBeInTheDocument()
     expect(within(section).getByText('Design review').closest('li')).toBeInTheDocument()
   })
 })

@@ -9,7 +9,7 @@ import WorkTabs from '../components/WorkTabs'
 import TimelineGantt from '../components/TimelineGantt'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
 import MilestoneForm, { type MilestoneFormData, type MilestoneFormMilestone } from '../components/MilestoneForm'
-import { sortMilestones } from '../lib/milestones'
+import { milestoneRange, sortMilestones } from '../lib/milestones'
 import { computeContentRange, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
 import { OVERVIEW, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
@@ -369,12 +369,18 @@ export default function Timeline() {
   const today = todayISO()
   const fetchError = projectsError ?? tasksError
   // Same inputs TimelineGantt feeds computeContentRange, so the printed header names
-  // the range the printed grid actually covers.
+  // the range the printed grid actually covers. Two of them used to be narrower than
+  // the Gantt's own: `visibleTasks` (a done task hidden from the rows still stretches
+  // a milestone's span, and printing shows that span) and a milestone's raw dates
+  // rather than the span it is actually drawn at.
   const printRange = computeContentRange(
     [
       ...visibleProjects.flatMap((p) => [p.start_date, p.end_date]),
-      ...visibleTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
-      ...milestones.flatMap((m) => [m.start_date, m.end_date]),
+      ...projectTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+      ...milestones.flatMap((m) => {
+        const r = milestoneRange(m, projectTasks)
+        return r ? [r.start, r.end] : [m.start_date, m.end_date]
+      }),
     ],
     today,
   )

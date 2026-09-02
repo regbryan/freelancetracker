@@ -114,15 +114,21 @@ export default function Portal() {
     { key: 'done', label: t('status.done') },
   ]
 
-  /** The status-grouped card list shared by the flat layout and each milestone bucket. */
-  function renderStatusGroups(list: PortalTask[]) {
+  /**
+   * The status-grouped card list shared by the flat layout and each milestone bucket.
+   * `level` is the rank these group headings take: under a milestone (itself an `<h3>`)
+   * they are h4, but the milestone-free layout hangs them straight off the project's
+   * `<h2>`, where an h4 would skip a level.
+   */
+  function renderStatusGroups(list: PortalTask[], level: 3 | 4 = 4) {
     const grouped = groupTasksByStatus(list)
+    const Heading = level === 3 ? 'h3' : 'h4'
     return TASK_GROUPS.map(({ key, label }) =>
       grouped[key].length === 0 ? null : (
         <div key={key}>
-          <h4 className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1.5">
+          <Heading className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1.5">
             {label} · {grouped[key].length}
-          </h4>
+          </Heading>
           <ul className="flex flex-col gap-1.5">
             {grouped[key].map((task) => (
               <li
@@ -261,7 +267,7 @@ export default function Portal() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col gap-3 mt-2">{renderStatusGroups(projectTasks)}</div>
+                <div className="flex flex-col gap-3 mt-2">{renderStatusGroups(projectTasks, 3)}</div>
               )}
             </section>
           )

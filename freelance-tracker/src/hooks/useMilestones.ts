@@ -88,13 +88,18 @@ export function useMilestones(projectId?: string) {
 
   const updateMilestone = useCallback(async (id: string, updates: MilestoneUpdate): Promise<Milestone> => {
     // No database trigger keeps updated_at current, so the app sends it.
+    // maybeSingle, not single: RLS makes a milestone the caller can no longer reach
+    // (membership revoked mid-session) look like a zero-row update, and single() would
+    // surface that as a cryptic PGRST116. Same mapping as useTasks.updateTask, which is
+    // what the page's failMessage() turns into "You no longer have access…".
     const { data, error: err } = await supabase
       .from('milestones')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
-      .single()
+      .maybeSingle()
     if (err) throw err
+    if (!data) throw new Error('no-access')
     setMilestones((prev) => prev.map((m) => (m.id === id ? (data as Milestone) : m)))
     return data as Milestone
   }, [])
@@ -103,8 +108,10 @@ export function useMilestones(projectId?: string) {
     const { data, error: err } = await supabase.from('milestones').delete().eq('id', id).select('id')
     if (err) throw err
     // RLS silently filters rows the caller isn't allowed to delete instead of
-    // erroring, so an empty result means nothing was actually removed.
-    if (!data || (data as unknown[]).length === 0) throw new Error('failed')
+    // erroring, so an empty result means nothing was actually removed — the same
+    // lost-access case updateMilestone reports, and the page maps 'no-access' to a
+    // message that says so rather than a generic failure.
+    if (!data || (data as unknown[]).length === 0) throw new Error('no-access')
     setMilestones((prev) => prev.filter((m) => m.id !== id))
   }, [])
 
