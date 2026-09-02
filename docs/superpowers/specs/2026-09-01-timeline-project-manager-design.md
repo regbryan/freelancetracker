@@ -439,12 +439,47 @@ and the client portal. Owner's data already encodes phases as bracketed title pr
   milestones: RLS allows it). Click opens the milestone dialog.
 - Overview: project bar plus a small diamond at each milestone's end date.
 - Hide-done hides tasks only; a fully-done milestone still shows its bar at 100%.
+- **Mode and hide-done are props, not inferences** (settled while wiring the page).
+  `mode?: 'project' | 'overview'`, default `'project'`: diamonds render only in
+  `'overview'`, milestone rows only in `'project'`. It replaces the first cut's
+  `tasks.length === 0 && milestones.length > 0` guess, which mistook a project whose tasks
+  were all filtered away for a bird's-eye view. `hideDone?: boolean`, default false: the
+  page passes **every** task of the project and the Gantt drops the `done` rows itself, so
+  `done/total` and any span a milestone borrows from its tasks still count them — a
+  milestone whose tasks are all done and hidden keeps its bar at 100% with `n/n`, and the
+  track range includes each milestone's *drawn* span so that bar still fits on the track.
+  Milestone bars are 18 px, the same as project bars; the first cut's 14 px sat under the
+  16 px task bars and inverted the hierarchy the rows exist to show.
 
 ### Page and forms
 - Timeline page: "+ Milestone" button when a project is selected (inline dialog: name,
   start, end). Milestone dialog also allows delete (tasks keep their dates, lose the link).
-- `TaskForm` gains an optional `milestones` prop that renders a milestone select; the
-  Timeline page passes it; Tasks and ProjectDetail pages are unchanged for now.
+- **`MilestoneForm`** (`src/components/MilestoneForm.tsx`) is that dialog, built on the
+  same `ui/dialog` vocabulary as `TaskForm`: name (required), native start and end date
+  inputs, Save, and — in edit mode only — Delete behind a native `confirm` that says the
+  tasks are kept and unassigned. Start after end is refused inline
+  (`milestoneForm.dateOrder`) with Save disabled; equal dates are a one-day milestone, not
+  an error. One date alone is allowed — the Gantt already falls back to the tasks' extent.
+  Create, update and delete go through `useMilestones`; a failure surfaces in the page's
+  existing error banner via the same `failMessage` mapping and the dialog stays open with
+  the user's edits, exactly as `TaskForm` behaves. A new milestone takes
+  `max(sort_order) + 1` so it lands after the ones already there. `onMilestoneClick` opens
+  the same dialog in edit mode; `onMilestoneDates` (drag) writes through
+  `updateMilestone` with the banner-and-rethrow pattern.
+- Expansion state: a `Set` on the page seeded from
+  `localStorage['timeline.expanded.<projectId>']` (a JSON array of ids, anything else
+  treated as noise) and rewritten on every toggle. It is re-seeded by adjusting state
+  during render rather than in an effect, so a project's first painted frame is already
+  its remembered shape, and switching project resets it.
+- Header line: `· K milestones` (`timeline.milestoneCounts`) after the task counts in
+  project mode, when K > 0.
+- `TaskForm` gains an optional `milestones` prop that renders a milestone select (first
+  option "No milestone", carried as a sentinel because Radix rejects an empty item value)
+  and a `milestoneId?: string | null` in both `TaskFormData` and the `task` edit shape,
+  pre-selected from the task. The field is omitted from the saved payload entirely when no
+  list was passed, so a caller that knows nothing about milestones can never null out an
+  existing link. The Timeline page passes the selected project's milestones (and only when
+  it has some) and saves `milestone_id`; Tasks and ProjectDetail pages are unchanged.
 - `useMilestones(projectId)`: list / create / update / remove.
 - Portal: `usePortalData` also reads `portal_milestones`; the Gantt renders milestones
   read-only, collapse toggles still work.

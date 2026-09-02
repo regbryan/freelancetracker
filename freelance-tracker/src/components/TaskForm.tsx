@@ -29,6 +29,8 @@ export interface TaskFormData {
   startDate?: string
   dueDate?: string
   projectId?: string
+  /** Present only when a `milestones` list was passed; null means "no milestone". */
+  milestoneId?: string | null
   recurrence?: RecurrenceKind
   recurrenceEnd?: string
   /** 0 = Sunday … 6 = Saturday */
@@ -50,11 +52,19 @@ interface TaskFormProps {
     dueDate?: string
     /** Current project — pre-populates the picker on edit so the user can move the task. */
     projectId?: string
+    /** Current milestone — pre-selects the picker when a `milestones` list is passed. */
+    milestoneId?: string | null
   } | null
   /** When provided, a project selector is shown so the user can pick or change project. */
   projects?: { id: string; name: string }[]
+  /** When provided, a milestone selector is shown. The Timeline page passes the
+   *  selected project's milestones; Tasks and ProjectDetail do not pass it at all. */
+  milestones?: { id: string; name: string }[]
   onSave: (data: TaskFormData) => Promise<void>
 }
+
+/** Radix rejects an empty SelectItem value, so "no milestone" needs a sentinel. */
+const NO_MILESTONE = '__none__'
 
 const STATUS_OPTIONS = [
   { value: 'todo', labelKey: 'taskForm.statusTodo' },
@@ -73,6 +83,7 @@ export default function TaskForm({
   onOpenChange,
   task,
   projects,
+  milestones,
   onSave,
 }: TaskFormProps) {
   const { t } = useI18n()
@@ -85,6 +96,7 @@ export default function TaskForm({
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [projectId, setProjectId] = useState('')
+  const [milestoneId, setMilestoneId] = useState<string>(NO_MILESTONE)
   const [recurrence, setRecurrence] = useState<RecurrenceKind>('none')
   const [recurrenceEnd, setRecurrenceEnd] = useState('')
   const [recurrenceWeekday, setRecurrenceWeekday] = useState<number>(1)
@@ -100,6 +112,7 @@ export default function TaskForm({
       setStartDate(task?.startDate ?? '')
       setDueDate(task?.dueDate ?? '')
       setProjectId(task?.projectId ?? '')
+      setMilestoneId(task?.milestoneId ?? NO_MILESTONE)
       setRecurrence('none')
       setRecurrenceEnd('')
       const today = new Date()
@@ -121,6 +134,9 @@ export default function TaskForm({
         startDate: startDate || undefined,
         dueDate: dueDate || undefined,
         projectId: projectId || undefined,
+        // Left out entirely when no milestone list was passed, so a caller that knows
+        // nothing about milestones never sends milestone_id: null over an existing link.
+        ...(milestones ? { milestoneId: milestoneId === NO_MILESTONE ? null : milestoneId } : {}),
         recurrence: isEdit ? 'none' : recurrence,
         recurrenceEnd: !isEdit && recurrence !== 'none' ? (recurrenceEnd || undefined) : undefined,
         recurrenceWeekday: !isEdit && recurrence === 'weekly' ? recurrenceWeekday : undefined,
@@ -224,6 +240,28 @@ export default function TaskForm({
               </Select>
             </div>
           </div>
+
+          {/* Milestone — only where the caller knows the project's milestones (Timeline) */}
+          {milestones && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-milestone" className="text-[12px]">
+                {t('taskForm.milestone')}
+              </Label>
+              <Select value={milestoneId} onValueChange={setMilestoneId}>
+                <SelectTrigger id="task-milestone">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_MILESTONE}>{t('taskForm.noMilestone')}</SelectItem>
+                  {milestones.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">

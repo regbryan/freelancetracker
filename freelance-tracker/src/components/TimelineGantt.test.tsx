@@ -557,6 +557,7 @@ describe('TimelineGantt milestones', () => {
         <TimelineGantt
           projects={mProjects}
           tasks={[]}
+          mode="overview"
           milestones={[
             mMilestones[0],
             { id: 'm3', project_id: 'mp', name: 'Launch', start_date: null, end_date: '2026-09-25', sort_order: 2 },
@@ -577,6 +578,58 @@ describe('TimelineGantt milestones', () => {
     const overviewRange = computeContentRange(['2026-09-01', '2026-09-30', '2026-09-03', '2026-09-10', '2026-09-25'], TODAY)
     expect(diamonds[0]).toHaveStyle({ left: `${diffDays(overviewRange.start, '2026-09-10') * px}px` })
     expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(0)
+  })
+
+  it('project mode keeps milestone rows when every task has been filtered away', () => {
+    // The old rule inferred Overview from an empty task list; a project whose tasks are
+    // all done and hidden is still a project view, so the mode is explicit now.
+    setupMilestones({ tasks: [] })
+    expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(2)
+    expect(screen.queryByTestId('milestone-diamond')).toBeNull()
+  })
+
+  it('overview mode draws diamonds and no milestone rows', () => {
+    setupMilestones({ mode: 'overview', tasks: [] })
+    expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(0)
+    // m2 has no dates at either end, so only m1 gets a diamond.
+    expect(screen.getAllByTestId('milestone-diamond')).toHaveLength(1)
+  })
+
+  it('hideDone drops done task rows but still counts them towards the milestone', () => {
+    setupMilestones({ hideDone: true, expandedMilestoneIds: new Set(['m1']), onToggleMilestone: vi.fn() })
+    expect(screen.queryByRole('button', { name: /Kickoff deck/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Stakeholder audit/ })).toBeInTheDocument()
+    expect(within(row('m1')).getAllByText('1/3').length).toBeGreaterThan(0)
+    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '33.3%' })
+  })
+
+  it('a milestone whose tasks are all done and hidden shows a full bar at n/n', () => {
+    const allDone: GanttTask[] = [
+      { id: 'd1', project_id: 'mp', milestone_id: 'm1', title: 'Shipped', status: 'done', start_date: '2026-09-03', due_date: '2026-09-04' },
+      { id: 'd2', project_id: 'mp', milestone_id: 'm1', title: 'Also shipped', status: 'done', start_date: '2026-09-05', due_date: '2026-09-06' },
+    ]
+    setupMilestones({
+      tasks: allDone,
+      milestones: [mMilestones[0]],
+      hideDone: true,
+      expandedMilestoneIds: new Set(['m1']),
+      onToggleMilestone: vi.fn(),
+    })
+    expect(screen.queryByRole('button', { name: /Shipped/ })).toBeNull()
+    expect(within(row('m1')).getAllByText('2/2').length).toBeGreaterThan(0)
+    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '100.0%' })
+  })
+
+  it('a dateless milestone still spans tasks that hideDone has hidden', () => {
+    setupMilestones({
+      hideDone: true,
+      tasks: mTasks.map((tk) => (tk.milestone_id === 'm2' ? { ...tk, status: 'done' } : tk)),
+    })
+    const bar = screen.getByTitle(/^Build:/)
+    expect(bar).toHaveStyle({
+      left: `${diffDays(mRange.start, '2026-09-12') * px}px`,
+      width: `${4 * px}px`,
+    })
   })
 
   it('read-only milestones still collapse and expand', () => {

@@ -491,6 +491,8 @@ const en: Dict = {
   'timeline.print': 'Print / PDF',
   'timeline.printedOn': 'Printed {date}',
   'timeline.unassigned': 'Unassigned',
+  'timeline.addMilestone': '+ Milestone',
+  'timeline.milestoneCounts': '{n} milestones',
   'timeline.milestoneAutoDates': 'Dates follow its tasks',
   'timeline.milestoneCount': '{done}/{total} done',
   'timeline.notScheduled': 'Not scheduled ({n})',
@@ -1423,6 +1425,18 @@ const en: Dict = {
   'taskForm.saving': 'Saving...',
   'taskForm.saveChanges': 'Save Changes',
   'taskForm.create': 'Create Task',
+  'taskForm.milestone': 'Milestone',
+  'taskForm.noMilestone': 'No milestone',
+
+  // Milestone form
+  'milestoneForm.newTitle': 'New milestone',
+  'milestoneForm.editTitle': 'Edit milestone',
+  'milestoneForm.name': 'Name',
+  'milestoneForm.start': 'Start',
+  'milestoneForm.end': 'End',
+  'milestoneForm.delete': 'Delete milestone',
+  'milestoneForm.dateOrder': 'End date must be on or after the start date',
+  'milestoneForm.confirmDelete': 'Delete milestone "{name}"? Its tasks are kept and unassigned.',
 
   // TaskInsight
   'taskInsight.label': 'Task Focus',
@@ -2020,6 +2034,8 @@ const es: Dict = {
   'timeline.print': 'Imprimir / PDF',
   'timeline.printedOn': 'Impreso el {date}',
   'timeline.unassigned': 'Sin hito',
+  'timeline.addMilestone': '+ Hito',
+  'timeline.milestoneCounts': '{n} hitos',
   'timeline.milestoneAutoDates': 'Las fechas siguen a sus tareas',
   'timeline.milestoneCount': '{done}/{total} hechas',
   'timeline.notScheduled': 'Sin programar ({n})',
@@ -2952,6 +2968,18 @@ const es: Dict = {
   'taskForm.saving': 'Guardando...',
   'taskForm.saveChanges': 'Guardar Cambios',
   'taskForm.create': 'Crear Tarea',
+  'taskForm.milestone': 'Hito',
+  'taskForm.noMilestone': 'Sin hito',
+
+  // Milestone form
+  'milestoneForm.newTitle': 'Nuevo hito',
+  'milestoneForm.editTitle': 'Editar hito',
+  'milestoneForm.name': 'Nombre',
+  'milestoneForm.start': 'Inicio',
+  'milestoneForm.end': 'Fin',
+  'milestoneForm.delete': 'Eliminar hito',
+  'milestoneForm.dateOrder': 'La fecha de fin debe ser igual o posterior a la de inicio',
+  'milestoneForm.confirmDelete': '¿Eliminar el hito "{name}"? Sus tareas se conservan sin hito.',
 
   // TaskInsight
   'taskInsight.label': 'Enfoque en Tareas',

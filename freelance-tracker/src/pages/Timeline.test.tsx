@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { I18nProvider } from '../lib/i18n'
 import type { Project } from '../hooks/useProjects'
 import type { Task } from '../hooks/useTasks'
+import type { Milestone } from '../hooks/useMilestones'
 
 /**
  * Hoisted so the vi.mock factories below can close over it; each test rewrites
@@ -13,13 +14,18 @@ import type { Task } from '../hooks/useTasks'
 const hooks = vi.hoisted(() => ({
   projects: [] as unknown[],
   tasks: [] as unknown[],
+  milestones: [] as Array<{ id: string; project_id: string }>,
   projectsLoading: false,
   tasksLoading: false,
   projectsError: null as string | null,
   tasksError: null as string | null,
   updateTask: vi.fn(),
   updateProject: vi.fn(),
+  createMilestone: vi.fn(),
+  updateMilestone: vi.fn(),
+  deleteMilestone: vi.fn(),
   refetch: vi.fn(),
+  refetchMilestones: vi.fn(),
 }))
 
 vi.mock('../hooks/useProjects', () => ({
@@ -39,6 +45,19 @@ vi.mock('../hooks/useTasks', () => ({
     error: hooks.tasksError,
     updateTask: hooks.updateTask,
     refetch: hooks.refetch,
+  }),
+}))
+
+/** Mirrors the real hook: one project's milestones, or all of them for Overview. */
+vi.mock('../hooks/useMilestones', () => ({
+  useMilestones: (projectId?: string) => ({
+    milestones: projectId ? hooks.milestones.filter((m) => m.project_id === projectId) : hooks.milestones,
+    loading: false,
+    error: null,
+    createMilestone: hooks.createMilestone,
+    updateMilestone: hooks.updateMilestone,
+    deleteMilestone: hooks.deleteMilestone,
+    refetch: hooks.refetchMilestones,
   }),
 }))
 
@@ -87,6 +106,20 @@ function makeTask(over: Partial<Task> = {}): Task {
   }
 }
 
+function makeMilestone(over: Partial<Milestone> = {}): Milestone {
+  return {
+    id: 'm1',
+    project_id: 'p1',
+    name: 'Discovery',
+    start_date: '2026-09-03',
+    end_date: '2026-09-10',
+    sort_order: 0,
+    created_at: '2026-08-01T00:00:00Z',
+    updated_at: '2026-08-01T00:00:00Z',
+    ...over,
+  }
+}
+
 /** Two active projects; Beta is the more recently updated one. */
 function alpha(): Project {
   return makeProject({ updated_at: '2026-08-01T00:00:00Z' })
@@ -127,6 +160,11 @@ function openDialogFor(title: string) {
 beforeEach(() => {
   hooks.projects = [makeProject()]
   hooks.tasks = [makeTask()]
+  hooks.milestones = []
+  hooks.createMilestone = vi.fn().mockResolvedValue(makeMilestone())
+  hooks.updateMilestone = vi.fn().mockResolvedValue(makeMilestone())
+  hooks.deleteMilestone = vi.fn().mockResolvedValue(undefined)
+  hooks.refetchMilestones = vi.fn()
   hooks.projectsLoading = false
   hooks.tasksLoading = false
   hooks.projectsError = null
@@ -139,6 +177,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 describe('Timeline page', () => {
@@ -360,5 +399,178 @@ describe('Timeline page', () => {
       delete (document as unknown as Record<string, unknown>).visibilityState
       vi.useRealTimers()
     }
+  })
+})
+
+describe('Timeline milestones', () => {
+  /** The Gantt resolves pointer clicks itself; detail: 0 is the keyboard path. */
+  function activate(name: RegExp) {
+    const el = screen.getByRole('button', { name })
+    act(() => {
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }))
+    })
+  }
+
+  const milestoneRows = () => document.querySelectorAll('[data-testid="milestone-row"]')
+
+  it('draws a milestone row per milestone and counts them in the header', () => {
+    hooks.milestones = [makeMilestone()]
+    hooks.tasks = [makeTask({ milestone_id: 'm1' })]
+    renderPage()
+
+    expect(milestoneRows()).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText(/· 1 milestones/)).toBeInTheDocument()
+    // Collapsed by default, so the nested task has no bar yet.
+    expect(screen.queryByRole('button', { name: /^Brand audit:/ })).not.toBeInTheDocument()
+  })
+
+  it('expanding a milestone persists under the project key and survives a remount', async () => {
+    const user = userEvent.setup()
+    hooks.milestones = [makeMilestone()]
+    hooks.tasks = [makeTask({ milestone_id: 'm1' })]
+    const view = renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Discovery' }))
+
+    expect(screen.getByRole('button', { name: /^Brand audit:/ })).toBeInTheDocument()
+    expect(localStorage.getItem('timeline.expanded.p1')).toBe('["m1"]')
+
+    view.unmount()
+    renderPage()
+
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /^Brand audit:/ })).toBeInTheDocument()
+  })
+
+  it('switching project forgets the other project\'s expansion', async () => {
+    const user = userEvent.setup()
+    hooks.projects = [alpha(), beta()]
+    hooks.tasks = [makeTask({ milestone_id: 'm1' }), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
+    hooks.milestones = [makeMilestone(), makeMilestone({ id: 'm2', project_id: 'p2', name: 'Rollout' })]
+    localStorage.setItem('timeline.expanded.p1', '["m1"]')
+    renderPage(['/timeline?project=p1'])
+
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'true')
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'p2')
+
+    expect(screen.getByRole('button', { name: 'Rollout' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('+ Milestone opens the dialog and saves with the next sort_order', async () => {
+    const user = userEvent.setup()
+    hooks.milestones = [makeMilestone({ sort_order: 3 })]
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: '+ Milestone' }))
+    await user.type(await screen.findByLabelText(/^Name/), 'Launch')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(hooks.createMilestone).toHaveBeenCalledWith({
+      project_id: 'p1',
+      name: 'Launch',
+      start_date: null,
+      end_date: null,
+      sort_order: 4,
+    })
+  })
+
+  it('+ Milestone is not offered in Overview', () => {
+    hooks.projects = [alpha(), beta()]
+    renderPage(['/timeline?project=all'])
+
+    expect(screen.queryByRole('button', { name: '+ Milestone' })).not.toBeInTheDocument()
+  })
+
+  it('clicking a milestone bar opens it for editing, and Delete confirms first', async () => {
+    const user = userEvent.setup()
+    hooks.milestones = [makeMilestone()]
+    renderPage()
+
+    activate(/^Discovery:/)
+
+    expect(await screen.findByRole('heading', { name: 'Edit milestone' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Name/)).toHaveValue('Discovery')
+
+    const confirm = vi.fn().mockReturnValue(true)
+    vi.stubGlobal('confirm', confirm)
+    await user.click(screen.getByRole('button', { name: 'Delete milestone' }))
+
+    expect(confirm).toHaveBeenCalledWith('Delete milestone "Discovery"? Its tasks are kept and unassigned.')
+    expect(hooks.deleteMilestone).toHaveBeenCalledWith('m1')
+  })
+
+  it('editing a milestone saves its new name and dates', async () => {
+    const user = userEvent.setup()
+    hooks.milestones = [makeMilestone()]
+    renderPage()
+
+    activate(/^Discovery:/)
+    const name = await screen.findByLabelText(/^Name/)
+    await user.clear(name)
+    await user.type(name, 'Discovery v2')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(hooks.updateMilestone).toHaveBeenCalledWith('m1', {
+      name: 'Discovery v2',
+      start_date: '2026-09-03',
+      end_date: '2026-09-10',
+    })
+  })
+
+  it('the task dialog picks up the milestone and saves it back', async () => {
+    const user = userEvent.setup()
+    hooks.milestones = [makeMilestone()]
+    hooks.tasks = [makeTask({ milestone_id: 'm1' })]
+    localStorage.setItem('timeline.expanded.p1', '["m1"]')
+    renderPage()
+
+    activate(/^Brand audit:/)
+    await screen.findByLabelText(/^Title/)
+
+    // The picker is pre-set to the task's current milestone.
+    expect(screen.getByRole('combobox', { name: 'Milestone' })).toHaveTextContent('Discovery')
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(hooks.updateTask).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ title: 'Brand audit', milestone_id: 'm1' }),
+    )
+  })
+
+  it('a project with no milestones gets the task dialog it always had', async () => {
+    renderPage()
+
+    activate(/^Brand audit:/)
+    await screen.findByLabelText(/^Title/)
+
+    expect(screen.queryByRole('combobox', { name: 'Milestone' })).not.toBeInTheDocument()
+  })
+
+  it('Overview draws milestone diamonds and no milestone rows', () => {
+    hooks.projects = [alpha(), beta()]
+    hooks.tasks = [makeTask({ milestone_id: 'm1' })]
+    hooks.milestones = [makeMilestone()]
+    renderPage(['/timeline?project=all'])
+
+    expect(screen.getAllByTestId('milestone-diamond')).toHaveLength(1)
+    expect(milestoneRows()).toHaveLength(0)
+  })
+
+  it('a rejected milestone drag shows the banner', async () => {
+    hooks.milestones = [makeMilestone()]
+    hooks.updateMilestone = vi.fn().mockRejectedValue(new Error('RLS denied'))
+    renderPage()
+
+    const bar = screen.getByRole('button', { name: /^Discovery:/ })
+    fireEvent.pointerDown(bar, { clientX: 0, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar, { clientX: 200, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar, { clientX: 200, pointerId: 1 })
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert').some((el) => el.textContent?.includes('RLS denied'))).toBe(true)
+    })
   })
 })

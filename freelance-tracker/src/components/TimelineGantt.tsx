@@ -70,7 +70,23 @@ export interface ProjectDates {
 
 export interface TimelineGanttProps {
   projects: GanttProject[]
+  /**
+   * Every task of every project shown — done ones included. Progress counts are
+   * computed from this list; `hideDone` decides which of them get a row.
+   */
   tasks: GanttTask[]
+  /**
+   * 'project' nests milestones as rows above their tasks. 'overview' is the page's
+   * task-free bird's-eye mode: no milestone rows, a diamond on the project bar instead.
+   * Explicit rather than inferred from an empty task list — a project whose tasks are
+   * all filtered away is still a project view.
+   */
+  mode?: 'project' | 'overview'
+  /**
+   * Drop `done` task rows. Milestone progress and any milestone span borrowed from its
+   * tasks still count them, so a finished milestone keeps its bar at 100% with `n/n`.
+   */
+  hideDone?: boolean
   /** Milestones for every project shown. A project with none keeps the flat task layout. */
   milestones?: GanttMilestone[]
   /** Controlled expansion. Absent or empty means every milestone is collapsed. */
@@ -236,6 +252,8 @@ const NO_MILESTONES: GanttMilestone[] = []
 export default function TimelineGantt({
   projects,
   tasks,
+  mode = 'project',
+  hideDone = false,
   milestones = NO_MILESTONES,
   expandedMilestoneIds,
   onToggleMilestone,
@@ -256,13 +274,23 @@ export default function TimelineGantt({
   const today = todayProp ?? todayISO()
   const px = PX_PER_DAY[zoom]
 
+  // Done rows are dropped here rather than by the page, so the page can still hand
+  // over every task for the counts. Kept as one list; each project slices its own.
+  const shownTasks = useMemo(() => (hideDone ? tasks.filter((tk) => tk.status !== 'done') : tasks), [hideDone, tasks])
+  const adaptedAll = useMemo(() => tasks.map(asMilestoneTask), [tasks])
+
   const dates = useMemo(
     () => [
       ...projects.flatMap((p) => [p.start_date, p.end_date]),
-      ...tasks.flatMap((tk) => [tk.start_date, tk.due_date]),
-      ...milestones.flatMap((m) => [m.start_date, m.end_date]),
+      ...shownTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+      // A milestone's drawn span, not just its own dates: one that borrows the extent
+      // of tasks now hidden by `hideDone` must still fit inside the track.
+      ...milestones.flatMap((m) => {
+        const r = milestoneRange(m, adaptedAll)
+        return r ? [r.start, r.end] : [m.start_date, m.end_date]
+      }),
     ],
-    [projects, tasks, milestones],
+    [projects, shownTasks, milestones, adaptedAll],
   )
   // Content-driven, not today-driven: a project whose work finished in March must
   // not open on a screenful of empty track with every bar off to the left.
@@ -294,10 +322,9 @@ export default function TimelineGantt({
     })
   }
 
-  // Overview is the page's task-free bird's-eye mode (`tasks={[]}`, every project's
-  // milestones passed): there are no rows to nest, so milestones become diamonds on
-  // the project bar instead of rows of their own.
-  const overview = tasks.length === 0 && milestones.length > 0
+  // Overview is the page's task-free bird's-eye mode: there are no rows to nest, so
+  // milestones become diamonds on the project bar instead of rows of their own.
+  const overview = mode === 'overview'
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -610,8 +637,16 @@ export default function TimelineGantt({
     )
   }
 
-  /** One milestone: its own row, plus its task rows when expanded. */
-  function renderMilestone(m: GanttMilestone, group: Array<ReturnType<typeof asMilestoneTask>>): ReactNode {
+  /**
+   * One milestone: its own row, plus its task rows when expanded.
+   * `group` is every task of the milestone (the count and the borrowed span come from
+   * it); `shownGroup` is the subset that gets rows once `hideDone` has had its say.
+   */
+  function renderMilestone(
+    m: GanttMilestone,
+    group: Array<ReturnType<typeof asMilestoneTask>>,
+    shownGroup: Array<ReturnType<typeof asMilestoneTask>>,
+  ): ReactNode {
     const isOpen = expanded.has(m.id)
     const { done, total } = milestoneProgress(m, group)
     const count = `${done}/${total}`
@@ -627,9 +662,11 @@ export default function TimelineGantt({
     const fill = total > 0 ? done / total : 0
     const barLabel = r ? `${m.name}: ${fmt(r.start)} – ${fmt(r.end)}` : m.name
     const barTitle = own ? barLabel : `${barLabel} · ${t('timeline.milestoneAutoDates')}`
-    const { dated, undated } = splitTasks(group.map((g) => g.task))
+    const { dated, undated } = splitTasks(shownGroup.map((g) => g.task))
 
-    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-[14px] rounded-[3px] flex items-center px-1.5 select-none text-left ${
+    // Same 18px as a project bar: a milestone contains tasks, so drawing it thinner
+    // than the 16px task bars would invert the hierarchy the rows are there to show.
+    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-[18px] rounded-[3px] flex items-center px-1.5 select-none text-left ${
       draggable ? 'touch-none cursor-grab' : 'cursor-default'
     } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
     const barStyle = geom
@@ -801,13 +838,19 @@ export default function TimelineGantt({
             <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} labelWidth={labelWidth} />
             {projects.map((project) => {
             const projectTasks = tasks.filter((tk) => tk.project_id === project.id)
+            const projectShown = shownTasks.filter((tk) => tk.project_id === project.id)
             const projectMilestones = sortMilestones(milestones.filter((m) => m.project_id === project.id))
-            const adapted = projectTasks.map(asMilestoneTask)
-            const { byMilestone, unassigned } = groupTasksByMilestone(adapted, projectMilestones)
+            // Two groupings of the same milestones: all tasks for the counts and spans,
+            // the visible ones for the rows.
+            const { byMilestone } = groupTasksByMilestone(projectTasks.map(asMilestoneTask), projectMilestones)
+            const { byMilestone: shownByMilestone, unassigned } = groupTasksByMilestone(
+              projectShown.map(asMilestoneTask),
+              projectMilestones,
+            )
             // Milestone rows replace the flat task list only when there is something to
             // nest under; Overview has no task rows at all, so it draws diamonds instead.
             const nested = !overview && projectMilestones.length > 0
-            const flatTasks = nested ? unassigned.map((a) => a.task) : projectTasks
+            const flatTasks = nested ? unassigned.map((a) => a.task) : projectShown
             const { dated, undated } = splitTasks(flatTasks)
             const baseProjectRange = entityRange(project.start_date, project.end_date)
             const color = STATUS_COLORS[project.status] ?? '#3e6b5a'
@@ -904,7 +947,10 @@ export default function TimelineGantt({
                 </div>
 
                 {/* Milestone rows, each with its own tasks nested when expanded. */}
-                {nested && projectMilestones.map((m) => renderMilestone(m, byMilestone.get(m.id) ?? []))}
+                {nested &&
+                  projectMilestones.map((m) =>
+                    renderMilestone(m, byMilestone.get(m.id) ?? [], shownByMilestone.get(m.id) ?? []),
+                  )}
 
                 {/* Tasks with no milestone. Grouped under a header only when the project
                     has milestones at all; otherwise the flat layout is unchanged. */}

@@ -3,10 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle, X, Printer } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
+import { useMilestones } from '../hooks/useMilestones'
 import { useRole } from '../hooks/useWorkspaceRole'
 import WorkTabs from '../components/WorkTabs'
 import TimelineGantt from '../components/TimelineGantt'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
+import MilestoneForm, { type MilestoneFormData, type MilestoneFormMilestone } from '../components/MilestoneForm'
+import { sortMilestones } from '../lib/milestones'
 import { computeContentRange, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
 import { OVERVIEW, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
@@ -15,6 +18,8 @@ const ZOOMS: Zoom[] = ['week', 'month', 'quarter']
 const ZOOM_KEY = 'timeline.zoom'
 const HIDE_DONE_KEY = 'timeline.hideDone'
 const LAST_PROJECT_KEY = 'timeline.lastProject'
+/** One entry per project: which milestones the user left open there. */
+const EXPANDED_KEY = 'timeline.expanded.'
 const REFRESH_MS = 60_000
 /** Focus and visibilitychange often fire together; don't refetch twice for one return. */
 const REFRESH_MIN_GAP_MS = 5_000
@@ -34,6 +39,8 @@ type DialogTask = {
   dueDate?: string
   /** Carried for completeness only — TaskForm shows its project picker only when passed a `projects` prop, which this page does not do. */
   projectId?: string
+  /** Pre-selects the milestone picker when the project has milestones. */
+  milestoneId?: string | null
 }
 
 /** Week is the default: a month of one-day tasks is a row of slivers nobody can grab. */
@@ -69,6 +76,30 @@ function readLastProject(): string | null {
 function writeLastProject(id: string) {
   try {
     localStorage.setItem(LAST_PROJECT_KEY, id)
+  } catch {
+    /* private mode */
+  }
+}
+
+/**
+ * Which milestones are open, per project. Stored as a JSON array of ids: whatever a
+ * previous session left behind is treated as noise unless it is exactly that.
+ */
+function readExpanded(projectId: string): ReadonlySet<string> {
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY + projectId)
+    if (!raw) return new Set<string>()
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set<string>()
+    return new Set(parsed.filter((x): x is string => typeof x === 'string'))
+  } catch {
+    return new Set<string>()
+  }
+}
+
+function writeExpanded(projectId: string, ids: ReadonlySet<string>) {
+  try {
+    localStorage.setItem(EXPANDED_KEY + projectId, JSON.stringify([...ids]))
   } catch {
     /* private mode */
   }
@@ -124,6 +155,35 @@ export default function Timeline() {
     () => resolveSelection(paramProject, storedProject, projects),
     [paramProject, storedProject, projects],
   )
+  const isOverview = selection === OVERVIEW
+
+  // The selected project's milestones while planning it; every milestone in Overview,
+  // where they are drawn as diamonds on the project bars.
+  const {
+    milestones,
+    createMilestone,
+    updateMilestone,
+    deleteMilestone,
+    refetch: refetchMilestones,
+  } = useMilestones(isOverview ? undefined : selection)
+
+  // Which milestones are open, seeded from this project's stored set and reset when the
+  // project changes. Adjusting state during render (React's documented pattern) rather
+  // than in an effect, so the first paint of a project is already its remembered shape.
+  const [expandedFor, setExpandedFor] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set<string>())
+  if (expandedFor !== selection) {
+    setExpandedFor(selection)
+    setExpanded(readExpanded(selection))
+  }
+
+  function toggleMilestone(id: string) {
+    const next = new Set(expanded)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setExpanded(next)
+    writeExpanded(selection, next)
+  }
 
   function selectProject(id: string) {
     const next = new URLSearchParams(searchParams)
@@ -162,6 +222,7 @@ export default function Timeline() {
       if (now - last < REFRESH_MIN_GAP_MS) return
       last = now
       refetchTasks()
+      refetchMilestones()
     }
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
@@ -171,13 +232,14 @@ export default function Timeline() {
       document.removeEventListener('visibilitychange', refresh)
       clearInterval(id)
     }
-  }, [refetchTasks])
+  }, [refetchTasks, refetchMilestones])
 
   const [dialogTask, setDialogTask] = useState<DialogTask | null>(null)
+  /** Open when non-null; `milestone: null` is the create case, a value is the edit case. */
+  const [milestoneDialog, setMilestoneDialog] = useState<{ milestone: MilestoneFormMilestone | null } | null>(null)
 
   // One project at a time. Overview is the exception: every project as a single bar,
   // no task rows — 18 projects' worth of one-day tasks in one grid is unreadable.
-  const isOverview = selection === OVERVIEW
   const selectedProject = useMemo(
     () => (isOverview ? null : (projects.find((p) => p.id === selection) ?? null)),
     [isOverview, projects, selection],
@@ -196,6 +258,16 @@ export default function Timeline() {
     [hideDone, projectTasks],
   )
   const doneHidden = projectTasks.length - visibleTasks.length
+  // useMilestones already scopes to the project; filtering again keeps Overview's
+  // whole-workspace list out of the "+ Milestone" ordering and the task picker.
+  const projectMilestones = useMemo(
+    () => (isOverview ? [] : sortMilestones(milestones.filter((m) => m.project_id === selection))),
+    [isOverview, milestones, selection],
+  )
+  const milestonePicker = useMemo(
+    () => projectMilestones.map((m) => ({ id: m.id, name: m.name })),
+    [projectMilestones],
+  )
   // The switcher lists active work first; everything else is still one scroll away.
   const activeProjects = useMemo(
     () => projects.filter((p) => p.status === 'active').sort((a, b) => a.name.localeCompare(b.name)),
@@ -235,6 +307,57 @@ export default function Timeline() {
     }
   }
 
+  async function saveMilestoneDates(id: string, dates: { start_date: string; end_date: string }) {
+    try {
+      await updateMilestone(id, dates)
+    } catch (err) {
+      setError(failMessage(err))
+      throw err
+    }
+  }
+
+  function openMilestone(id: string) {
+    const m = milestones.find((x) => x.id === id)
+    if (!m) return
+    setMilestoneDialog({
+      milestone: {
+        id: m.id,
+        name: m.name,
+        startDate: m.start_date ?? undefined,
+        endDate: m.end_date ?? undefined,
+      },
+    })
+  }
+
+  async function saveMilestone(data: MilestoneFormData) {
+    const editing = milestoneDialog?.milestone
+    const dates = { start_date: data.startDate ?? null, end_date: data.endDate ?? null }
+    try {
+      if (editing) {
+        await updateMilestone(editing.id, { name: data.name, ...dates })
+      } else {
+        // Rows are ordered by sort_order, so a new milestone goes after the ones there.
+        const nextOrder = projectMilestones.reduce((max, m) => Math.max(max, m.sort_order), -1) + 1
+        await createMilestone({ project_id: selection, name: data.name, ...dates, sort_order: nextOrder })
+      }
+    } catch (err) {
+      // Same contract as the task dialog: banner here, re-throw so the form stays open.
+      setError(failMessage(err))
+      throw err
+    }
+    setMilestoneDialog(null)
+  }
+
+  async function removeMilestone(id: string) {
+    try {
+      await deleteMilestone(id)
+    } catch (err) {
+      setError(failMessage(err))
+      throw err
+    }
+    setMilestoneDialog(null)
+  }
+
   if (!ready) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -251,6 +374,7 @@ export default function Timeline() {
     [
       ...visibleProjects.flatMap((p) => [p.start_date, p.end_date]),
       ...visibleTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+      ...milestones.flatMap((m) => [m.start_date, m.end_date]),
     ],
     today,
   )
@@ -272,7 +396,7 @@ export default function Timeline() {
     : `${bounds ? `${longDate(bounds.min)} – ${longDate(bounds.max)}` : t('timeline.noDatesYet')} · ${t('timeline.taskCounts', {
         n: projectTasks.length,
         m: projectTasks.filter((tk) => tk.status !== 'done').length,
-      })}`
+      })}${projectMilestones.length > 0 ? ` · ${t('timeline.milestoneCounts', { n: projectMilestones.length })}` : ''}`
 
   return (
     <div className="p-6 flex flex-col gap-5">
@@ -355,6 +479,17 @@ export default function Timeline() {
         {doneHidden > 0 && (
           <span className="text-[13px] text-text-secondary">{t('timeline.doneHidden', { n: doneHidden })}</span>
         )}
+        {/* Structure, not drawing — but it belongs with the chart it changes, and there
+            is nothing to hang a milestone on until a project is selected. */}
+        {!isOverview && selectedProject && (
+          <button
+            type="button"
+            onClick={() => setMilestoneDialog({ milestone: null })}
+            className="ml-auto inline-flex items-center h-8 px-3 rounded-md border border-border bg-surface text-[13px] text-text-primary hover:bg-bg"
+          >
+            {t('timeline.addMilestone')}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -397,12 +532,21 @@ export default function Timeline() {
           </div>
           <TimelineGantt
             projects={visibleProjects}
-            tasks={visibleTasks}
+            // Every task of the project, done ones included: the Gantt needs them for the
+            // milestone counts and drops the done rows itself when `hideDone` is on.
+            tasks={projectTasks}
+            mode={isOverview ? 'overview' : 'project'}
+            hideDone={hideDone}
+            milestones={milestones}
+            expandedMilestoneIds={expanded}
+            onToggleMilestone={toggleMilestone}
             zoom={zoom}
             editable
             canEditProjects={role === 'owner'}
             onTaskDates={saveTaskDates}
             onProjectDates={saveProjectDates}
+            onMilestoneDates={saveMilestoneDates}
+            onMilestoneClick={openMilestone}
             onScheduleTask={saveTaskDates}
             onTaskClick={(id) => {
               const tk = tasks.find((x) => x.id === id)
@@ -416,6 +560,7 @@ export default function Timeline() {
                 startDate: tk.start_date ?? undefined,
                 dueDate: tk.due_date ?? undefined,
                 projectId: tk.project_id,
+                milestoneId: tk.milestone_id,
               })
             }}
           />
@@ -428,6 +573,9 @@ export default function Timeline() {
           if (!open) setDialogTask(null)
         }}
         task={dialogTask}
+        // Only where there is something to pick: a project with no milestones gets the
+        // dialog it has always had.
+        milestones={milestonePicker.length > 0 ? milestonePicker : undefined}
         onSave={async (data: TaskFormData) => {
           if (!dialogTask) return
           try {
@@ -438,6 +586,8 @@ export default function Timeline() {
               priority: data.priority,
               start_date: data.startDate ?? null,
               due_date: data.dueDate ?? null,
+              // Absent when no picker was shown — never null out a link the user never saw.
+              ...(data.milestoneId !== undefined ? { milestone_id: data.milestoneId } : {}),
             })
           } catch (err) {
             setError(failMessage(err))
@@ -445,6 +595,16 @@ export default function Timeline() {
           }
           setDialogTask(null)
         }}
+      />
+
+      <MilestoneForm
+        open={milestoneDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setMilestoneDialog(null)
+        }}
+        milestone={milestoneDialog?.milestone ?? null}
+        onSave={saveMilestone}
+        onDelete={removeMilestone}
       />
     </div>
   )
