@@ -7,7 +7,7 @@ export type WorkspaceRole = 'owner' | 'collaborator' | 'portal'
 export const COLLABORATOR_PATHS = ['/timeline', '/tasks'] as const
 
 export function isCollaboratorPath(pathname: string): boolean {
-  return COLLABORATOR_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'))
+  return COLLABORATOR_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 
 /**
@@ -22,36 +22,92 @@ export function resolveRole(ownsClients: boolean, isMember: boolean, isPortalCli
   return 'owner'
 }
 
-export const WorkspaceRoleContext = createContext<WorkspaceRole>('owner')
+/**
+ * Provided by OwnerGate once the role is known. Deliberately has no default —
+ * a component that reads the role outside the gate should fail loudly rather
+ * than silently behave as an owner.
+ */
+export const WorkspaceRoleContext = createContext<WorkspaceRole | null>(null)
 
-/** Read the role provided by OwnerGate. Defaults to 'owner' outside the gate (portal pages never call this). */
+/** Read the role provided by OwnerGate. Throws outside the gate — portal pages never call this. */
 export function useRole(): WorkspaceRole {
-  return useContext(WorkspaceRoleContext)
+  const role = useContext(WorkspaceRoleContext)
+  if (role === null) throw new Error('useRole must be used inside OwnerGate')
+  return role
 }
 
-async function hasRows(table: string): Promise<boolean> {
-  const { count, error } = await supabase.from(table).select('id', { head: true, count: 'exact' }).limit(1)
-  if (error) return false
-  return (count ?? 0) > 0
+type MembershipTable = 'clients' | 'project_members' | 'portal_clients'
+
+/**
+ * True if the query returns at least one row for the signed-in user. An
+ * optional column/value filter scopes the query to the caller's own rows
+ * (needed for project_members, where RLS also lets an owner see rows for
+ * projects they own — an unfiltered count would misclassify them).
+ * PGRST205 ("table not found") is expected until the project_members
+ * migration runs, so it's swallowed silently; any other error is logged.
+ */
+async function hasRows(table: MembershipTable, filter?: { column: string; value: string }): Promise<boolean> {
+  let query = supabase.from(table).select('id').limit(1)
+  if (filter) query = query.eq(filter.column, filter.value)
+  const { data, error } = await query
+  if (error) {
+    if (error.code !== 'PGRST205') {
+      console.warn('[useWorkspaceRole]', table, error.message)
+    }
+    return false
+  }
+  return (data?.length ?? 0) > 0
 }
 
-/** Runs the three head-count queries once per session and classifies the user. */
+/** Runs the membership queries and classifies the current user. */
+async function classify(): Promise<WorkspaceRole> {
+  const { data } = await supabase.auth.getUser()
+  const email = (data.user?.email ?? '').toLowerCase()
+  const [owns, member, portal] = await Promise.all([
+    hasRows('clients'),
+    email ? hasRows('project_members', { column: 'email', value: email }) : Promise.resolve(false),
+    hasRows('portal_clients'),
+  ])
+  return resolveRole(owns, member, portal)
+}
+
+/**
+ * Classifies the signed-in user as owner/collaborator/portal, and
+ * re-classifies whenever the signed-in user changes (cross-tab sign-in as
+ * someone else, USER_UPDATED) without requiring a remount.
+ */
 export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boolean } {
   const [role, setRole] = useState<WorkspaceRole | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  // Track the signed-in user's id so the classification effect below can
+  // re-run when it changes.
+  useEffect(() => {
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserId(data.user?.id ?? null)
+    })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null)
+    })
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([hasRows('clients'), hasRows('project_members'), hasRows('portal_clients')])
-      .then(([owns, member, portal]) => {
-        if (!cancelled) setRole(resolveRole(owns, member, portal))
-      })
-      .catch(() => {
-        if (!cancelled) setRole('owner')
-      })
+    setRole(null)
+    classify().then((resolved) => {
+      if (!cancelled) setRole(resolved)
+    })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [userId])
 
   return { role, loading: role === null }
 }
