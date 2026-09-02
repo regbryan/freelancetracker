@@ -48,6 +48,11 @@ AS $$
   );
 $$;
 REVOKE ALL ON FUNCTION public.is_project_member(UUID) FROM PUBLIC;
+-- Supabase's default privileges also grant EXECUTE to anon; take that back so
+-- the RPC endpoint is not callable without a session. authenticated keeps it
+-- (policies evaluate the function as the calling role); the advisor WARN for
+-- that is intentional.
+REVOKE EXECUTE ON FUNCTION public.is_project_member(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_project_member(UUID) TO authenticated;
 
 -- 3. project_members policies -----------------------------------------------
