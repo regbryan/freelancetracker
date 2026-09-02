@@ -36,8 +36,13 @@ Decisions from discovery:
 - Sidebar "Work" item now links to `/timeline`. `WorkTabs` order becomes
   **Timeline · Tasks · Timer**. The tab labels are translated, via the `nav.timeline`,
   `nav.tasks`, and `nav.timer` keys. Nothing else in the sidebar changes.
-- `/timeline` gains a project filter (select, "All projects" default). It reads and
-  writes `?project=<id>` so the URL is shareable.
+- `/timeline` shows **one project at a time** (revised 2026-09-02 — see below). A
+  switcher row sits above the grid: an **Overview** chip, then a chip per recently
+  updated active project, then a compact select listing every project for anything the
+  chips leave out. The chips use the same segmented pill styling as the zoom control.
+  Selection lives in the URL as `?project=<id>` or `?project=all`, so the view is
+  shareable, and is mirrored into `localStorage['timeline.lastProject']` so a bare
+  `/timeline` reopens where the user left off.
 - `ProjectDetail` gets one "Open timeline" button linking to `/timeline?project=<id>`.
   No other change to that page except the Collaborators card (below).
 
@@ -120,10 +125,36 @@ Everything testable without the DOM lives here:
   `onScheduleTask` → `updateTask`. `onTaskClick` → opens the existing `TaskForm`
   dialog in edit mode; saving refetches tasks.
 - Zoom control: three segmented buttons (Week / Month / Quarter), persisted in
-  `localStorage` under `timeline.zoom`; default Month.
-- Project filter: when set, only that project's row and tasks render.
+  `localStorage` under `timeline.zoom`; **default Week** (revised 2026-09-02).
+- **One project at a time** (revised 2026-09-02). The selected project's row and its
+  tasks are all that render; `canEditProjects` and task editing are unchanged.
+- **Overview** (`?project=all`) is the only multi-project view: `TimelineGantt` gets
+  every project and `tasks={[]}`, so it draws one bar per project and no task rows.
+  Project bars stay draggable for owners. A muted line above the grid
+  (`timeline.overviewHint`) says what the mode is for, and `TimelineInsight` — which
+  reasons about every project — renders only here.
+- Selection rules live in `src/lib/timelineSelection.ts` (`resolveSelection`,
+  `quickPickProjects`, `OVERVIEW`), pure and unit-tested. `resolveSelection` takes, in
+  order: a valid `?project=` value, then a valid remembered value, then the most
+  recently updated **active** project, then the most recently updated project of any
+  status, then Overview when the workspace is empty. Both stored and URL values are
+  re-validated against the loaded projects, so a link to a deleted project still lands
+  somewhere useful. Whatever is resolved is written back to the URL with
+  `replace: true`. `quickPickProjects` returns up to six recently updated active
+  projects for the chips and always includes the current selection, even when it is
+  paused, finished, or outside the cap.
 - Freshness with two editors: refetch tasks on `window` `focus` and on a 60 s interval
   while the page is mounted. Last write wins; no conflict UI.
+
+### Revision 2026-09-02 — one project at a time
+
+Decided after Reggie's visual review of `/timeline` with real data (18 projects, 122
+mostly one-day tasks): every project stacked into one Gantt was an unreadable wall, and
+Month zoom turned one-day tasks into slivers too small to grab. The page therefore shows
+a single project by default, Overview replaces the old "All projects" filter value with
+a deliberately task-free bird's-eye view, and the default zoom becomes Week. The
+`TimelineGantt` component, its props, and the drag interaction are unchanged; only the
+page's selection model and the controls above the grid changed.
 
 ## Collaborators
 

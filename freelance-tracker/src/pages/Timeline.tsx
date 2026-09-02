@@ -9,10 +9,12 @@ import WorkTabs from '../components/WorkTabs'
 import TimelineGantt from '../components/TimelineGantt'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
 import { diffDays, todayISO, type Zoom } from '../lib/timelineMath'
+import { OVERVIEW, quickPickProjects, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
 
 const ZOOMS: Zoom[] = ['week', 'month', 'quarter']
 const ZOOM_KEY = 'timeline.zoom'
+const LAST_PROJECT_KEY = 'timeline.lastProject'
 const REFRESH_MS = 60_000
 /** Focus and visibilitychange often fire together; don't refetch twice for one return. */
 const REFRESH_MIN_GAP_MS = 5_000
@@ -34,13 +36,38 @@ type DialogTask = {
   projectId?: string
 }
 
+/** Week is the default: a month of one-day tasks is a row of slivers nobody can grab. */
 function readZoom(): Zoom {
   try {
     const v = localStorage.getItem(ZOOM_KEY)
-    return v === 'week' || v === 'month' || v === 'quarter' ? v : 'month'
+    return v === 'week' || v === 'month' || v === 'quarter' ? v : 'week'
   } catch {
-    return 'month'
+    return 'week'
   }
+}
+
+function readLastProject(): string | null {
+  try {
+    return localStorage.getItem(LAST_PROJECT_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeLastProject(id: string) {
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, id)
+  } catch {
+    /* private mode */
+  }
+}
+
+/** The switcher chips and the zoom control are one visual family. */
+const SEGMENT_ACTIVE_STYLE = { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' }
+function segmentClass(active: boolean): string {
+  return `px-2.5 h-7 rounded-md text-[11px] font-semibold transition-colors ${
+    active ? 'text-white' : 'text-text-muted hover:text-text-primary'
+  }`
 }
 
 function TimelineHero({ activeCount, endingSoon }: { activeCount: number; endingSoon: number }) {
@@ -92,13 +119,34 @@ export default function Timeline() {
     }
   }, [zoom])
 
-  const projectFilter = searchParams.get('project') ?? ''
-  function setProjectFilter(id: string) {
+  // Read storage once. After the first render the URL is the source of truth, and
+  // re-reading would let a sibling tab yank this one to a different project.
+  const [storedProject] = useState(readLastProject)
+  const paramProject = searchParams.get('project')
+  const selection = useMemo(
+    () => resolveSelection(paramProject, storedProject, projects),
+    [paramProject, storedProject, projects],
+  )
+
+  function selectProject(id: string) {
     const next = new URLSearchParams(searchParams)
-    if (id) next.set('project', id)
-    else next.delete('project')
+    next.set('project', id)
     setSearchParams(next, { replace: true })
+    writeLastProject(id)
   }
+
+  // `?project=` is what makes a view shareable, so whatever was resolved — from the
+  // param, from storage, or from the "newest active project" fallback — goes back
+  // into the URL. Waiting for the projects to load keeps an empty list from
+  // resolving to Overview and pinning the page there.
+  useEffect(() => {
+    if (projectsLoading) return
+    writeLastProject(selection)
+    if (paramProject === selection) return
+    const next = new URLSearchParams(searchParams)
+    next.set('project', selection)
+    setSearchParams(next, { replace: true })
+  }, [selection, paramProject, projectsLoading, searchParams, setSearchParams])
 
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -130,17 +178,23 @@ export default function Timeline() {
 
   const [dialogTask, setDialogTask] = useState<DialogTask | null>(null)
 
-  // A `?project=` id left over from a deleted project would otherwise hide every row.
-  const effectiveFilter = projectFilter && projects.some((p) => p.id === projectFilter) ? projectFilter : ''
-
-  const visibleProjects = useMemo(
-    () => (effectiveFilter ? projects.filter((p) => p.id === effectiveFilter) : projects),
-    [projects, effectiveFilter],
+  // One project at a time. Overview is the exception: every project as a single bar,
+  // no task rows — 18 projects' worth of one-day tasks in one grid is unreadable.
+  const isOverview = selection === OVERVIEW
+  const selectedProject = useMemo(
+    () => (isOverview ? null : (projects.find((p) => p.id === selection) ?? null)),
+    [isOverview, projects, selection],
   )
-  const visibleTasks = useMemo(() => {
-    const ids = new Set(visibleProjects.map((p) => p.id))
-    return tasks.filter((tk) => ids.has(tk.project_id))
-  }, [tasks, visibleProjects])
+  const visibleProjects = useMemo(
+    () => (isOverview ? projects : selectedProject ? [selectedProject] : []),
+    [isOverview, projects, selectedProject],
+  )
+  const visibleTasks = useMemo(
+    () => (isOverview ? [] : tasks.filter((tk) => tk.project_id === selection)),
+    [isOverview, tasks, selection],
+  )
+  const quickPicks = useMemo(() => quickPickProjects(projects, selection), [projects, selection])
+  const allProjectsByName = useMemo(() => projects.slice().sort((a, b) => a.name.localeCompare(b.name)), [projects])
 
   // Adjusting state during render (React's documented pattern) rather than in an
   // effect: the first painted frame is already the real page, not a spinner.
@@ -192,25 +246,56 @@ export default function Timeline() {
     <div className="p-6 flex flex-col gap-5">
       <TimelineHero activeCount={activeCount} endingSoon={endingSoon} />
       <WorkTabs />
-      {role === 'owner' && <TimelineInsight projects={projects} tasks={tasks} />}
+      {/* The insight reasons about the whole business, so it belongs with the whole business. */}
+      {role === 'owner' && isOverview && <TimelineInsight projects={projects} tasks={tasks} />}
 
       {/* Controls */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <label className="flex items-center gap-2 text-[12px] text-text-secondary">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.filterProject')}</span>
-          <select
-            value={effectiveFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-            className="h-8 rounded-lg border border-border bg-surface px-2 text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
-          >
-            <option value="">{t('timeline.allProjects')}</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="inline-flex flex-wrap rounded-lg border border-border bg-surface p-0.5 gap-0.5">
+            <button
+              type="button"
+              aria-current={isOverview ? 'true' : undefined}
+              onClick={() => selectProject(OVERVIEW)}
+              className={segmentClass(isOverview)}
+              style={isOverview ? SEGMENT_ACTIVE_STYLE : undefined}
+            >
+              {t('timeline.overview')}
+            </button>
+            {quickPicks.map((p) => {
+              const active = p.id === selection
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-current={active ? 'true' : undefined}
+                  onClick={() => selectProject(p.id)}
+                  className={`${segmentClass(active)} max-w-[170px] truncate`}
+                  style={active ? SEGMENT_ACTIVE_STYLE : undefined}
+                >
+                  {p.name}
+                </button>
+              )
+            })}
+          </div>
+          <label className="flex items-center gap-2 text-[12px] text-text-secondary">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.filterProject')}</span>
+            <select
+              value={selection}
+              onChange={(e) => selectProject(e.target.value)}
+              className="h-8 max-w-[200px] rounded-lg border border-border bg-surface px-2 text-[12px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              <option value={OVERVIEW}>{t('timeline.overview')}</option>
+              <optgroup label={t('timeline.allProjects')}>
+                {allProjectsByName.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{t('timeline.zoomLabel')}</span>
           <div role="radiogroup" aria-label={t('timeline.zoomLabel')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
@@ -224,10 +309,8 @@ export default function Timeline() {
                   role="radio"
                   aria-checked={active}
                   onClick={() => setZoom(z)}
-                  className={`px-2.5 h-7 rounded-md text-[11px] font-semibold transition-colors ${
-                    active ? 'text-white' : 'text-text-muted hover:text-text-primary'
-                  }`}
-                  style={active ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
+                  className={segmentClass(active)}
+                  style={active ? SEGMENT_ACTIVE_STYLE : undefined}
                 >
                   {t(key)}
                 </button>
@@ -260,30 +343,33 @@ export default function Timeline() {
           <p className="text-text-muted text-[13px]">{t('timeline.empty')}</p>
         </div>
       ) : (
-        <TimelineGantt
-          projects={visibleProjects}
-          tasks={visibleTasks}
-          zoom={zoom}
-          editable
-          canEditProjects={role === 'owner'}
-          onTaskDates={saveTaskDates}
-          onProjectDates={saveProjectDates}
-          onScheduleTask={saveTaskDates}
-          onTaskClick={(id) => {
-            const tk = tasks.find((x) => x.id === id)
-            if (!tk) return
-            setDialogTask({
-              id: tk.id,
-              title: tk.title,
-              description: tk.description ?? undefined,
-              status: tk.status,
-              priority: tk.priority,
-              startDate: tk.start_date ?? undefined,
-              dueDate: tk.due_date ?? undefined,
-              projectId: tk.project_id,
-            })
-          }}
-        />
+        <div className="flex flex-col gap-2">
+          {isOverview && <p className="text-[12px] text-text-muted">{t('timeline.overviewHint')}</p>}
+          <TimelineGantt
+            projects={visibleProjects}
+            tasks={visibleTasks}
+            zoom={zoom}
+            editable
+            canEditProjects={role === 'owner'}
+            onTaskDates={saveTaskDates}
+            onProjectDates={saveProjectDates}
+            onScheduleTask={saveTaskDates}
+            onTaskClick={(id) => {
+              const tk = tasks.find((x) => x.id === id)
+              if (!tk) return
+              setDialogTask({
+                id: tk.id,
+                title: tk.title,
+                description: tk.description ?? undefined,
+                status: tk.status,
+                priority: tk.priority,
+                startDate: tk.start_date ?? undefined,
+                dueDate: tk.due_date ?? undefined,
+                projectId: tk.project_id,
+              })
+            }}
+          />
+        </div>
       )}
 
       <TaskForm

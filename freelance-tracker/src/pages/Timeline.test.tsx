@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { I18nProvider } from '../lib/i18n'
 import type { Project } from '../hooks/useProjects'
 import type { Task } from '../hooks/useTasks'
@@ -46,8 +46,9 @@ vi.mock('../hooks/useWorkspaceRole', () => ({
   useRole: () => 'owner',
 }))
 
-// The insight banner does its own date math and adds noise; the page is what's under test.
-vi.mock('../components/TimelineInsight', () => ({ default: () => null }))
+// The insight banner does its own date math and adds noise; the page is what's under
+// test, so it stands in as a marker we can assert on.
+vi.mock('../components/TimelineInsight', () => ({ default: () => <div data-testid="insight" /> }))
 
 import Timeline from './Timeline'
 
@@ -89,11 +90,25 @@ function makeTask(over: Partial<Task> = {}): Task {
   }
 }
 
+/** Two active projects; Beta is the more recently updated one. */
+function alpha(): Project {
+  return makeProject({ updated_at: '2026-08-01T00:00:00Z' })
+}
+function beta(): Project {
+  return makeProject({ id: 'p2', name: 'Beta', client_id: 'c2', updated_at: '2026-08-20T00:00:00Z' })
+}
+
+/** The page rewrites `?project=`; this is how the tests read the result. */
+function LocationProbe() {
+  return <div data-testid="search">{useLocation().search}</div>
+}
+
 function ui(entries: string[] = ['/timeline']) {
   return (
     <I18nProvider>
       <MemoryRouter initialEntries={entries}>
         <Timeline />
+        <LocationProbe />
       </MemoryRouter>
     </I18nProvider>
   )
@@ -174,23 +189,76 @@ describe('Timeline page', () => {
     expect(screen.queryByText(/No projects yet/)).not.toBeInTheDocument()
   })
 
-  it('an unknown ?project id falls back to all projects', () => {
-    hooks.projects = [makeProject(), makeProject({ id: 'p2', name: 'Beta', client_id: 'c2' })]
+  it('an unknown ?project id falls back to the newest active project, not to Overview', async () => {
+    hooks.projects = [alpha(), beta()]
     hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
     renderPage(['/timeline?project=nope'])
 
-    expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Beta').length).toBeGreaterThan(0)
-    expect(screen.getByRole('combobox')).toHaveValue('')
+    // Beta is the more recently updated active project.
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?project=p2'))
+    expect(screen.getByRole('combobox')).toHaveValue('p2')
+    expect(screen.queryByTestId('insight')).not.toBeInTheDocument()
+    // Alpha still has a chip in the switcher; what it must not have is a row in the grid.
+    expect(screen.queryByRole('img', { name: /^Alpha:/ })).not.toBeInTheDocument()
   })
 
   it('zoom choice persists in localStorage', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(screen.getByRole('radio', { name: 'Week' }))
+    await user.click(screen.getByRole('radio', { name: 'Quarter' }))
 
-    expect(localStorage.getItem('timeline.zoom')).toBe('week')
+    expect(localStorage.getItem('timeline.zoom')).toBe('quarter')
+  })
+
+  it('defaults to Week zoom when nothing is stored', () => {
+    renderPage()
+
+    expect(screen.getByRole('radio', { name: 'Week' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Month' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('opens on the most recently updated active project and records the choice', async () => {
+    hooks.projects = [alpha(), beta()]
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
+    renderPage()
+
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?project=p2'))
+    expect(localStorage.getItem('timeline.lastProject')).toBe('p2')
+    // Only Beta's row and only Beta's tasks.
+    expect(screen.getByRole('button', { name: /^Kickoff:/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Brand audit:/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /^Alpha:/ })).not.toBeInTheDocument()
+  })
+
+  it('?project=all shows one bar per project, no tasks, the hint, and the insight', async () => {
+    hooks.projects = [alpha(), beta()]
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
+    renderPage(['/timeline?project=all'])
+
+    expect(screen.getByRole('img', { name: /^Alpha:/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /^Beta:/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Brand audit:/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Kickoff:/ })).not.toBeInTheDocument()
+    expect(screen.getByText('One bar per project. Pick a project to plan its tasks.')).toBeInTheDocument()
+    expect(screen.getByTestId('insight')).toBeInTheDocument()
+    await waitFor(() => expect(localStorage.getItem('timeline.lastProject')).toBe('all'))
+  })
+
+  it('clicking a project chip switches to that project and updates the URL', async () => {
+    const user = userEvent.setup()
+    hooks.projects = [alpha(), beta()]
+    hooks.tasks = [makeTask(), makeTask({ id: 't2', project_id: 'p2', title: 'Kickoff' })]
+    renderPage(['/timeline?project=all'])
+
+    await user.click(screen.getByRole('button', { name: 'Alpha' }))
+
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?project=p1'))
+    expect(screen.getByRole('button', { name: 'Alpha' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: /^Brand audit:/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Kickoff:/ })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('insight')).not.toBeInTheDocument()
+    expect(localStorage.getItem('timeline.lastProject')).toBe('p1')
   })
 
   it('refresh is skipped while the document is hidden', () => {

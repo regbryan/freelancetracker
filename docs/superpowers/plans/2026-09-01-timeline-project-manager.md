@@ -2429,3 +2429,29 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - [ ] **Step 5: Hand-off**
 
 Do **not** push or merge. Report to Reggie: what was built, the migration status, the security results, the screenshots, and that `/app-review` is the next gate before shipping (per CLAUDE.md). Update the memory file `freelancetracker-project-state.md` with the branch name and status.
+
+---
+
+### Task 13: Per-project timeline with Overview
+
+Done 2026-09-02, after Reggie's visual review of `/timeline` with real data (18 projects,
+122 mostly one-day tasks) rejected the stacked-everything Gantt. The page now shows one
+project at a time, chosen with a switcher row above the grid (an Overview chip, chips for
+the recently updated active projects, and a compact select covering every project), with
+the selection held in `?project=<id>` / `?project=all` and mirrored to
+`localStorage['timeline.lastProject']`. Overview is the one multi-project view: one bar
+per project, no task rows, the owner-only insight banner, and a muted hint explaining the
+mode. Default zoom moved from Month to Week so one-day tasks are grabbable. The selection
+rules are a pure module so they are testable without the DOM; `TimelineGantt` itself was
+not touched.
+
+- [x] New `src/lib/timelineSelection.ts`: `OVERVIEW`, `resolveSelection(param, stored, projects)` (param → stored → newest active → newest of any status → Overview, re-validating both stored and URL values against the loaded projects), and `quickPickProjects(projects, selectedId, max = 6)` (newest active first, capped, always including the current selection).
+- [x] `src/lib/timelineSelection.test.ts`: 21 cases covering every fallback rule, empty-string and stale ids, an empty workspace, the cap, chip inclusion of a non-active or out-of-cap selection, no duplication, and no mutation of the input.
+- [x] `src/pages/Timeline.tsx`: `<select>`-only filter replaced by the chip switcher plus a compact all-projects select (Overview option, projects grouped under the existing `timeline.allProjects` label, sorted by name); the selected chip carries `aria-current="true"`; chips and the zoom control share one `segmentClass` / gradient.
+- [x] Selection resolved during render and synced to the URL with `replace: true` plus `localStorage`, all storage access wrapped in try/catch.
+- [x] Per-project mode passes just that project and its tasks to `TimelineGantt`; Overview passes every project and `tasks={[]}`; `TimelineInsight` renders only in Overview.
+- [x] `readZoom` default changed from `'month'` to `'week'`.
+- [x] i18n: `timeline.overview` and `timeline.overviewHint` added to both dictionaries after `timeline.allProjects`; `timeline.allProjects` kept, now the select's optgroup label.
+- [x] `src/pages/Timeline.test.tsx`: the six existing tests kept (the stale-`?project=` one rewritten for the new fallback, the zoom one switched to Quarter since Week is now the default), plus new tests for the opening selection and its URL/localStorage writes, Overview's bars/hint/insight and absent task bars, chip switching, and the Week default.
+- [x] Verified: `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint` 0 errors, `npx vitest run` 159 tests passing.
+- [x] Design doc updated: "Navigation", "Page behaviour (`/timeline`)", and a "Revision 2026-09-02 — one project at a time" note.
