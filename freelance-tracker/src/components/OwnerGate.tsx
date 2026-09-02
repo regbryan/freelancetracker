@@ -1,40 +1,29 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { useWorkspaceRole, isCollaboratorPath, WorkspaceRoleContext } from '../hooks/useWorkspaceRole'
 
 /**
- * Keeps portal-only users out of the freelancer app. A signed-in user who owns
- * no clients rows (base table is owner-scoped by RLS) but matches portal_clients
- * is a client — send them to /portal. Everyone else (owners, brand-new
- * freelancer accounts) passes through.
+ * Classifies the signed-in user and shapes the app around it:
+ * - portal      → client; sent to /portal
+ * - collaborator → invited on some projects; only /timeline and /tasks
+ * - owner       → the freelancer; everything
+ * The role is provided via context so Sidebar, WorkTabs, Layout, and pages can adapt.
  */
 export default function OwnerGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<'checking' | 'owner' | 'portal'>('checking')
+  const { role, loading } = useWorkspaceRole()
+  const location = useLocation()
 
-  useEffect(() => {
-    let cancelled = false
-    async function check() {
-      const [owned, portal] = await Promise.all([
-        supabase.from('clients').select('id', { head: true, count: 'exact' }).limit(1),
-        supabase.from('portal_clients').select('id', { head: true, count: 'exact' }).limit(1),
-      ])
-      if (cancelled) return
-      const ownsRows = (owned.count ?? 0) > 0
-      const isPortal = (portal.count ?? 0) > 0
-      setState(!ownsRows && isPortal ? 'portal' : 'owner')
-    }
-    check()
-    return () => { cancelled = true }
-  }, [])
-
-  if (state === 'checking') {
+  if (loading || role === null) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <Loader2 size={24} className="animate-spin text-accent" />
       </div>
     )
   }
-  if (state === 'portal') return <Navigate to="/portal" replace />
-  return <>{children}</>
+  if (role === 'portal') return <Navigate to="/portal" replace />
+  if (role === 'collaborator' && !isCollaboratorPath(location.pathname)) {
+    return <Navigate to="/timeline" replace />
+  }
+  return <WorkspaceRoleContext.Provider value={role}>{children}</WorkspaceRoleContext.Provider>
 }
