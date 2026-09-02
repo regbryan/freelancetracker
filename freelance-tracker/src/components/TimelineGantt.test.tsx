@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import { I18nProvider } from '../lib/i18n'
-import TimelineGantt, { type GanttProject, type GanttTask } from './TimelineGantt'
+import TimelineGantt, { type GanttProject, type GanttTask, type GanttMilestone } from './TimelineGantt'
 import { PX_PER_DAY, computeContentRange, diffDays } from '../lib/timelineMath'
 
 const TODAY = '2026-09-01'
@@ -389,5 +389,209 @@ describe('TimelineGantt drag', () => {
     expect(screen.getByRole('button', { name: /Kickoff/ }).textContent).toBe('')
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(screen.queryByText('Sep 13 – Sep 15')).toBeNull()
+  })
+})
+
+describe('TimelineGantt milestones', () => {
+  const px = PX_PER_DAY.month
+
+  const mProjects: GanttProject[] = [
+    { id: 'mp', name: 'Milestone Project', status: 'active', start_date: '2026-09-01', end_date: '2026-09-30' },
+  ]
+
+  // M1 is anchored by its own dates; M2 has none and must borrow its tasks' extent.
+  const mMilestones: GanttMilestone[] = [
+    { id: 'm1', project_id: 'mp', name: 'Discovery', start_date: '2026-09-03', end_date: '2026-09-10', sort_order: 0 },
+    { id: 'm2', project_id: 'mp', name: 'Build', start_date: null, end_date: null, sort_order: 1 },
+  ]
+
+  const mTasks: GanttTask[] = [
+    { id: 'a1', project_id: 'mp', milestone_id: 'm1', title: 'Kickoff deck', status: 'done', start_date: '2026-09-03', due_date: '2026-09-04' },
+    { id: 'a2', project_id: 'mp', milestone_id: 'm1', title: 'Stakeholder audit', status: 'in_progress', start_date: '2026-09-05', due_date: '2026-09-06' },
+    { id: 'a3', project_id: 'mp', milestone_id: 'm1', title: 'Findings memo', status: 'todo', start_date: '2026-09-07', due_date: '2026-09-08' },
+    { id: 'b1', project_id: 'mp', milestone_id: 'm2', title: 'Draft pages', status: 'todo', start_date: '2026-09-12', due_date: '2026-09-14' },
+    { id: 'b2', project_id: 'mp', milestone_id: 'm2', title: 'Review pass', status: 'todo', start_date: '2026-09-15', due_date: '2026-09-15' },
+    { id: 'b3', project_id: 'mp', milestone_id: 'm2', title: 'Someday polish', status: 'todo', start_date: null, due_date: null },
+    { id: 'u1', project_id: 'mp', milestone_id: null, title: 'Loose end', status: 'todo', start_date: '2026-09-20', due_date: '2026-09-21' },
+  ]
+
+  const mRange = computeContentRange(
+    ['2026-09-01', '2026-09-30', '2026-09-03', '2026-09-10', ...mTasks.flatMap((t) => [t.start_date, t.due_date])],
+    TODAY,
+  )
+
+  function setupMilestones(over: Props = {}) {
+    const onMilestoneDates = vi.fn().mockResolvedValue(undefined)
+    const onMilestoneClick = vi.fn()
+    const onToggleMilestone = vi.fn()
+    render(
+      <I18nProvider>
+        <TimelineGantt
+          projects={mProjects}
+          tasks={mTasks}
+          milestones={mMilestones}
+          zoom="month"
+          editable={true}
+          today={TODAY}
+          onTaskDates={vi.fn().mockResolvedValue(undefined)}
+          onTaskClick={vi.fn()}
+          onMilestoneDates={onMilestoneDates}
+          onMilestoneClick={onMilestoneClick}
+          {...over}
+        />
+      </I18nProvider>,
+    )
+    return { onMilestoneDates, onMilestoneClick, onToggleMilestone }
+  }
+
+  const row = (id: string) => document.querySelector(`[data-milestone-id="${id}"]`) as HTMLElement
+
+  it('is collapsed by default: milestone rows show, their task bars do not', () => {
+    setupMilestones()
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Build' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: /Kickoff deck/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Draft pages/ })).toBeNull()
+    // The undated task of a collapsed milestone stays hidden with the rest of it.
+    expect(screen.queryByRole('button', { name: 'Someday polish' })).toBeNull()
+  })
+
+  it('shows a done/total count on the milestone row', () => {
+    setupMilestones()
+    expect(within(row('m1')).getAllByText('1/3').length).toBeGreaterThan(0)
+    expect(within(row('m2')).getAllByText('0/3').length).toBeGreaterThan(0)
+  })
+
+  it('the progress fill is done/total of the bar width', () => {
+    setupMilestones()
+    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '33.3%' })
+    expect(within(row('m2')).getByTestId('milestone-fill')).toHaveStyle({ width: '0.0%' })
+  })
+
+  it('expanding a milestone reveals its tasks nested a level deeper', () => {
+    setupMilestones()
+    const toggle = screen.getByRole('button', { name: 'Discovery' })
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'true')
+    for (const title of ['Kickoff deck', 'Stakeholder audit', 'Findings memo']) {
+      expect(screen.getByRole('button', { name: new RegExp(title) })).toBeInTheDocument()
+    }
+    // Two levels of indent, against pl-8 for a task hanging straight off a project.
+    const taskRow = screen.getByRole('button', { name: /Kickoff deck/ }).closest('.gantt-row') as HTMLElement
+    expect(taskRow.querySelector('.pl-12')).not.toBeNull()
+    // Collapsing again puts them away.
+    fireEvent.click(screen.getByRole('button', { name: 'Discovery' }))
+    expect(screen.queryByRole('button', { name: /Kickoff deck/ })).toBeNull()
+  })
+
+  it("an expanded milestone's undated tasks get their own indented tray", () => {
+    setupMilestones()
+    fireEvent.click(screen.getByRole('button', { name: 'Build' }))
+    const tray = screen.getByText('Not scheduled (1)').closest('[data-testid="tray"]') as HTMLElement
+    expect(within(tray).getByRole('button', { name: 'Someday polish' })).toBeInTheDocument()
+    expect(tray.querySelector('.pl-12')).not.toBeNull()
+  })
+
+  it('controlled mode delegates the toggle and never expands itself', () => {
+    const onToggleMilestone = vi.fn()
+    setupMilestones({ expandedMilestoneIds: new Set<string>(), onToggleMilestone })
+    fireEvent.click(screen.getByRole('button', { name: 'Discovery' }))
+    expect(onToggleMilestone).toHaveBeenCalledWith('m1')
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: /Kickoff deck/ })).toBeNull()
+  })
+
+  it('controlled mode renders the milestones the page says are open', () => {
+    setupMilestones({ expandedMilestoneIds: new Set(['m1']), onToggleMilestone: vi.fn() })
+    expect(screen.getByRole('button', { name: 'Discovery' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /Kickoff deck/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Draft pages/ })).toBeNull()
+  })
+
+  it("a dateless milestone spans its tasks and offers no handles to drag", () => {
+    const { onMilestoneDates } = setupMilestones()
+    const bar = screen.getByTitle(/^Build:/)
+    expect(bar).toHaveStyle({
+      left: `${diffDays(mRange.start, '2026-09-12') * px}px`,
+      width: `${4 * px}px`,
+    })
+    expect(bar.title).toContain('Dates follow its tasks')
+    expect(row('m2').querySelectorAll('[data-edge]')).toHaveLength(0)
+    fireEvent.pointerDown(bar, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar, { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onMilestoneDates).not.toHaveBeenCalled()
+  })
+
+  it('a dated milestone drags like a project bar', () => {
+    const { onMilestoneDates } = setupMilestones()
+    const bar = screen.getByTitle(/^Discovery:/)
+    expect(row('m1').querySelectorAll('[data-edge]')).toHaveLength(2)
+    fireEvent.pointerDown(bar, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar, { clientX: 100 + 2 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar, { clientX: 100 + 2 * px, pointerId: 1 })
+    expect(onMilestoneDates).toHaveBeenCalledWith('m1', { start_date: '2026-09-05', end_date: '2026-09-12' })
+  })
+
+  it('a click without a drag opens the milestone', () => {
+    const { onMilestoneClick, onMilestoneDates } = setupMilestones()
+    const bar = screen.getByTitle(/^Discovery:/)
+    fireEvent.pointerDown(bar, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar, { clientX: 102, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar, { clientX: 102, pointerId: 1 })
+    expect(onMilestoneDates).not.toHaveBeenCalled()
+    expect(onMilestoneClick).toHaveBeenCalledWith('m1')
+  })
+
+  it('tasks with no milestone sit under an Unassigned group', () => {
+    setupMilestones()
+    expect(screen.getByText('Unassigned')).toBeInTheDocument()
+    const bar = screen.getByRole('button', { name: /Loose end/ })
+    expect(bar).toBeInTheDocument()
+    expect((bar.closest('.gantt-row') as HTMLElement).querySelector('.pl-12')).not.toBeNull()
+  })
+
+  it('Overview draws one diamond per dated milestone on the project bar', () => {
+    render(
+      <I18nProvider>
+        <TimelineGantt
+          projects={mProjects}
+          tasks={[]}
+          milestones={[
+            mMilestones[0],
+            { id: 'm3', project_id: 'mp', name: 'Launch', start_date: null, end_date: '2026-09-25', sort_order: 2 },
+            // No dates at either end: nothing to pin a diamond to, so it is skipped.
+            mMilestones[1],
+          ]}
+          zoom="month"
+          editable={true}
+          today={TODAY}
+        />
+      </I18nProvider>,
+    )
+    const diamonds = screen.getAllByTestId('milestone-diamond')
+    expect(diamonds).toHaveLength(2)
+    expect(diamonds[0].title).toContain('Discovery')
+    expect(diamonds[1].title).toContain('Launch')
+    // Pinned at the milestone's end date, and no milestone rows in this mode.
+    const overviewRange = computeContentRange(['2026-09-01', '2026-09-30', '2026-09-03', '2026-09-10', '2026-09-25'], TODAY)
+    expect(diamonds[0]).toHaveStyle({ left: `${diffDays(overviewRange.start, '2026-09-10') * px}px` })
+    expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(0)
+  })
+
+  it('read-only milestones still collapse and expand', () => {
+    setupMilestones({ editable: false, onTaskClick: undefined, onMilestoneClick: undefined, onMilestoneDates: undefined })
+    expect(document.querySelectorAll('[data-edge]')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Discovery' }))
+    expect(screen.getByTitle(/^Kickoff deck:/)).toBeInTheDocument()
+  })
+
+  it('a project with no milestones keeps the flat layout', () => {
+    setupMilestones({ milestones: [] })
+    expect(screen.queryByText('Unassigned')).toBeNull()
+    expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(0)
+    // Every dated task is a top-level row again.
+    const bar = screen.getByRole('button', { name: /Kickoff deck/ })
+    expect((bar.closest('.gantt-row') as HTMLElement).querySelector('.pl-8')).not.toBeNull()
   })
 })
