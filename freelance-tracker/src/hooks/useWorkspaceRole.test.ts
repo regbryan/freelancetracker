@@ -228,4 +228,21 @@ describe('useWorkspaceRole', () => {
     expect(mockSupabase.from.mock.calls.length).toBe(callsAfterMount)
     expect(result.current.role).toBe('owner')
   })
+
+  it('re-runs classification when onAuthStateChange reports the same user id but a different email', async () => {
+    mockUser({ id: 'u1', email: 'owner@example.com' })
+    mockTables({ clients: { data: [{ id: 'c1' }], error: null } })
+
+    const { result } = renderHook(() => useWorkspaceRole())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.role).toBe('owner')
+    const callsAfterMount = mockSupabase.from.mock.calls.length
+
+    act(() => {
+      authChangeCallback?.('USER_UPDATED', { user: { id: 'u1', email: 'renamed@example.com' } })
+    })
+
+    await waitFor(() => expect(mockSupabase.from.mock.calls.length).toBeGreaterThan(callsAfterMount))
+    expect(result.current.role).toBe('owner')
+  })
 })

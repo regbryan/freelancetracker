@@ -77,11 +77,12 @@ function toIdentity(user: { id: string; email?: string } | null | undefined): Id
 
 /**
  * Classifies the signed-in user as owner/collaborator/portal, and
- * re-classifies whenever the signed-in user changes (cross-tab sign-in as
- * someone else, USER_UPDATED) without requiring a remount. Classification
- * runs exactly once per distinct user id — a token refresh or any other
- * auth event that reports the same id does not re-trigger it, so OwnerGate
- * never drops back to its spinner (and remounts Layout) for no reason.
+ * re-classifies whenever the signed-in user or their email changes
+ * (cross-tab sign-in as someone else, USER_UPDATED) without requiring a
+ * remount. Classification runs exactly once per distinct (id, email) pair —
+ * a token refresh or any other auth event that reports the same identity
+ * does not re-trigger it, so OwnerGate never drops back to its spinner (and
+ * remounts Layout) for no reason.
  */
 export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boolean } {
   const [role, setRole] = useState<WorkspaceRole | null>(null)
@@ -91,9 +92,17 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
   // can run once we know who's signed in, and re-run when that changes.
   useEffect(() => {
     let cancelled = false
-    supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) setIdentity(toIdentity(data.user))
-    })
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!cancelled) setIdentity(toIdentity(data.user))
+      })
+      .catch(() => {
+        // A rejected getUser() (e.g. a network error) shouldn't become an
+        // unhandled rejection; onAuthStateChange still has a chance to
+        // supply the identity, and the effect above leaves role as loading
+        // (never falls back to 'owner') if it never does.
+      })
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -115,9 +124,10 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
     return () => {
       cancelled = true
     }
-    // Re-run only when the user id itself changes, not on every identity
-    // object (e.g. a token-refresh auth event for the same user).
-  }, [identity?.id])
+    // Re-run when the user id changes, or the same user's email changes
+    // (e.g. USER_UPDATED) — but not on every identity object (e.g. a
+    // token-refresh auth event that reports the same id and email).
+  }, [identity?.id, identity?.email])
 
   return { role, loading: role === null }
 }
