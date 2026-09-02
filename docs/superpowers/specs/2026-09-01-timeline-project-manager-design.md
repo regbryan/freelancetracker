@@ -496,3 +496,25 @@ uppercase tracked labels. The Gantt is a bordered box, not a shadowed cream card
 bars are solid 3px-radius blocks — tan for to-do, green for in progress, sage for done,
 navy for the project — with the today line at full accent and a small "Today" flag in the
 header. The legend is one line under the chart, unlabelled.
+
+
+### Milestones migration applied and verified (2026-09-02)
+
+`supabase_migration_milestones.sql` applied to prod with Reggie's approval. Verified by
+the same SQL impersonation method (temporary member row for `collab.verify@example.com`
+on Site Redesign, then removed; all temporary milestones removed; tasks back to 122 with
+no `milestone_id` set):
+
+| Check | Result |
+|---|---|
+| policies on `milestones` | `owner_manages_milestones:ALL`, `members_manage_milestones:ALL`; RLS enabled |
+| `tasks.milestone_id`, `portal_milestones`, `portal_tasks.milestone_id` (last column) | present |
+| collaborator INSERT milestone on SHARED / UNSHARED | ok / 42501 RLS violation |
+| collaborator links 3 SHARED tasks to a milestone | 3 rows |
+| collaborator UPDATE owner's milestone on UNSHARED | 0 rows |
+| owner sees both milestones incl. the collaborator-created one | 2 / 1 |
+| portal client: `portal_milestones` / direct `milestones` / `portal_tasks` with milestone | 2 / 0 / 3 |
+| security advisor | only the expected `security_definer_view` notice for `portal_milestones` |
+
+The prefix→milestone data migration (`supabase_migration_milestones_from_prefixes.sql`)
+has NOT been run; it waits for Reggie's go-ahead after he has seen milestones working.
