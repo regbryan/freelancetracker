@@ -482,7 +482,9 @@ and the client portal. Owner's data already encodes phases as bracketed title pr
   it has some) and saves `milestone_id`; Tasks and ProjectDetail pages are unchanged.
 - `useMilestones(projectId)`: list / create / update / remove.
 - Portal: `usePortalData` also reads `portal_milestones`; the Gantt renders milestones
-  read-only, collapse toggles still work.
+  read-only, collapse toggles still work. The List view also groups each project's tasks
+  by milestone (heading with `done/total`, in `sortMilestones` order, plus an Unassigned
+  heading when leftover tasks remain); a project with no milestones is unchanged.
 - Print: prints what is displayed (collapsed or expanded).
 
 ### Visual direction
