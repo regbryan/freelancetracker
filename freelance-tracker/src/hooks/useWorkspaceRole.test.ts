@@ -58,6 +58,7 @@ class QueryBuilder implements PromiseLike<Fixture> {
 const emptyFixture: Fixture = { data: [], error: null }
 
 type MockSession = { user?: { id: string; email?: string } } | null
+type GetUserResult = { data: { user: { id: string; email?: string } | null }; error: null }
 
 let eqLog: EqCall[]
 let authChangeCallback: ((event: string, session: MockSession) => void) | null
@@ -243,6 +244,45 @@ describe('useWorkspaceRole', () => {
     })
 
     await waitFor(() => expect(mockSupabase.from.mock.calls.length).toBeGreaterThan(callsAfterMount))
-    expect(result.current.role).toBe('owner')
+    await waitFor(() => expect(result.current.role).toBe('owner'))
+    expect(eqLog).toContainEqual({ table: 'project_members', column: 'email', value: 'renamed@example.com' })
+  })
+
+  it('ignores a getUser() result that resolves after a newer identity already arrived via onAuthStateChange', async () => {
+    let resolveGetUser: (value: GetUserResult) => void = () => {}
+    mockSupabase.auth.getUser.mockImplementation(
+      () =>
+        new Promise<GetUserResult>((resolve) => {
+          resolveGetUser = resolve
+        }),
+    )
+    mockTables({
+      clients: emptyFixture,
+      project_members: { data: [{ id: 'pm1' }], error: null },
+      portal_clients: emptyFixture,
+    })
+
+    const { result } = renderHook(() => useWorkspaceRole())
+    expect(result.current.loading).toBe(true)
+
+    // A sign-in event arrives while the initial getUser() is still pending.
+    act(() => {
+      authChangeCallback?.('SIGNED_IN', { user: { id: 'u2', email: 'new@example.com' } })
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.role).toBe('collaborator')
+    expect(eqLog).toContainEqual({ table: 'project_members', column: 'email', value: 'new@example.com' })
+    const callsAfterEvent = mockSupabase.from.mock.calls.length
+
+    // The stale getUser() call (for a different, older user) finally settles.
+    await act(async () => {
+      resolveGetUser({ data: { user: { id: 'u1', email: 'stale@example.com' } }, error: null })
+      await Promise.resolve()
+    })
+
+    expect(mockSupabase.from.mock.calls.length).toBe(callsAfterEvent)
+    expect(result.current.role).toBe('collaborator')
+    expect(eqLog.at(-1)).toEqual({ table: 'project_members', column: 'email', value: 'new@example.com' })
   })
 })

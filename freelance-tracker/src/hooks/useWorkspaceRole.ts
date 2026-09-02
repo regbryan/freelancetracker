@@ -92,10 +92,15 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
   // can run once we know who's signed in, and re-run when that changes.
   useEffect(() => {
     let cancelled = false
+    // An auth event that lands while getUser() is still in flight describes
+    // a newer session than whatever getUser() is about to resolve with —
+    // e.g. a fast sign-in racing the initial getUser() call. Once that's
+    // happened, the getUser() result is stale and must not overwrite it.
+    let identityFromEvent = false
     supabase.auth
       .getUser()
       .then(({ data }) => {
-        if (!cancelled) setIdentity(toIdentity(data.user))
+        if (!cancelled && !identityFromEvent) setIdentity(toIdentity(data.user))
       })
       .catch(() => {
         // A rejected getUser() (e.g. a network error) shouldn't become an
@@ -106,6 +111,7 @@ export function useWorkspaceRole(): { role: WorkspaceRole | null; loading: boole
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      identityFromEvent = true
       setIdentity(toIdentity(session?.user))
     })
     return () => {
