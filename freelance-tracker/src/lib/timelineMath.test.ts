@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   PX_PER_DAY,
+  MAX_SPAN_DAYS,
   addDays,
   diffDays,
   pxToDays,
@@ -29,6 +30,13 @@ describe('addDays / diffDays', () => {
   it('diffDays is not thrown off by DST', () => {
     // US DST ends 2026-11-01
     expect(diffDays('2026-10-31', '2026-11-02')).toBe(2)
+    // US DST begins (spring forward) 2026-03-08
+    expect(diffDays('2026-03-07', '2026-03-09')).toBe(2)
+  })
+  it('runs in a DST timezone so the DST assertions are meaningful', () => {
+    expect(new Date('2026-01-01T00:00:00').getTimezoneOffset()).not.toBe(
+      new Date('2026-07-01T00:00:00').getTimezoneOffset(),
+    )
   })
 })
 
@@ -37,6 +45,9 @@ describe('pxToDays', () => {
     expect(pxToDays(35, PX_PER_DAY.month)).toBe(3) // 35/12 = 2.9
     expect(pxToDays(-35, PX_PER_DAY.month)).toBe(-3)
     expect(pxToDays(5, PX_PER_DAY.month)).toBe(0)
+  })
+  it('never returns -0', () => {
+    expect(Object.is(pxToDays(-3, 12), 0)).toBe(true)
   })
 })
 
@@ -69,6 +80,14 @@ describe('computeRange', () => {
   })
   it('extends to cover earlier and later dates, ignoring nulls', () => {
     expect(computeRange(['2026-05-01', null, '2027-02-01'], today)).toEqual({ start: '2026-04-24', end: '2027-02-15' })
+  })
+  it('ignores inputs that are not strictly yyyy-mm-dd', () => {
+    expect(computeRange(['2026-05-01T12:00:00+00:00', ' ', ''], today)).toEqual({ start: '2026-07-26', end: '2026-12-14' })
+  })
+  it('clamps the span so a mistyped year cannot render tens of thousands of ticks', () => {
+    const range = computeRange(['2226-09-01'], today)
+    expect(range.start).toBe('2026-07-26')
+    expect(diffDays(range.start, range.end)).toBe(MAX_SPAN_DAYS)
   })
 })
 
@@ -133,6 +152,9 @@ describe('entityRange', () => {
   it('collapses to a single day when only one date exists', () => {
     expect(entityRange(null, '2026-09-05')).toEqual({ start: '2026-09-05', end: '2026-09-05' })
     expect(entityRange('2026-09-01', null)).toEqual({ start: '2026-09-01', end: '2026-09-01' })
+  })
+  it('treats an empty string as missing', () => {
+    expect(entityRange('', '2026-09-05')).toEqual({ start: '2026-09-05', end: '2026-09-05' })
   })
   it('returns null when neither exists', () => {
     expect(entityRange(null, null)).toBeNull()

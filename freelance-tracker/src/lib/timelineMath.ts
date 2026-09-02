@@ -6,7 +6,9 @@
 
 export type Zoom = 'week' | 'month' | 'quarter'
 
-export const PX_PER_DAY: Record<Zoom, number> = { week: 40, month: 12, quarter: 4 }
+export const PX_PER_DAY = { week: 40, month: 12, quarter: 4 } as const satisfies Record<Zoom, number>
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 export interface DateRange {
   start: string
@@ -47,7 +49,7 @@ export function diffDays(a: string, b: string): number {
 }
 
 export function pxToDays(dx: number, pxPerDay: number): number {
-  return Math.round(dx / pxPerDay)
+  return Math.round(dx / pxPerDay) || 0
 }
 
 export function shiftRange(r: DateRange, days: number): DateRange {
@@ -63,16 +65,24 @@ export function resizeRange(r: DateRange, edge: 'start' | 'end', days: number): 
   return { start: r.start, end: e < r.start ? r.start : e }
 }
 
-/** Visible range: min(earliest, today-30) - 7 .. max(latest, today+90) + 14. */
+export const MAX_SPAN_DAYS = 1461
+
+/**
+ * Visible range: min(earliest, today-30) - 7 .. max(latest, today+90) + 14.
+ * Inputs that are not yyyy-mm-dd are ignored.
+ */
 export function computeRange(dates: Array<string | null | undefined>, today: string): DateRange {
   let min = addDays(today, -30)
   let max = addDays(today, 90)
   for (const d of dates) {
-    if (!d) continue
+    if (!d || !ISO_DATE.test(d)) continue
     if (d < min) min = d
     if (d > max) max = d
   }
-  return { start: addDays(min, -7), end: addDays(max, 14) }
+  const start = addDays(min, -7)
+  let end = addDays(max, 14)
+  if (diffDays(start, end) > MAX_SPAN_DAYS) end = addDays(start, MAX_SPAN_DAYS)
+  return { start, end }
 }
 
 export function totalDays(range: DateRange): number {
@@ -131,8 +141,8 @@ export function barGeometry(r: DateRange, rangeStart: string, pxPerDay: number):
 
 /** Range for a project/task that may have only one of its two dates. */
 export function entityRange(start: string | null, end: string | null): DateRange | null {
-  const s = start ?? end
-  const e = end ?? start
+  const s = start || end
+  const e = end || start
   if (!s || !e) return null
   return s <= e ? { start: s, end: e } : { start: e, end: s }
 }
