@@ -14,6 +14,7 @@ import {
   totalDays,
   barGeometry,
   entityRange,
+  isValidISODate,
 } from './timelineMath'
 
 describe('addDays / diffDays', () => {
@@ -84,10 +85,44 @@ describe('computeRange', () => {
   it('ignores inputs that are not strictly yyyy-mm-dd', () => {
     expect(computeRange(['2026-05-01T12:00:00+00:00', ' ', ''], today)).toEqual({ start: '2026-07-26', end: '2026-12-14' })
   })
-  it('clamps the span so a mistyped year cannot render tens of thousands of ticks', () => {
+  it('ignores inputs that are shaped like a date but are not a real calendar date', () => {
+    expect(computeRange(['2026-13-45', '2026-02-30'], today)).toEqual({ start: '2026-07-26', end: '2026-12-14' })
+  })
+  it('clamps a far-past date toward today instead of excluding today', () => {
+    const range = computeRange(['2016-09-01'], today)
+    expect(range.start).toBe(addDays(addDays(today, -730), -7))
+    expect(range.end).toBe('2026-12-14')
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+  it('clamps a far-future date toward today instead of excluding today', () => {
     const range = computeRange(['2226-09-01'], today)
     expect(range.start).toBe('2026-07-26')
-    expect(diffDays(range.start, range.end)).toBe(MAX_SPAN_DAYS)
+    expect(range.end).toBe(addDays(addDays(today, 730), 14))
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+  it('clamps both ends when dates are far in the past and future', () => {
+    const range = computeRange(['2016-09-01', '2226-09-01'], today)
+    expect(range.start).toBe(addDays(addDays(today, -730), -7))
+    expect(range.end).toBe(addDays(addDays(today, 730), 14))
+    expect(totalDays(range)).toBeLessThanOrEqual(MAX_SPAN_DAYS + 22)
+    expect(range.start <= today && today <= range.end).toBe(true)
+  })
+})
+
+describe('isValidISODate', () => {
+  it('accepts real calendar dates in strict yyyy-mm-dd form', () => {
+    expect(isValidISODate('2026-05-01')).toBe(true)
+    expect(isValidISODate('2026-02-28')).toBe(true)
+  })
+  it('rejects out-of-range month/day and rollover dates', () => {
+    expect(isValidISODate('2026-13-45')).toBe(false)
+    expect(isValidISODate('2026-02-30')).toBe(false)
+  })
+  it('rejects a year that is not 4 digits', () => {
+    expect(isValidISODate('0226-09-01')).toBe(false)
+  })
+  it('rejects non-padded shapes', () => {
+    expect(isValidISODate('2026-5-1')).toBe(false)
   })
 })
 

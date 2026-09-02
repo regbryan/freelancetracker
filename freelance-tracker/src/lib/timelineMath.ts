@@ -10,6 +10,11 @@ export const PX_PER_DAY = { week: 40, month: 12, quarter: 4 } as const satisfies
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
+/** True only for a real calendar date in strict yyyy-mm-dd form (rejects rollover like 2026-02-30). */
+export function isValidISODate(d: string): boolean {
+  return ISO_DATE.test(d) && toISO(parseDate(d)) === d
+}
+
 export interface DateRange {
   start: string
   end: string
@@ -69,20 +74,26 @@ export const MAX_SPAN_DAYS = 1461
 
 /**
  * Visible range: min(earliest, today-30) - 7 .. max(latest, today+90) + 14.
- * Inputs that are not yyyy-mm-dd are ignored.
+ * Inputs that are not yyyy-mm-dd are ignored. If the raw span would exceed
+ * MAX_SPAN_DAYS, the far end is trimmed back toward today (not toward the
+ * near end) so today always stays inside the returned range.
  */
 export function computeRange(dates: Array<string | null | undefined>, today: string): DateRange {
   let min = addDays(today, -30)
   let max = addDays(today, 90)
   for (const d of dates) {
-    if (!d || !ISO_DATE.test(d)) continue
+    if (!d || !isValidISODate(d)) continue
     if (d < min) min = d
     if (d > max) max = d
   }
-  const start = addDays(min, -7)
-  let end = addDays(max, 14)
-  if (diffDays(start, end) > MAX_SPAN_DAYS) end = addDays(start, MAX_SPAN_DAYS)
-  return { start, end }
+  const half = Math.floor(MAX_SPAN_DAYS / 2)
+  if (diffDays(min, max) > MAX_SPAN_DAYS) {
+    const lo = addDays(today, -half)
+    const hi = addDays(today, half)
+    if (min < lo) min = lo
+    if (max > hi) max = hi
+  }
+  return { start: addDays(min, -7), end: addDays(max, 14) }
 }
 
 export function totalDays(range: DateRange): number {
