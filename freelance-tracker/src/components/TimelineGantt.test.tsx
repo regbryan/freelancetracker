@@ -24,7 +24,7 @@ function setup(over: Props = {}) {
   const onTaskDates = vi.fn().mockResolvedValue(undefined)
   const onTaskClick = vi.fn()
   const onScheduleTask = vi.fn().mockResolvedValue(undefined)
-  render(
+  const ui = (next: Props = {}) => (
     <I18nProvider>
       <TimelineGantt
         projects={projects}
@@ -36,10 +36,18 @@ function setup(over: Props = {}) {
         onTaskClick={onTaskClick}
         onScheduleTask={onScheduleTask}
         {...over}
+        {...next}
       />
-    </I18nProvider>,
+    </I18nProvider>
   )
-  return { onTaskDates, onTaskClick, onScheduleTask }
+  const { rerender } = render(ui())
+  return {
+    onTaskDates,
+    onTaskClick,
+    onScheduleTask,
+    /** Re-render with changed props, as a refetch or a colleague's edit would. */
+    rerender: (next: Props = {}) => rerender(ui(next)),
+  }
 }
 
 describe('TimelineGantt render', () => {
@@ -211,7 +219,7 @@ describe('TimelineGantt drag', () => {
   })
 
   it('two rapid drags on the same bar accumulate and only the failing one reverts', async () => {
-    const { onTaskDates } = setup()
+    const { onTaskDates, rerender } = setup()
     const before = parseFloat(bar().style.left)
     fireEvent.pointerDown(bar(), { clientX: 100, button: 0, pointerId: 1 })
     fireEvent.pointerMove(bar(), { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
@@ -226,6 +234,9 @@ describe('TimelineGantt drag', () => {
     ])
     await screen.findByRole('button', { name: /Brand audit/ })
     await new Promise((r) => setTimeout(r, 0))
+    expect(bar().style.left).toBe(`${before + 5 * px}px`)
+    // A refetch returning identical data must not disturb the optimistic position.
+    rerender({ tasks: [...tasks] })
     expect(bar().style.left).toBe(`${before + 5 * px}px`)
   })
 
@@ -256,13 +267,66 @@ describe('TimelineGantt drag', () => {
     expect(onTaskDates).toHaveBeenCalledWith('t1', { start_date: '2026-09-15', due_date: '2026-09-17' })
   })
 
+  it('a move with no button held cancels the drag and the next drag works', () => {
+    const { onTaskDates } = setup()
+    const el = bar()
+    const before = el.style.left
+    fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
+    // Button already released off-window: the drag must be abandoned, not merely ignored.
+    fireEvent.pointerMove(el, { clientX: 100 + 2 * px, pointerId: 1, buttons: 0 })
+    expect(bar().style.left).toBe(before)
+    // The timeline must still be usable afterwards.
+    const kickoff = screen.getByRole('button', { name: /Kickoff/ })
+    fireEvent.pointerDown(kickoff, { clientX: 100, button: 0, pointerId: 2 })
+    fireEvent.pointerMove(kickoff, { clientX: 100 + 3 * px, pointerId: 2, buttons: 1 })
+    fireEvent.pointerUp(kickoff, { clientX: 100 + 3 * px, pointerId: 2 })
+    expect(onTaskDates).toHaveBeenCalledWith('t3', { start_date: '2026-09-23', due_date: '2026-09-23' })
+  })
+
+  it('an incoming prop change replaces the optimistic position', async () => {
+    const { onTaskDates, rerender } = setup()
+    fireEvent.pointerDown(bar(), { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar(), { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar(), { clientX: 100 + 3 * px, pointerId: 1 })
+    expect(onTaskDates).toHaveBeenCalled()
+    await screen.findByRole('button', { name: /Brand audit/ })
+    await new Promise((r) => setTimeout(r, 0))
+    // The server clamped the dates to something other than what we asked for.
+    const moved: GanttTask[] = [
+      { ...tasks[0], start_date: '2026-09-30', due_date: '2026-10-02' },
+      tasks[1],
+      tasks[2],
+    ]
+    rerender({ tasks: moved })
+    const rng = computeRange(['2026-09-01', '2026-10-31', '2026-09-30', '2026-10-02', '2026-09-20'], TODAY)
+    expect(bar().style.left).toBe(`${diffDays(rng.start, '2026-09-30') * px}px`)
+  })
+
+  it('an override is dropped when the task disappears from props', async () => {
+    const { rerender } = setup()
+    const before = bar().style.left
+    fireEvent.pointerDown(bar(), { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(bar(), { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
+    fireEvent.pointerUp(bar(), { clientX: 100 + 3 * px, pointerId: 1 })
+    await screen.findByRole('button', { name: /Kickoff/ })
+    await new Promise((r) => setTimeout(r, 0))
+    rerender({ tasks: tasks.filter((tk) => tk.id !== 't1') })
+    expect(screen.queryByRole('button', { name: /Brand audit/ })).toBeNull()
+    // Coming back must not resurrect a stale optimistic position.
+    rerender({ tasks })
+    expect(bar().style.left).toBe(before)
+  })
+
   it('the live range label appears above the bar only while dragging', () => {
     setup()
     const el = bar()
     expect(screen.queryByText('Sep 13 – Sep 15')).toBeNull()
     fireEvent.pointerDown(el, { clientX: 100, button: 0, pointerId: 1 })
     fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
-    expect(screen.getByText('Sep 13 – Sep 15')).toBeInTheDocument()
+    const pill = screen.getByText('Sep 13 – Sep 15')
+    expect(pill).toBeInTheDocument()
+    // Must stay under the sticky label column (z-10), not over it.
+    expect(pill).toHaveClass('z-[9]')
     // The bar's own text stays the title so it is still identifiable mid-drag.
     expect(el).toHaveTextContent('Brand audit')
     // A one-day bar is 12px wide, too narrow for a title.

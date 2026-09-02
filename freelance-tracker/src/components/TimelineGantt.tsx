@@ -95,6 +95,21 @@ function keyOf(kind: 'task' | 'project', id: string): string {
   return `${kind}:${id}`
 }
 
+/** The range an entity has according to props right now, ignoring any optimistic override. */
+function baseRangeOf(
+  projects: GanttProject[],
+  tasks: GanttTask[],
+  kind: 'task' | 'project',
+  id: string,
+): DateRange | null {
+  if (kind === 'task') {
+    const tk = tasks.find((x) => x.id === id)
+    return tk ? entityRange(tk.start_date, tk.due_date) : null
+  }
+  const pr = projects.find((x) => x.id === id)
+  return pr ? entityRange(pr.start_date, pr.end_date) : null
+}
+
 /**
  * Weekend shading, month gridlines, and the today line. Rendered ONCE behind every row
  * as a full-height layer, not per row. Top-level so it is a stable component.
@@ -166,7 +181,9 @@ export default function TimelineGantt({
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
-  const [overrides, setOverrides] = useState<Record<string, { range: DateRange; seq: number }>>({})
+  const [overrides, setOverrides] = useState<
+    Record<string, { range: DateRange; seq: number; baseAtWrite: DateRange }>
+  >({})
   const seqRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const dragActive = drag !== null
@@ -199,16 +216,12 @@ export default function TimelineGantt({
       let changed = false
       for (const [key, val] of Object.entries(o)) {
         const sep = key.indexOf(':')
-        const id = key.slice(sep + 1)
-        let base: DateRange | null = null
-        if (key.slice(0, sep) === 'task') {
-          const tk = tasks.find((x) => x.id === id)
-          base = tk ? entityRange(tk.start_date, tk.due_date) : null
-        } else {
-          const pr = projects.find((x) => x.id === id)
-          base = pr ? entityRange(pr.start_date, pr.end_date) : null
-        }
-        if (base && base.start === val.range.start && base.end === val.range.end) {
+        const kind = key.slice(0, sep) as 'task' | 'project'
+        const base = baseRangeOf(projects, tasks, kind, key.slice(sep + 1))
+        // The entity is gone, or props have moved at all since we wrote the override
+        // (server clamp, a colleague's edit, a refetch). Real data wins either way;
+        // we deliberately do not require props to match the optimistic range.
+        if (!base || base.start !== val.baseAtWrite.start || base.end !== val.baseAtWrite.end) {
           delete next[key]
           changed = true
         }
@@ -271,7 +284,11 @@ export default function TimelineGantt({
     if (!st) return
     if (e.pointerId !== st.pointerId) return
     // The button was released without us seeing pointerup (e.g. released off-window).
-    if (e.buttons === 0) return
+    // Cancel rather than merely ignore: leaving dragRef set would block every later drag.
+    if (e.buttons === 0) {
+      cancelDrag()
+      return
+    }
     const dx = e.clientX - st.originX
     const moved = st.moved || Math.abs(dx) >= CLICK_PX
     const d = pxToDays(dx, px)
@@ -296,7 +313,10 @@ export default function TimelineGantt({
     // The optimistic position sticks until props catch up; only a rejection rolls it back,
     // and only if a newer drag has not already replaced it.
     const seq = ++seqRef.current
-    setOverrides((o) => ({ ...o, [key]: { range: st.current, seq } }))
+    // st.orig is the *displayed* range, which may itself be an override; the handoff
+    // check needs the range props actually had when we wrote this entry.
+    const baseAtWrite = baseRangeOf(projects, tasks, st.kind, st.id) ?? st.orig
+    setOverrides((o) => ({ ...o, [key]: { range: st.current, seq, baseAtWrite } }))
     const p =
       st.kind === 'task'
         ? onTaskDates?.(st.id, { start_date: st.current.start, due_date: st.current.end })
@@ -407,7 +427,7 @@ export default function TimelineGantt({
                           </>
                         )}
                         {projectDragging && (
-                          <span className="absolute -top-4 left-0 z-20 whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                          <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
                             {fmt(projectRange.start)} – {fmt(projectRange.end)}
                           </span>
                         )}
@@ -462,7 +482,7 @@ export default function TimelineGantt({
                             </>
                           )}
                           {dragging && (
-                            <span className="absolute -top-4 left-0 z-20 whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
+                            <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
                               {fmt(r.start)} – {fmt(r.end)}
                             </span>
                           )}
