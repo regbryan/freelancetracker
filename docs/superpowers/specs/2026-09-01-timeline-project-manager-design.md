@@ -534,3 +534,30 @@ reviewed. Result: 7 milestones created in "Hubspot/Salesforce Integration & Clea
 Hubspot Audit; sort_order 0–6 by first date), 52 tasks linked and their titles stripped
 of the bracket, 0 tasks still prefixed, 52 backup rows, task total unchanged at 122.
 Restore statement is in the migration file.
+
+
+## Revision 2026-09-05 (c) — Gantt task list, progress, assignee, task details
+
+Decided after Reggie reviewed the per-project page ("good direction") with the
+ProjectManager.com Gantt as the target (see
+`docs/superpowers/research/2026-09-05-timeline-tools-comparison.md`).
+
+- **Progress**: `tasks.progress smallint not null default 0 check (0..100)`; backfill
+  100 where status = done. Setting progress to 100 marks the task done and setting it
+  below 100 on a done task reopens it as in_progress (app-side). Milestone percent =
+  mean of its tasks' progress (0 when it has none); project percent = mean of tasks.
+  `portal_tasks` gains `progress`.
+- **Assignee**: existing `tasks.assignee` text. Values: `'me'` = the project owner;
+  a collaborator's email = that collaborator; `''`/null = unassigned. The picker lists
+  the owner (shown by profile name or "Me") and the project's members; the client-name
+  values from meeting notes keep working as read-only display text.
+- **Left task list** replaces the label strip: columns `#`, name (wrapping), assignee,
+  `%`, start, end; resizable split (drag handle) between list and chart, default 560 px,
+  persisted. Milestone rows show name and rolled-up `%`; the project row shows totals.
+- **Bar labels** move to the right of the bar: `name · 60% · Assignee`; the bar itself
+  is a plain block with a darker progress fill.
+- **Task details row**: a chevron on each task row expands an inline details panel:
+  description, status, priority, assignee, start/due, a progress slider, and an Edit
+  button (opens the existing dialog). Progress and assignee save inline.
+- Portal: progress shown; assignee not exposed (portal views exclude it, unchanged).
+- Not in this pass: phase bracket bars, diamonds, day-level axis, dependencies, baseline.
