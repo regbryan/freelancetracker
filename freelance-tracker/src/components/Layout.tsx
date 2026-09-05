@@ -5,8 +5,11 @@ import TopBar from './TopBar'
 import BottomNav from './BottomNav'
 import CommandPalette from './CommandPalette'
 import QuickLogDialog from './QuickLogDialog'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 export default function Layout() {
+  const role = useRole()
+  const canLogTime = role !== 'collaborator'
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [quickLogOpen, setQuickLogOpen] = useState(false)
@@ -21,14 +24,14 @@ export default function Layout() {
         e.preventDefault()
         setPaletteOpen((v) => !v)
       }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+      if (canLogTime && (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault()
         setQuickLogOpen(true)
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  }, [canLogTime])
 
   return (
     <div className="min-h-screen bg-bg flex">
@@ -43,7 +46,7 @@ export default function Layout() {
       <Sidebar open={sidebarOpen} onClose={closeSidebar} />
 
       {/* Spacer for fixed sidebar - only on lg+ */}
-      <div className="hidden lg:block w-[220px] shrink-0" />
+      <div data-print-hide className="hidden lg:block w-[220px] shrink-0" />
 
       {/* Main content area */}
       <div className="flex-1 min-w-0 min-h-screen flex flex-col">
@@ -64,7 +67,7 @@ export default function Layout() {
       />
 
       {/* Global quick-log dialog */}
-      <QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />
+      {canLogTime && <QuickLogDialog open={quickLogOpen} onOpenChange={setQuickLogOpen} />}
     </div>
   )
 }

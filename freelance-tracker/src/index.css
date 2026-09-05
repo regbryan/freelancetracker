@@ -121,3 +121,66 @@
     }
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Print — the timeline as something you can hand a client.
+ *
+ * Everything that only makes sense on screen (app chrome, the hero, the
+ * switcher, the tabs, the toolbar, the drag hint) carries
+ * `data-print-hide`; Timeline.tsx renders a print-only header in its place.
+ * ------------------------------------------------------------------ */
+@media print {
+  /* Named page, not a global @page: landscape is right for a wide Gantt and wrong
+     for every other printable view in the app, so only the Gantt claims it. */
+  @page timeline {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  /* The page has no viewport to scroll, so the app's scroll containers have to
+     let their content out instead of clipping it at the fold. */
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Lay the whole track out, then shrink it to the sheet with the ratio
+     TimelineGantt computed from labelWidth + trackW.
+
+     print-color-adjust lives here, on the whole chart, rather than on the bars:
+     it inherits, so the today line and its flag, the month gridlines, the weekend
+     shading and the legend swatches all keep their colour too — as bar-only rules
+     they printed as a blank grid with coloured blocks floating in it. */
+  [data-gantt] {
+    page: timeline;
+    zoom: var(--print-scale, 1);
+    border: none;
+    box-shadow: none;
+    overflow: visible !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-gantt] [data-testid='gantt-scroll'] {
+    overflow: visible !important;
+  }
+
+  /* A sticky label column has nothing to stick to on paper; left as-is it
+     smears down the page. */
+  [data-gantt] .sticky {
+    position: static !important;
+  }
+
+  .gantt-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

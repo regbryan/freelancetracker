@@ -11,6 +11,7 @@ import type { TaskRow } from '../components/TaskList'
 import TaskInsight from '../components/TaskInsight'
 import WorkTabs from '../components/WorkTabs'
 import { useI18n } from '../lib/i18n'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 type StatusFilter = 'all' | 'todo' | 'in_progress' | 'done'
 
@@ -86,6 +87,10 @@ function expandRecurrence(
 
 export default function Tasks() {
   const { t, lang } = useI18n()
+  // This page is inside OwnerGate, so the role is known. A collaborator cannot open
+  // /projects/:id (OwnerGate bounces it to /timeline), so the project name stays
+  // plain text for them rather than a link into a page they can't reach.
+  const role = useRole()
   const { tasks, loading: tasksLoading, createTask, createTasks, updateTask, deleteTask, deleteTasks } = useTasks()
   const { projects, loading: projectsLoading } = useProjects()
   const { entries: timeEntries, updateEntry, deleteEntry, refetch: refetchTimeEntries } = useTimeEntries()
@@ -504,7 +509,7 @@ export default function Tasks() {
                       </span>
                     )}
                   </button>
-                  {pg.projectId !== 'none' && (
+                  {pg.projectId !== 'none' && role !== 'collaborator' && (
                     <Link
                       to={`/projects/${pg.projectId}`}
                       className="p-1 rounded hover:bg-input-bg text-text-muted hover:text-accent transition-colors shrink-0"

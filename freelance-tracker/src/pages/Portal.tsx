@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePortalData } from '../hooks/usePortalData'
 import { groupTasksByStatus, orderProjects, type PortalTask } from '../lib/portal'
+import { groupTasksByMilestone, milestoneProgress, sortMilestones } from '../lib/milestones'
 import PortalLayout from '../components/PortalLayout'
+import TimelineGantt from '../components/TimelineGantt'
 import { useI18n } from '../lib/i18n'
 
 const PRIORITY_TONE: Record<PortalTask['priority'], string> = {
@@ -25,12 +27,32 @@ const PROJECT_STATUS_KEY: Record<string, string> = {
   cancelled: 'status.cancelled',
 }
 
+type PortalView = 'timeline' | 'list'
+const VIEW_KEY = 'portal.view'
+
+function readView(): PortalView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'timeline'
+  } catch {
+    return 'timeline'
+  }
+}
+
 export default function Portal() {
   const { t, lang } = useI18n()
   const { user } = useAuth()
-  const { clients, projects, tasks, loading, error, refetch } = usePortalData()
+  const { clients, projects, tasks, milestones, loading, error, refetch } = usePortalData()
 
   const ordered = useMemo(() => orderProjects(projects), [projects])
+  const [view, setViewState] = useState<PortalView>(readView)
+  function setView(v: PortalView) {
+    setViewState(v)
+    try {
+      localStorage.setItem(VIEW_KEY, v)
+    } catch {
+      /* private mode */
+    }
+  }
   const tasksByProject = useMemo(() => {
     const map = new Map<string, PortalTask[]>()
     for (const task of tasks) {
@@ -92,26 +114,123 @@ export default function Portal() {
     { key: 'done', label: t('status.done') },
   ]
 
+  /**
+   * The status-grouped card list shared by the flat layout and each milestone bucket.
+   * `level` is the rank these group headings take: under a milestone (itself an `<h3>`)
+   * they are h4, but the milestone-free layout hangs them straight off the project's
+   * `<h2>`, where an h4 would skip a level.
+   */
+  function renderStatusGroups(list: PortalTask[], level: 3 | 4 = 4) {
+    const grouped = groupTasksByStatus(list)
+    const Heading = level === 3 ? 'h3' : 'h4'
+    return TASK_GROUPS.map(({ key, label }) =>
+      grouped[key].length === 0 ? null : (
+        <div key={key}>
+          <Heading className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1.5">
+            {label} · {grouped[key].length}
+          </Heading>
+          <ul className="flex flex-col gap-1.5">
+            {grouped[key].map((task) => (
+              <li
+                key={task.id}
+                className="flex items-center justify-between gap-3 bg-input-bg/50 rounded-[10px] px-3 py-2"
+              >
+                <span className={`text-[12px] ${key === 'done' ? 'text-text-muted line-through' : 'text-text-primary'}`}>
+                  {task.title}
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  {task.due_date && key !== 'done' && (
+                    <span className="text-text-muted text-[10px]">
+                      {t('portal.due', { date: formatDate(task.due_date) })}
+                    </span>
+                  )}
+                  <span className="text-text-muted text-[10px] tabular-nums">{task.progress}%</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
+                    {t(PRIORITY_KEY[task.priority])}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    )
+  }
+
   return (
     <PortalLayout clientName={clientName}>
       <h1 className="text-text-primary text-[18px] font-bold mb-1">
         {t('portal.greeting', { name: clients[0].name })}
       </h1>
-      <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px] mb-5">
-        {t('portal.yourProjects')}
-      </p>
-
-      {ordered.length === 0 && (
+      {ordered.length === 0 ? (
         <div className="bg-surface rounded-[14px] shadow-card p-8 text-center text-text-muted text-[13px]">
           {t('portal.noProjects')}
         </div>
+      ) : (
+      <>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-accent text-[11px] font-semibold uppercase tracking-[1.5px]">{t('portal.yourProjects')}</p>
+        <div role="radiogroup" aria-label={t('portal.viewLabel')} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+          {(['timeline', 'list'] as const).map((v) => {
+            const active = v === view
+            return (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setView(v)}
+                className={`px-2.5 h-7 rounded-md text-[11px] font-semibold transition-colors ${active ? 'text-white' : 'text-text-muted hover:text-text-primary'}`}
+                style={active ? { background: 'linear-gradient(135deg, #305445 0%, #3e6b5a 100%)' } : undefined}
+              >
+                {t(v === 'timeline' ? 'portal.viewTimeline' : 'portal.viewList')}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {view === 'timeline' && (
+        <TimelineGantt
+          projects={ordered.map((p) => ({ id: p.id, name: p.name, status: p.status, start_date: p.start_date, end_date: p.end_date }))}
+          tasks={tasks.map((tk) => ({
+            id: tk.id,
+            project_id: tk.project_id,
+            title: tk.title,
+            status: tk.status,
+            start_date: tk.start_date,
+            due_date: tk.due_date,
+            milestone_id: tk.milestone_id,
+            progress: tk.progress,
+          }))}
+          // The portal shows each project with its milestones nested; it never shows
+          // Overview's task-free diamonds.
+          mode="project"
+          milestones={milestones.map((m) => ({
+            id: m.id,
+            project_id: m.project_id,
+            name: m.name,
+            start_date: m.start_date,
+            end_date: m.end_date,
+            sort_order: m.sort_order,
+          }))}
+          zoom="month"
+          editable={false}
+          // Names and percentages only. A client reads the plan; who is on it and
+          // what it costs are not theirs to see, and the portal rows carry neither.
+          labelWidth={260}
+        />
       )}
 
+      {view === 'list' && (
       <div className="flex flex-col gap-5">
         {ordered.map((project) => {
-          const grouped = groupTasksByStatus(tasksByProject.get(project.id) ?? [])
-          const total = (tasksByProject.get(project.id) ?? []).length
+          const projectTasks = tasksByProject.get(project.id) ?? []
+          const total = projectTasks.length
           const muted = project.status !== 'active'
+          const projectMilestones = sortMilestones(milestones.filter((m) => m.project_id === project.id))
+          const hasMilestones = projectMilestones.length > 0
+          const { byMilestone, unassigned } = groupTasksByMilestone(projectTasks, projectMilestones)
           return (
             <section
               key={project.id}
@@ -128,45 +247,39 @@ export default function Portal() {
               )}
               {total === 0 ? (
                 <p className="text-text-muted text-[12px] py-2">{t('portal.noTasks')}</p>
-              ) : (
-                <div className="flex flex-col gap-3 mt-2">
-                  {TASK_GROUPS.map(({ key, label }) =>
-                    grouped[key].length === 0 ? null : (
-                      <div key={key}>
-                        <h3 className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1.5">
-                          {label} · {grouped[key].length}
+              ) : hasMilestones ? (
+                <div className="flex flex-col gap-4 mt-2">
+                  {projectMilestones.map((m) => {
+                    const { done, total: milestoneTotal } = milestoneProgress(m, projectTasks)
+                    return (
+                      <div key={m.id}>
+                        <h3 className="text-[12px] font-bold text-text-primary mb-1.5">
+                          {m.name}{' '}
+                          <span className="font-normal text-text-muted text-[11px]">
+                            {t('timeline.milestoneCount', { done, total: milestoneTotal })}
+                          </span>
                         </h3>
-                        <ul className="flex flex-col gap-1.5">
-                          {grouped[key].map((task) => (
-                            <li
-                              key={task.id}
-                              className="flex items-center justify-between gap-3 bg-input-bg/50 rounded-[10px] px-3 py-2"
-                            >
-                              <span className={`text-[12px] ${key === 'done' ? 'text-text-muted line-through' : 'text-text-primary'}`}>
-                                {task.title}
-                              </span>
-                              <span className="flex items-center gap-2 shrink-0">
-                                {task.due_date && key !== 'done' && (
-                                  <span className="text-text-muted text-[10px]">
-                                    {t('portal.due', { date: formatDate(task.due_date) })}
-                                  </span>
-                                )}
-                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
-                                  {t(PRIORITY_KEY[task.priority])}
-                                </span>
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="flex flex-col gap-3">{renderStatusGroups(byMilestone.get(m.id) ?? [])}</div>
                       </div>
-                    ),
+                    )
+                  })}
+                  {unassigned.length > 0 && (
+                    <div>
+                      <h3 className="text-[12px] font-bold text-text-secondary mb-1.5">{t('timeline.unassigned')}</h3>
+                      <div className="flex flex-col gap-3">{renderStatusGroups(unassigned)}</div>
+                    </div>
                   )}
                 </div>
+              ) : (
+                <div className="flex flex-col gap-3 mt-2">{renderStatusGroups(projectTasks, 3)}</div>
               )}
             </section>
           )
         })}
       </div>
+      )}
+      </>
+      )}
     </PortalLayout>
   )
 }

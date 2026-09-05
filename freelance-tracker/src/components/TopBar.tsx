@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../lib/i18n'
 import { userStorage } from '../lib/userStorage'
 import { useAuth } from '../hooks/useAuth'
+import { useRole } from '../hooks/useWorkspaceRole'
 
 const pageTitleRules: { match: (path: string) => boolean; title: (t: (k: string) => string) => string }[] = [
   { match: (p) => p === '/', title: (t) => t('nav.dashboard') },
@@ -27,6 +28,10 @@ export default function TopBar({ onToggleSidebar, onOpenSearch }: TopBarProps) {
   const navigate = useNavigate()
   const { t, lang, setLang } = useI18n()
   const { signOut } = useAuth()
+  // TopBar renders inside Layout, which is inside OwnerGate, so the role is known here.
+  // A collaborator has no /settings route (OwnerGate bounces it to /timeline), so the
+  // menu item would be a dead end.
+  const role = useRole()
   const title = (pageTitleRules.find((r) => r.match(location.pathname)) ?? pageTitleRules[0]).title(t)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -71,7 +76,7 @@ export default function TopBar({ onToggleSidebar, onOpenSearch }: TopBarProps) {
   const toggleLang = () => setLang(lang === 'en' ? 'es' : 'en')
 
   return (
-    <header className="h-12 bg-bg flex items-center justify-between px-5 shrink-0 gap-4">
+    <header data-print-hide className="h-12 bg-bg flex items-center justify-between px-5 shrink-0 gap-4">
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={onToggleSidebar}
@@ -129,14 +134,16 @@ export default function TopBar({ onToggleSidebar, onOpenSearch }: TopBarProps) {
                   <p className="text-[12px] font-semibold text-text-primary truncate">{profileData.name}</p>
                 </div>
               )}
-              <button
-                onClick={() => { setMenuOpen(false); navigate('/settings') }}
-                role="menuitem"
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-text-secondary hover:bg-input-bg hover:text-text-primary transition-colors"
-              >
-                <SettingsIcon size={13} />
-                {t('nav.settings')}
-              </button>
+              {role !== 'collaborator' && (
+                <button
+                  onClick={() => { setMenuOpen(false); navigate('/settings') }}
+                  role="menuitem"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-text-secondary hover:bg-input-bg hover:text-text-primary transition-colors"
+                >
+                  <SettingsIcon size={13} />
+                  {t('nav.settings')}
+                </button>
+              )}
               <button
                 onClick={() => { toggleLang() }}
                 role="menuitem"

@@ -5,6 +5,7 @@ function task(over: Partial<PortalTask>): PortalTask {
   return {
     id: 'x', project_id: 'p', title: 'T', description: null,
     status: 'todo', priority: 'medium', start_date: null, due_date: null, updated_at: null,
+    milestone_id: null, progress: 0,
     ...over,
   }
 }

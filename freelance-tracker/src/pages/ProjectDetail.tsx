@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock } from 'lucide-react'
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom'
+import { Plus, Loader2, Download, X, CreditCard, Check, Link2, Trash2, Pencil, BookOpen, Calendar, Clock, GanttChartSquare } from 'lucide-react'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useProject, useProjects } from '../hooks/useProjects'
+import { useAuth } from '../hooks/useAuth'
 import { useClients } from '../hooks/useClients'
 import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useInvoices, type Invoice, type InvoiceItem } from '../hooks/useInvoices'
@@ -24,6 +25,8 @@ import EmailComposer from '../components/EmailComposer'
 import type { ReplyTarget } from '../components/EmailComposer'
 import CommunicationFeed from '../components/CommunicationFeed'
 import EmailSyncButton from '../components/EmailSyncButton'
+import ProjectCollaboratorsCard from '../components/ProjectCollaboratorsCard'
+import { useRole } from '../hooks/useWorkspaceRole'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useI18n } from '../lib/i18n'
@@ -46,6 +49,9 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t, lang } = useI18n()
+  // Belt and braces beside OwnerGate's redirect: a non-owner never gets this far,
+  // but the collaborator-management card should not mount for one if they did.
+  const role = useRole()
 
   const formatDate = (iso: string | null): string => {
     if (!iso) return '--'
@@ -54,6 +60,7 @@ export default function ProjectDetail() {
   }
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
+  const { user } = useAuth()
   const { projects: allProjects, deleteProject, updateProject } = useProjects()
   const { clients } = useClients()
   const {
@@ -300,6 +307,8 @@ export default function ProjectDetail() {
     )
   }
 
+  if (user && project.user_id !== user.id) return <Navigate to={`/timeline?project=${project.id}`} replace />
+
   const status = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.active
 
   return (
@@ -335,6 +344,13 @@ export default function ProjectDetail() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to={`/timeline?project=${project.id}`}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
+            >
+              <GanttChartSquare size={12} />
+              {t('projectDetail.openTimeline')}
+            </Link>
             <button
               onClick={() => setProjectFormOpen(true)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-text-secondary text-[12px] font-medium hover:bg-input-bg transition-colors"
@@ -409,6 +425,7 @@ export default function ProjectDetail() {
         </div>
       </div>
 
+      {role === 'owner' && <ProjectCollaboratorsCard projectId={project.id} />}
       {/* Tabs */}
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
