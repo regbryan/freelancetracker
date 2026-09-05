@@ -392,10 +392,13 @@ export default function Timeline() {
     })
 
   const headerTitle = isOverview ? t('timeline.overview') : (selectedProject?.name ?? t('timeline.overview'))
+  // All of the project's tasks and milestones, not just the visible rows: with
+  // "Hide done" on, a finished project must still say when it ran, not "No dates yet".
   const bounds = contentBounds([
     selectedProject?.start_date,
     selectedProject?.end_date,
-    ...visibleTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+    ...projectTasks.flatMap((tk) => [tk.start_date, tk.due_date]),
+    ...projectMilestones.flatMap((m) => [m.start_date, m.end_date]),
   ])
   const headerSub = isOverview
     ? t('timeline.overviewHint')
