@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { clampProgress } from '../lib/progress'
 import type { PortalClient, PortalMilestone, PortalProject, PortalTask } from '../lib/portal'
 
 /**
@@ -31,7 +32,9 @@ export function usePortalData() {
       if (m.error && m.error.code !== 'PGRST205') throw m.error
       setClients((c.data ?? []) as PortalClient[])
       setProjects((p.data ?? []) as PortalProject[])
-      setTasks((t.data ?? []) as PortalTask[])
+      // portal_tasks has no progress column until the progress migration runs;
+      // an absent percentage is 0, exactly as useTasks treats it.
+      setTasks(((t.data ?? []) as PortalTask[]).map((row) => ({ ...row, progress: clampProgress(row.progress) })))
       setMilestones((m.error ? [] : (m.data ?? [])) as PortalMilestone[])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load portal data')

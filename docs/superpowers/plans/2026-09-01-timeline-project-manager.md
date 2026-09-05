@@ -2509,3 +2509,93 @@ Four steps; the migrations are files only — Reggie applies them after reviewin
   - Verified: `tsc` clean, lint 0 errors (20 warnings, unchanged), 234 tests passing (was 213). No signed-in visual review — the dev server was at the login screen and the credentials are Reggie's; the milestone dialog and the 18px bars still want an eyeball at 1280.
 - [x] **Step 4 — portal, print, and the prefix migration.** Portal Gantt renders milestones read-only with working collapse, print reflects what is displayed, then Reggie applies both migrations and the backfill is verified against the real data.
   - Portal: `mode="project"` and `milestones`/`milestone_id` wired into the Gantt (nested, collapsed by default, read-only, local-expansion fallback); List view now groups each project's tasks by milestone with a `done/total` heading and an Unassigned group, unchanged for projects without milestones. Print already reflects milestones via the shared Gantt component from Step 3, and there is no separate print view in the portal. The base migration is applied and verified (see the design doc's 2026-09-02 revision); the prefix backfill migration still waits on Reggie's go-ahead.
+
+
+### Task 15: The bar is the control (Revision 2026-09-05 (d))
+
+Reggie reviewed revision (c)'s six-column task list and rejected the visible half of
+it: "I do not want this wider and taking up a bunch of space. Visualization is better.
+I want to click the square and make my modifications there." He also asked for
+estimated hours and for creating tasks directly on the timeline. Spec: "Revision
+2026-09-05 (d) — supersedes (c): no wide list; the bar is the control" in the design
+doc, which overrides (c) wherever the two disagree. One pass, built on top of the
+uncommitted (c) work rather than reverting it: the data layer and the progress
+helpers survived, the layout did not.
+
+- [x] **Removed from (c).** The six-column list (`#`, Assignee, `%`, Start, End) and
+  its `ListMeta` component and column-width constants; the column header row (a
+  narrow strip of names needs no headings); the inline task-details row and the
+  chevron that opened it; the `listWidth` / `onListWidthChange` split drag handle,
+  its `timeline.listWidth` localStorage key and the page state behind it (back to
+  `labelWidth`, default 320); the `showAssignee` prop; the Gantt's `onTaskFields`
+  prop and the optimistic `pending` progress state that fed the slider in the
+  details row. Ten i18n keys that (c) added and (d) does not use
+  (`timeline.colNum`/`colTask`/`colAssignee`/`colPct`/`colStart`/`colEnd`,
+  `taskDetails`, `noDescription`, `editTask`, `resizeList`) are gone from both
+  dictionaries. The stray harness files are not committed.
+- [x] **Kept from (c).** `src/lib/progress.ts` and its test (`clampProgress`,
+  `statusForProgress`, `meanProgress`, `assigneeLabel`); `supabase_migration_task_progress.sql`;
+  `Task.progress` and the 42703 → `'migration-pending'` mapping in `useTasks`;
+  `PortalTask.progress`, `usePortalData`'s normalisation and the portal's percentage;
+  `TaskForm`'s progress field and its assignee picker; the page's `people` list
+  (owner from the profile name, plus the project's members) and its banner-and-rethrow
+  save.
+- [x] **Migration.** `supabase_migration_task_progress.sql` also adds
+  `tasks.estimate_hours NUMERIC(6,2)`, nullable with a `>= 0` check — null is "nobody
+  estimated this", which is not zero. The portal view still gains `progress` only: a
+  client reads how far along the work is, not who is on it or what it costs.
+  `Task.estimate_hours: number | null` normalises a missing column to null, and the
+  42703 tolerance now covers either new column (`MIGRATION_COLUMNS`).
+- [x] **Gantt.** Label column back to 320px: the task name (two-line clamp) over a
+  secondary 11px line of `60% · RB`, parts omitted when empty. Milestone rows carry
+  `done/total · % · logged/estimate h` (the percentage is the mean of *all* their
+  tasks, hidden done ones included; the hours line is absent unless something in the
+  group carries an estimate, and turns negative-coloured when logged exceeds
+  estimated). The project row carries the same roll-up. Beside each bar: the name and
+  a 20px initials circle (`bg-text-primary/10`, `title` = the full assignee label),
+  the one element in the click-through label that takes pointer events back so its
+  tooltip works. New props `people`, `hoursByTask`, `onCreateTask`, and
+  `onTaskClick(id, anchorRect)` — same name, now passing the bar's own
+  `getBoundingClientRect()` so the caller can float an editor against it. Creating:
+  a "+" at the right end of every milestone row's label cell and of the project row
+  (undated task), and a click on empty track inside a milestone's row (a one-day task
+  on that day, ignored on bars, mid-drag, and when read-only). The drag machine, the
+  optimistic handoff, the tray, collapse, the Overview diamonds and print are
+  untouched. New helpers `assigneeInitials` and `formatHours` in `lib/progress.ts`.
+- [x] **`TaskPopover`** (`src/components/TaskPopover.tsx`): a Radix popover portaled
+  out of the chart's `overflow` container and pointed at a fixed-position stand-in for
+  the bar, `side="bottom" align="start"`, collision-aware, 360px. Title, status,
+  priority, assignee, progress (range + number), estimated hours, logged hours
+  (read-only), start and due dates, milestone, description, Delete behind a native
+  confirm, and "Open full editor". Selects, the range and the dates write on change;
+  the title, the estimate and the description write on blur, and a blur that changed
+  nothing writes nothing. Progress sends the status that goes with it
+  (`statusForProgress`); the page owns the other half of the rule and adds
+  `progress: 100` when a status is set to done. A rejected write shows the message on
+  one line and leaves the value where the user put it. Only the fields scroll — the
+  panel is capped at `--radix-popper-available-height` with Delete and "Open full
+  editor" pinned below the scroll area, so a panel squeezed against the edge of the
+  window never hides them.
+- [x] **Page.** `useTimeEntries(project)` → `hoursByTask`; a bar click opens the
+  popover against the bar; `onCreateTask` inserts the task ("New task", todo, medium,
+  unassigned, dated only when a day was clicked) and reopens the popover on it with
+  the title selected; `onSave` → `updateTask`, delete → `deleteTask`, both with the
+  existing banner-and-rethrow and the `'migration-pending'` message. "Open full
+  editor" hands the task to the existing `TaskForm` dialog. "+ Milestone", zoom,
+  hide-done and print are unchanged.
+- [x] **TaskForm** keeps (c)'s progress and assignee and gains an estimated-hours
+  input (step 0.25, blank = null). `Tasks.tsx` and `ProjectDetail.tsx` unchanged.
+- [x] **Portal** unchanged in kind: read-only, progress fill and `%`, no popover, no
+  assignee, no hours — now with `labelWidth={260}`.
+- [x] **Tests.** `TimelineGantt.test.tsx` lost the column and details-row suites and
+  gained "label column and bar labels" (11) and "creating tasks on the timeline" (6);
+  `TaskPopover.test.tsx` is new (16); `Timeline.test.tsx`'s list/progress suite became
+  a popover, hours and creation suite; `progress.test.ts` gained `assigneeInitials`
+  and `formatHours`. `src/test/setup.ts` now stubs `ResizeObserver`, which every Radix
+  floating layer needs and jsdom does not ship.
+- [x] **Verified.** `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint`
+  0 errors (20 warnings, all pre-existing), `npx vitest run` 301 tests passing across
+  19 files. Visual review at 1280 through a throwaway
+  harness with a popover open: the label column holds at 320px with no sub-line
+  clipped, the popover is portaled and overlays the chart with nothing cut off, and
+  every bar label sits alone on its own row.

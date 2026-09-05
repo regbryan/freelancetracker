@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 import {
   milestoneRange,
@@ -8,6 +8,7 @@ import {
   sortMilestones,
   type MilestoneTaskLike,
 } from '../lib/milestones'
+import { assigneeInitials, clampProgress, formatHours, meanProgress, type TaskStatus } from '../lib/progress'
 import {
   PX_PER_DAY,
   type Zoom,
@@ -47,6 +48,38 @@ export interface GanttTask {
   start_date: string | null
   due_date: string | null
   milestone_id?: string | null
+  /** Percent complete 0–100. Absent (portal rows, pre-migration data) means 0. */
+  progress?: number | null
+  /** Shown in the popover only; optional so the portal's rows still fit. */
+  description?: string | null
+  priority?: string | null
+  /** 'me' = the owner, an email = a project member, '' = unassigned. */
+  assignee?: string | null
+  /** Estimated hours, against which the logged hours are read. */
+  estimate_hours?: number | null
+}
+
+export type TaskPriority = 'low' | 'medium' | 'high'
+
+/** The subset of a task the bar popover can write. */
+export type TaskFields = Partial<{
+  title: string
+  description: string | null
+  status: TaskStatus
+  priority: TaskPriority
+  assignee: string
+  start_date: string | null
+  due_date: string | null
+  milestone_id: string | null
+  progress: number
+  estimate_hours: number | null
+}>
+
+/** What a "+" on a milestone or project row, or a click on empty track, asks for. */
+export interface CreateTaskInput {
+  milestone_id: string | null
+  /** The day that was clicked, or null when the row's "+" was used. */
+  start_date: string | null
 }
 
 export interface GanttMilestone {
@@ -101,15 +134,35 @@ export interface TimelineGanttProps {
   onProjectDates?: (id: string, dates: ProjectDates) => Promise<void>
   /** Members may edit milestones, so this needs no separate permission flag. */
   onMilestoneDates?: (id: string, dates: ProjectDates) => Promise<void>
-  onTaskClick?: (id: string) => void
+  /**
+   * A bar was clicked. The second argument is that bar's own bounding rect, so
+   * the caller can float its editor against the thing that was clicked instead
+   * of covering the chart with a modal.
+   */
+  onTaskClick?: (id: string, anchorRect: DOMRect) => void
   onMilestoneClick?: (id: string) => void
   onScheduleTask?: (id: string, dates: TaskDates) => Promise<void>
+  /**
+   * Make a task here: from the "+" on a milestone or project row (no dates), or
+   * from a click on empty track inside a milestone's row (that one day). The
+   * second argument anchors the caller's editor, the way `onTaskClick`'s does —
+   * a task that does not exist yet has no bar of its own to point at.
+   */
+  onCreateTask?: (input: CreateTaskInput, anchorRect: DOMRect) => void
   /** Fixes "today" for deterministic tests. */
   today?: string
-  /** Width of the sticky project/task label column. Defaults to LABEL_W. */
+  /** Width of the sticky label column. Defaults to LABEL_W. */
   labelWidth?: number
+  /** Options for the assignee picker; also how an assignee value is labelled. */
+  people?: { value: string; label: string }[]
+  /** Hours logged against each task id, summed from time entries. */
+  hoursByTask?: Record<string, number>
 }
 
+/**
+ * Narrow on purpose (revision d): the chart is the interface, and the column
+ * beside it is a name plus the two facts that do not fit on a bar.
+ */
 const LABEL_W = 320
 const EDGE_PX = 8
 /** Smallest width an editable bar is *drawn* at, so a one-day task stays grabbable. */
@@ -124,27 +177,23 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 /**
- * Bars are solid blocks, not tinted outlines: a row should read as a shape on a date
- * at a glance, so each status is one fill plus the label colour that survives it.
+ * One colour per status, drawn as a light trough with the percent complete filled
+ * in solid on top — `66` is 40% alpha. A done bar is filled outright, so the block
+ * still reads as finished work at a glance even at 0px of fill.
+ * (Colour-by-phase is a later pass; the statuses stay for now.)
  */
-const TASK_STATUS_COLORS: Record<string, { bg: string; label: string }> = {
-  done: { bg: '#b9d3c7', label: 'text-text-primary' },
-  in_progress: { bg: '#3e6b5a', label: 'text-white' },
-  todo: { bg: '#d7d0c3', label: 'text-text-primary' },
+const TASK_STATUS_COLORS: Record<string, { bg: string }> = {
+  done: { bg: '#b9d3c7' },
+  in_progress: { bg: '#3e6b5a' },
+  todo: { bg: '#d7d0c3' },
 }
+const TROUGH_ALPHA = '66'
 
 /** Navy: a project bar is the container its tasks sit inside, not another status. */
 const PROJECT_BAR_BG = '#15263a'
 
 /** Milestone bars are a light sage trough; the accent fill inside them is the progress. */
 const MILESTONE_BAR_BG = '#c9d6cf'
-/**
- * The bar label starts at the bar's left edge, which is exactly where the progress fill
- * starts, so past roughly this many pixels of fill the label is sitting on accent green
- * (navy on green is ~2.3:1) rather than on the light trough (white on sage is ~1.5:1).
- * Wider than a truncated 9px label, so the flip happens once the fill really is underneath.
- */
-const MILESTONE_LABEL_FLIP_PX = 44
 
 /**
  * Bars read as solid blocks at rest; the grab zones only draw themselves when the
@@ -168,6 +217,25 @@ type DragState = {
 
 function keyOf(kind: DragKind, id: string): string {
   return `${kind}:${id}`
+}
+
+/**
+ * A zero-size rect at one point, for anchoring against a click rather than an
+ * element. Built by hand rather than with `new DOMRect`, which jsdom does not
+ * always provide.
+ */
+function pointRect(x: number, y: number): DOMRect {
+  return {
+    x,
+    y,
+    left: x,
+    top: y,
+    right: x,
+    bottom: y,
+    width: 0,
+    height: 0,
+    toJSON: () => ({ x, y, width: 0, height: 0 }),
+  }
 }
 
 /**
@@ -220,17 +288,17 @@ function TrackBg({
   todayLeft,
   px,
   width,
-  labelWidth,
+  listWidth,
 }: {
   weekends: { offsetDays: number; days: number }[]
   months: Tick[]
   todayLeft: number
   px: number
   width: number
-  labelWidth: number
+  listWidth: number
 }) {
   return (
-    <div className="absolute z-0 pointer-events-none" style={{ left: labelWidth, top: 0, height: '100%', width }}>
+    <div className="absolute z-0 pointer-events-none" style={{ left: listWidth, top: 0, height: '100%', width }}>
       {weekends.map((w) => (
         <div
           key={w.offsetDays}
@@ -247,7 +315,68 @@ function TrackBg({
   )
 }
 
+/**
+ * The second line of a label cell: the facts that will not fit on a bar, in
+ * secondary 11px under the name. Parts that are empty are left out rather than
+ * printed as a gap between two separators.
+ * Top-level so it is a stable component across renders.
+ */
+function SubLine({ parts }: { parts: ReactNode[] }) {
+  const kept = parts.filter((p) => p !== null && p !== undefined && p !== false && p !== '')
+  if (kept.length === 0) return null
+  return (
+    <span data-testid="sub-line" className="block text-[11px] text-text-secondary tabular-nums truncate">
+      {kept.map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 ? <span aria-hidden="true"> · </span> : null}
+          <span>{part}</span>
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
+/**
+ * Who a bar belongs to, in the only space there is next to one: a 20px circle
+ * of initials. The full name is the `title`, so the circle only has to be
+ * recognisable, not self-explanatory.
+ */
+function Initials({ label }: { label: string }) {
+  const text = assigneeInitials(label)
+  if (text === '') return null
+  return (
+    <span
+      data-testid="assignee-initials"
+      title={label}
+      // The label around it is click-through so the track beneath stays clickable;
+      // this one element takes pointer events back so its title can be hovered.
+      className="pointer-events-auto inline-flex items-center justify-center align-middle w-5 h-5 rounded-full bg-text-primary/10 text-text-primary text-[10px] font-semibold"
+    >
+      {text}
+    </span>
+  )
+}
+
+/**
+ * The text that used to be squeezed inside a bar, printed to its right instead —
+ * the way every Gantt in the research doc does it. Never clipped by a narrow bar,
+ * and never sitting on a fill it cannot be read against.
+ */
+function BarLabel({ left, children }: { left: number; children: ReactNode }) {
+  return (
+    <span
+      data-testid="bar-label"
+      className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 whitespace-nowrap pointer-events-none text-[12px] text-text-primary"
+      style={{ left }}
+    >
+      {children}
+    </span>
+  )
+}
+
 const NO_MILESTONES: GanttMilestone[] = []
+const NO_PEOPLE: { value: string; label: string }[] = []
+const NO_HOURS: Record<string, number> = {}
 
 export default function TimelineGantt({
   projects,
@@ -266,13 +395,17 @@ export default function TimelineGantt({
   onTaskClick,
   onMilestoneClick,
   onScheduleTask,
+  onCreateTask,
   today: todayProp,
-  labelWidth = LABEL_W,
+  labelWidth,
+  people = NO_PEOPLE,
+  hoursByTask = NO_HOURS,
 }: TimelineGanttProps) {
   const { t, lang } = useI18n()
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const today = todayProp ?? todayISO()
   const px = PX_PER_DAY[zoom]
+  const listW = labelWidth ?? LABEL_W
 
   // Done rows are dropped here rather than by the page, so the page can still hand
   // over every task for the counts. Kept as one list; each project slices its own.
@@ -303,7 +436,7 @@ export default function TimelineGantt({
   const scrollDay = useMemo(() => initialScrollDay(range, dates, today), [range, dates, today])
   // Printing lays the whole track on the page instead of scrolling it; scale it down
   // to fit a landscape sheet. Applied as `zoom` by the @media print block in index.css.
-  const printScale = Math.min(1, 1000 / (labelWidth + trackW))
+  const printScale = Math.min(1, 1000 / (listW + trackW))
 
   // Collapsed by default. The page owns this state (it persists it per project); the
   // fallback keeps the component usable on its own, and in the read-only portal.
@@ -322,9 +455,72 @@ export default function TimelineGantt({
     })
   }
 
+  /** The percentage to draw for a task. */
+  function progressOf(task: GanttTask): number {
+    return clampProgress(task.progress)
+  }
+  /** Rolled-up percentage for a set of rows. */
+  function meanOf(list: GanttTask[]): number {
+    return meanProgress(list.map((tk) => ({ progress: progressOf(tk) })))
+  }
+  /** How an assignee value reads: the picker's label for it, or the raw text. */
+  function labelForAssignee(assignee: string | null | undefined): string {
+    const value = (assignee ?? '').trim()
+    if (value === '') return t('timeline.assigneeNone')
+    return people.find((p) => p.value === value)?.label ?? value
+  }
+
+  /**
+   * Logged and estimated hours for a set of tasks. `estimated` is null when not
+   * one of them carries an estimate — nothing to measure the logged hours
+   * against, so the row says nothing about hours at all rather than "4/0 h".
+   */
+  function hoursOf(list: GanttTask[]): { logged: number; estimated: number | null } {
+    let logged = 0
+    let estimated = 0
+    let any = false
+    for (const tk of list) {
+      logged += Number(hoursByTask[tk.id] ?? 0)
+      const est = tk.estimate_hours
+      if (est !== null && est !== undefined && Number.isFinite(Number(est))) {
+        estimated += Number(est)
+        any = true
+      }
+    }
+    return { logged, estimated: any ? estimated : null }
+  }
+
+  /** "12/20 h", over-estimate in the negative colour; nothing without an estimate. */
+  function hoursLabel(list: GanttTask[]): ReactNode {
+    const { logged, estimated } = hoursOf(list)
+    if (estimated === null) return null
+    return (
+      <span className={logged > estimated ? 'text-negative' : undefined}>
+        {t('timeline.hoursOf', { logged: formatHours(logged), estimate: formatHours(estimated) })}
+      </span>
+    )
+  }
+
   // Overview is the page's task-free bird's-eye mode: there are no rows to nest, so
   // milestones become diamonds on the project bar instead of rows of their own.
   const overview = mode === 'overview'
+
+  /** A "+" that makes a task here. Only where the caller can actually create one. */
+  function addTaskButton(milestoneId: string | null): ReactNode {
+    if (!editable || !onCreateTask) return null
+    return (
+      <button
+        type="button"
+        aria-label={t('timeline.addTask')}
+        title={t('timeline.addTask')}
+        data-print-hide
+        onClick={(e) => onCreateTask({ milestone_id: milestoneId, start_date: null }, e.currentTarget.getBoundingClientRect())}
+        className="shrink-0 p-0.5 rounded-sm text-text-secondary hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <Plus size={13} aria-hidden="true" />
+      </button>
+    )
+  }
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -346,8 +542,8 @@ export default function TimelineGantt({
     if (!el) return
     if (lastZoomRef.current === zoom) return
     lastZoomRef.current = zoom
-    el.scrollLeft = Math.max(0, scrollDay * px - Math.max(0, el.clientWidth - labelWidth) * 0.15)
-  }, [zoom, scrollDay, px, labelWidth])
+    el.scrollLeft = Math.max(0, scrollDay * px - Math.max(0, el.clientWidth - listW) * 0.15)
+  }, [zoom, scrollDay, px, listW])
 
   // Escape cancels an in-progress drag.
   useEffect(() => {
@@ -459,7 +655,9 @@ export default function TimelineGantt({
     dragRef.current = null
     setDrag(null)
     if (!st.moved) {
-      if (st.kind === 'task') onTaskClick?.(st.id)
+      // The bar's own rect, not the pointer: the editor floats against the block
+      // that was clicked, so it never covers the thing it is editing.
+      if (st.kind === 'task') onTaskClick?.(st.id, e.currentTarget.getBoundingClientRect())
       else if (st.kind === 'milestone') onMilestoneClick?.(st.id)
       return
     }
@@ -491,8 +689,22 @@ export default function TimelineGantt({
   /** Keyboard activation only — pointer clicks are resolved in endDrag. */
   function onBarClick(e: ReactMouseEvent<HTMLElement>, kind: DragKind, id: string) {
     if (e.detail !== 0) return
-    if (kind === 'task') onTaskClick?.(id)
+    if (kind === 'task') onTaskClick?.(id, e.currentTarget.getBoundingClientRect())
     else if (kind === 'milestone') onMilestoneClick?.(id)
+  }
+
+  /**
+   * A click on empty track inside a milestone's row makes a one-day task on that
+   * day. Anything that lands on a bar is that bar's click, and a click that is
+   * really the tail of a drag is not a click at all.
+   */
+  function onTrackClick(e: ReactMouseEvent<HTMLElement>, milestoneId: string | null) {
+    if (!editable || !onCreateTask) return
+    if (dragRef.current || drag) return
+    if ((e.target as HTMLElement).closest('.gantt-bar, button, [data-testid="milestone-placeholder"]')) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const day = Math.max(0, Math.floor((e.clientX - rect.left) / px))
+    onCreateTask({ milestone_id: milestoneId, start_date: addDays(range.start, day) }, pointRect(e.clientX, e.clientY))
   }
 
   const isDragging = (kind: DragKind, id: string) => Boolean(drag && drag.kind === kind && drag.id === id)
@@ -507,90 +719,123 @@ export default function TimelineGantt({
     return { dated, undated }
   }
 
-  /** One task row. `indent` is the label cell's left padding: one level under a
-   *  project, two under a milestone. */
+  /**
+   * One task row: its name and the two facts that do not fit on a bar in the label
+   * column, then the bar itself with its name and owner printed to the right of it.
+   * `indent` is the name cell's left padding: one level under a project, two under a
+   * milestone.
+   */
   function renderTaskRow(task: GanttTask, baseRange: DateRange, indent: string): ReactNode {
     const r = displayRange('task', task.id, baseRange)
     const geom = barGeometry(r, range.start, px)
-    const showLabel = geom.width >= 24
     const colors = TASK_STATUS_COLORS[task.status] ?? TASK_STATUS_COLORS.todo
     const dragging = isDragging('task', task.id)
     // Read-only with no click handler: nothing to activate, so it must not be a button.
     const interactive = editable || Boolean(onTaskClick)
+    const pct = progressOf(task)
+    const hasAssignee = Boolean((task.assignee ?? '').trim())
+    const assignee = labelForAssignee(task.assignee)
     const barLabel = `${task.title}: ${fmt(r.start)} – ${fmt(r.end)}`
-    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-4 rounded-[3px] flex items-center px-1.5 select-none text-left ${
+    const drawnWidth = editable ? Math.max(geom.width, MIN_BAR_PX) : geom.width
+    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-4 rounded-[3px] overflow-hidden select-none ${
       editable ? 'touch-none cursor-grab' : 'cursor-default'
     } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
     const barStyle = {
       left: geom.left,
       // Rendered width only — `geom.width` still drives the drag maths. A one-day
       // task is a 4-12px sliver at Quarter/Month zoom, too small to grab or see.
-      width: editable ? Math.max(geom.width, MIN_BAR_PX) : geom.width,
-      backgroundColor: colors.bg,
+      width: drawnWidth,
+      // A done bar is filled outright; everything else is a trough with the percent
+      // complete painted in solid on top of it.
+      backgroundColor: task.status === 'done' ? colors.bg : colors.bg + TROUGH_ALPHA,
+      // The trough alone is too faint to find: the to-do tan at 40% on a white
+      // surface is about a 3% step, so a 0% task read as an empty row rather than
+      // as a block sitting on its dates. The hairline is the same colour at full
+      // strength, so the bar keeps its extent without becoming another filled block.
+      boxShadow: task.status === 'done' ? undefined : `inset 0 0 0 1px ${colors.bg}`,
     }
     const barChildren = (
       <>
-          {editable && (
-            <>
-              <span
-                data-edge="start"
-                className={`absolute left-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_START}`}
-                style={{ width: EDGE_PX }}
-              />
-              <span
-                data-edge="end"
-                className={`absolute right-0 top-0 h-full cursor-ew-resize ${EDGE_HINT_END}`}
-                style={{ width: EDGE_PX }}
-              />
+        <span
+          data-testid="task-fill"
+          className="absolute left-0 top-0 h-full pointer-events-none"
+          style={{ width: `${task.status === 'done' ? 100 : pct}%`, backgroundColor: colors.bg }}
+        />
+        {editable && (
+          <>
+            <span
+              data-edge="start"
+              className={`absolute left-0 top-0 h-full z-[2] cursor-ew-resize ${EDGE_HINT_START}`}
+              style={{ width: EDGE_PX }}
+            />
+            <span
+              data-edge="end"
+              className={`absolute right-0 top-0 h-full z-[2] cursor-ew-resize ${EDGE_HINT_END}`}
+              style={{ width: EDGE_PX }}
+            />
           </>
-        )}
-        {dragging && (
-          <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
-            {fmt(r.start)} – {fmt(r.end)}
-          </span>
-        )}
-        {showLabel && (
-          <span className="min-w-0 flex-1 overflow-hidden">
-            <span className={`block text-[9px] font-medium truncate pointer-events-none ${colors.label}`}>{task.title}</span>
-          </span>
         )}
       </>
     )
     return (
-      <div key={task.id} className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
-        <div
-          className={`sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 ${indent} flex items-center gap-2 min-w-0`}
-          style={{ width: labelWidth, minWidth: labelWidth }}
-        >
-          <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-border" />
-          <span className="text-[13px] text-text-primary whitespace-normal leading-snug line-clamp-2 break-words" title={task.title}>
-            {task.title}
-          </span>
-        </div>
-        <div className="relative min-h-[32px]" style={{ width: trackW }}>
-          {interactive ? (
-            <button
-              type="button"
-              aria-label={barLabel}
-              onPointerDown={(e) => beginDrag(e, 'task', task.id, r)}
-              onPointerMove={moveDrag}
-              onPointerUp={endDrag}
-              onPointerCancel={cancelDrag}
-              onLostPointerCapture={cancelDrag}
-              onClick={(e) => onBarClick(e, 'task', task.id)}
-              className={barClassName}
-              style={barStyle}
-              title={barLabel}
-            >
-              {barChildren}
-            </button>
-          ) : (
-            <div role="img" aria-label={barLabel} className={barClassName} style={barStyle} title={barLabel}>
-              {barChildren}
+      <Fragment key={task.id}>
+        <div className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
+          <div
+            className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border flex items-center py-2 pr-2 min-w-0"
+            style={{ width: listW, minWidth: listW }}
+          >
+            <div className={`flex-1 min-w-0 ${indent}`}>
+              <span
+                className="block text-[13px] text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
+                title={task.title}
+              >
+                {task.title}
+              </span>
+              {/* The percentage and who has it — everything else about the task is
+                  one click away in the popover, and nothing else fits here. */}
+              <SubLine parts={[`${pct}%`, hasAssignee ? assigneeInitials(assignee) : '']} />
             </div>
-          )}
+          </div>
+          {/* overflow-visible so the label printed past the bar's right edge is not
+              cut off by the row it belongs to; the scroll container carries it. */}
+          <div className="relative min-h-[32px] overflow-visible" style={{ width: trackW }}>
+            {interactive ? (
+              <button
+                type="button"
+                aria-label={barLabel}
+                onPointerDown={(e) => beginDrag(e, 'task', task.id, r)}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                onPointerCancel={cancelDrag}
+                onLostPointerCapture={cancelDrag}
+                onClick={(e) => onBarClick(e, 'task', task.id)}
+                className={barClassName}
+                style={barStyle}
+                title={barLabel}
+              >
+                {barChildren}
+              </button>
+            ) : (
+              <div role="img" aria-label={barLabel} className={barClassName} style={barStyle} title={barLabel}>
+                {barChildren}
+              </div>
+            )}
+            {/* Outside the bar, so it is never clipped by it and never sits on the fill. */}
+            <BarLabel left={geom.left + drawnWidth + 8}>
+              <span>{task.title}</span>
+              {hasAssignee && <Initials label={assignee} />}
+            </BarLabel>
+            {dragging && (
+              <span
+                className="absolute z-[9] -translate-y-full whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none"
+                style={{ left: geom.left, top: 'calc(50% - 8px)' }}
+              >
+                {fmt(r.start)} – {fmt(r.end)}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </Fragment>
     )
   }
 
@@ -600,13 +845,13 @@ export default function TimelineGantt({
       <div key={key} className="gantt-row flex items-stretch" data-testid="tray">
         <div
           className={`sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2 ${indent} flex items-center min-w-0`}
-          style={{ width: labelWidth, minWidth: labelWidth }}
+          style={{ width: listW, minWidth: listW }}
         >
           <span className="text-[12px] text-text-secondary whitespace-normal leading-snug line-clamp-2">
             {t('timeline.notScheduled', { n: undated.length })}
           </span>
         </div>
-        <div className="sticky z-10 flex items-center gap-1.5 px-2 py-1.5 flex-wrap" style={{ left: labelWidth }}>
+        <div className="sticky z-10 flex items-center gap-1.5 px-2 py-1.5 flex-wrap" style={{ left: listW }}>
           {undated.map((task) =>
             editable ? (
               <button
@@ -659,7 +904,12 @@ export default function TimelineGantt({
     // dates of its own to write back.
     const draggable = editable && own && Boolean(onMilestoneDates)
     const dragging = isDragging('milestone', m.id)
-    const fill = total > 0 ? done / total : 0
+    // Percent complete rolled up from every task of the milestone, hidden done ones
+    // included. It is what the fill draws AND what the label prints: a bar filled to
+    // a quarter next to the number 38% is a bar that cannot be believed. The done/total
+    // count that used to drive the fill is still in the list, where it reads as a count.
+    const pct = meanOf(group.map((g) => g.task))
+    const fill = pct / 100
     const barLabel = r ? `${m.name}: ${fmt(r.start)} – ${fmt(r.end)}` : m.name
     const barTitle = own ? barLabel : `${barLabel} · ${t('timeline.milestoneAutoDates')}`
     // Not just `m.name`: that is the chevron toggle's accessible name too, and two
@@ -669,7 +919,7 @@ export default function TimelineGantt({
 
     // Same 18px as a project bar: a milestone contains tasks, so drawing it thinner
     // than the 16px task bars would invert the hierarchy the rows are there to show.
-    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-[18px] rounded-[3px] flex items-center px-1.5 select-none text-left ${
+    const barClassName = `gantt-bar group absolute top-1/2 -translate-y-1/2 h-[18px] rounded-[3px] select-none ${
       draggable ? 'touch-none cursor-grab' : 'cursor-default'
     } ${dragging ? 'ring-2 ring-accent/40' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`
     const barStyle = geom
@@ -696,23 +946,6 @@ export default function TimelineGantt({
             <span data-edge="end" className={`absolute right-0 top-0 h-full z-[2] cursor-ew-resize ${EDGE_HINT_END}`} style={{ width: EDGE_PX }} />
           </>
         )}
-        {dragging && r && (
-          <span className="absolute -top-4 left-0 z-[9] whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none">
-            {fmt(r.start)} – {fmt(r.end)}
-          </span>
-        )}
-        {geom && geom.width >= 24 && (
-          <span
-            className={`relative z-[1] min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden pointer-events-none ${
-              // The fill is dark accent, the trough is light sage: whichever the label
-              // actually sits on decides which of the two readable colours it takes.
-              fill * geom.width >= MILESTONE_LABEL_FLIP_PX ? 'text-white' : 'text-text-primary'
-            }`}
-          >
-            <span className="block text-[9px] font-semibold truncate">{m.name}</span>
-            {!isOpen && <span className="text-[9px] font-medium shrink-0 tabular-nums">{count}</span>}
-          </span>
-        )}
       </>
     )
 
@@ -726,43 +959,66 @@ export default function TimelineGantt({
           className="gantt-row group/mrow flex items-stretch hover:bg-bg/50 transition-colors"
         >
           <div
-            className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2.5 pl-6 flex items-center gap-1.5 min-w-0"
-            style={{ width: labelWidth, minWidth: labelWidth }}
+            className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border py-2.5 flex items-center min-w-0"
+            style={{ width: listW, minWidth: listW }}
           >
-            {/* Chevron and name are one control: two buttons with the same name would
-                read as a duplicate to a screen reader, and both do the same thing. */}
-            <button
-              type="button"
-              aria-expanded={isOpen}
-              onClick={() => toggleMilestone(m.id)}
-              className="flex items-center gap-1.5 min-w-0 text-left rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-              title={m.name}
-            >
-              <span className="shrink-0 text-text-secondary" aria-hidden="true">
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-              <span className="text-[13px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words">
-                {m.name}
-              </span>
-            </button>
-            <span className="ml-auto shrink-0 text-[12px] text-text-secondary tabular-nums" title={countTitle}>
-              {count}
-            </span>
-            {/* The only way into edit/delete that does not depend on there being a bar
-                to click — a milestone with no dates and no dated tasks has none. */}
-            {onMilestoneClick && (
-              <button
-                type="button"
-                aria-label={t('timeline.editMilestone')}
-                title={t('timeline.editMilestone')}
-                onClick={() => onMilestoneClick(m.id)}
-                className="shrink-0 p-0.5 rounded-sm text-text-secondary hover:text-accent opacity-0 group-hover/mrow:opacity-100 focus:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-              >
-                <Pencil size={12} aria-hidden="true" />
-              </button>
-            )}
+            <div className="flex-1 min-w-0 pl-2">
+              <div className="flex items-start gap-1">
+                {/* Chevron and name are one control: two buttons with the same name would
+                    read as a duplicate to a screen reader, and both do the same thing. */}
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={() => toggleMilestone(m.id)}
+                  className="flex items-start gap-1.5 min-w-0 flex-1 text-left rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  title={m.name}
+                >
+                  <span className="shrink-0 text-text-secondary mt-0.5" aria-hidden="true">
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                  <span className="text-[13px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words">
+                    {m.name}
+                  </span>
+                </button>
+                {/* The only way into edit/delete that does not depend on there being a bar
+                    to click — a milestone with no dates and no dated tasks has none. */}
+                {onMilestoneClick && (
+                  <button
+                    type="button"
+                    aria-label={t('timeline.editMilestone')}
+                    title={t('timeline.editMilestone')}
+                    onClick={() => onMilestoneClick(m.id)}
+                    className="shrink-0 p-0.5 rounded-sm text-text-secondary hover:text-accent opacity-0 group-hover/mrow:opacity-100 focus:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  >
+                    <Pencil size={12} aria-hidden="true" />
+                  </button>
+                )}
+                {/* At the right end of the label cell, where the eye finishes reading
+                    the milestone it is about to add work to. */}
+                {addTaskButton(m.id)}
+              </div>
+              <div className="pl-[22px]">
+                <SubLine
+                  parts={[
+                    <span key="count" title={countTitle}>
+                      {count}
+                    </span>,
+                    `${pct}%`,
+                    hoursLabel(group.map((g) => g.task)),
+                  ]}
+                />
+              </div>
+            </div>
           </div>
-          <div className="relative min-h-[36px]" style={{ width: trackW }}>
+          {/* A click on empty track here plants a one-day task on that day. It is a
+              pointer gesture, so the "+" in the label cell beside it is the keyboard
+              route to the same thing. */}
+          <div
+            className="relative min-h-[36px] overflow-visible"
+            data-testid="milestone-track"
+            onClick={(e) => onTrackClick(e, m.id)}
+            style={{ width: trackW }}
+          >
             {r &&
               geom &&
               (draggable || onMilestoneClick ? (
@@ -813,6 +1069,22 @@ export default function TimelineGantt({
                   style={{ left: todayLeft, width: px }}
                 />
               ))}
+            {/* Name and roll-up printed past the bar, like the task rows. */}
+            {r && geom && (
+              <BarLabel left={geom.left + (draggable ? Math.max(geom.width, MIN_BAR_PX) : geom.width) + 8}>
+                <span>
+                  <span className="font-semibold">{m.name}</span> · {pct}%
+                </span>
+              </BarLabel>
+            )}
+            {dragging && r && geom && (
+              <span
+                className="absolute z-[9] -translate-y-full whitespace-nowrap rounded-sm bg-text-primary text-white text-[9px] px-1.5 py-0.5 pointer-events-none"
+                style={{ left: geom.left, top: 'calc(50% - 9px)' }}
+              >
+                {fmt(r.start)} – {fmt(r.end)}
+              </span>
+            )}
           </div>
         </div>
         {isOpen && dated.map(({ task, range: baseRange }) => renderTaskRow(task, baseRange, 'pl-12'))}
@@ -827,6 +1099,7 @@ export default function TimelineGantt({
       className="bg-surface rounded-md border border-border overflow-hidden"
       style={{ '--print-scale': String(printScale) } as CSSProperties}
     >
+      <div className="relative">
       <div
         ref={scrollRef}
         className="overflow-x-auto"
@@ -834,15 +1107,14 @@ export default function TimelineGantt({
         tabIndex={0}
         aria-label={t('timeline.projectTask')}
       >
-        <div style={{ width: labelWidth + trackW }}>
+        <div style={{ width: listW + trackW }}>
           {/* Header */}
           <div className="flex border-b border-border bg-surface">
+            {/* Nothing to name: one narrow column of names, not a spreadsheet. */}
             <div
-              className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2.5"
-              style={{ width: labelWidth, minWidth: labelWidth }}
-            >
-              <span className="text-[12px] font-medium text-text-secondary">{t('timeline.projectTask')}</span>
-            </div>
+              className="sticky left-0 z-20 bg-surface shrink-0 border-r border-border h-9"
+              style={{ width: listW, minWidth: listW }}
+            />
             <div className="relative h-9" style={{ width: trackW }}>
               {months.map((tick, i) => {
                 // The synthetic tick at range.start can land days before a real month
@@ -882,7 +1154,7 @@ export default function TimelineGantt({
 
           {/* Rows. One background layer sits behind them all. */}
           <div className="relative">
-            <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} labelWidth={labelWidth} />
+            <TrackBg weekends={weekends} months={months} todayLeft={todayLeft} px={px} width={trackW} listWidth={listW} />
             {projects.map((project) => {
             const projectTasks = tasks.filter((tk) => tk.project_id === project.id)
             const projectShown = shownTasks.filter((tk) => tk.project_id === project.id)
@@ -904,24 +1176,40 @@ export default function TimelineGantt({
             const projectRange = baseProjectRange ? displayRange('project', project.id, baseProjectRange) : null
             const projectGeom = projectRange ? barGeometry(projectRange, range.start, px) : null
             const projectDragging = isDragging('project', project.id)
+            const projectPct = meanOf(projectTasks)
 
             return (
               <div key={project.id} className="border-b border-border last:border-0">
                 {/* Project row */}
                 <div className="gantt-row flex items-stretch hover:bg-bg/50 transition-colors">
                   <div
-                    className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-3 flex items-center gap-2 min-w-0"
-                    style={{ width: labelWidth, minWidth: labelWidth }}
+                    className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border py-3 pr-2 pl-2 flex items-center min-w-0"
+                    style={{ width: listW, minWidth: listW }}
                   >
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span
-                      className="text-[13px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
-                      title={project.name}
-                    >
-                      {project.name}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: color }} />
+                        <span
+                          className="flex-1 text-[13px] font-semibold text-text-primary whitespace-normal leading-snug line-clamp-2 break-words"
+                          title={project.name}
+                        >
+                          {project.name}
+                        </span>
+                        {/* Unassigned work belongs to the project, not to a milestone. */}
+                        {!overview && addTaskButton(null)}
+                      </div>
+                      <div className="pl-[14px]">
+                        <SubLine
+                          parts={[
+                            t('timeline.taskTotal', { n: projectTasks.length }),
+                            `${projectPct}%`,
+                            hoursLabel(projectTasks),
+                          ]}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="relative min-h-[40px]" style={{ width: trackW }}>
+                  <div className="relative min-h-[40px] overflow-visible" style={{ width: trackW }}>
                     {projectRange && projectGeom && (
                       <>
                       <div
@@ -1009,7 +1297,7 @@ export default function TimelineGantt({
                   <div className="gantt-row flex items-stretch" data-testid="unassigned-row">
                     <div
                       className="sticky left-0 z-10 bg-surface shrink-0 border-r border-border px-4 py-2.5 pl-6 flex items-center min-w-0"
-                      style={{ width: labelWidth, minWidth: labelWidth }}
+                      style={{ width: listW, minWidth: listW }}
                     >
                       <span className="text-[13px] font-semibold text-text-secondary">{t('timeline.unassigned')}</span>
                     </div>
@@ -1024,6 +1312,8 @@ export default function TimelineGantt({
             })}
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* Legend — one line of key, no band, no heading. */}

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useI18n } from '../lib/i18n'
+import { clampProgress } from '../lib/progress'
 
 export type RecurrenceKind = 'none' | 'daily' | 'weekly' | 'monthly'
 
@@ -31,6 +32,12 @@ export interface TaskFormData {
   projectId?: string
   /** Present only when a `milestones` list was passed; null means "no milestone". */
   milestoneId?: string | null
+  /** Percent complete, 0-100. Always sent; the field is always shown. */
+  progress?: number
+  /** Estimated hours, or null when the field is left empty. Always sent. */
+  estimateHours?: number | null
+  /** Present only when a `people` list was passed; '' means unassigned. */
+  assignee?: string
   recurrence?: RecurrenceKind
   recurrenceEnd?: string
   /** 0 = Sunday … 6 = Saturday */
@@ -54,17 +61,33 @@ interface TaskFormProps {
     projectId?: string
     /** Current milestone — pre-selects the picker when a `milestones` list is passed. */
     milestoneId?: string | null
+    progress?: number
+    /** Current assignee — pre-selects the picker when a `people` list is passed. */
+    assignee?: string
+    estimateHours?: number | null
   } | null
   /** When provided, a project selector is shown so the user can pick or change project. */
   projects?: { id: string; name: string }[]
   /** When provided, a milestone selector is shown. The Timeline page passes the
    *  selected project's milestones; Tasks and ProjectDetail do not pass it at all. */
   milestones?: { id: string; name: string }[]
+  /** When provided, the assignee becomes a picker of these plus "Unassigned".
+   *  Without it the field is not shown at all and `assignee` is never sent, so a
+   *  caller that knows nothing about people cannot blank out an existing one. */
+  people?: { value: string; label: string }[]
   onSave: (data: TaskFormData) => Promise<void>
+}
+
+/** Hours are stored as NUMERIC(6,2) and never negative; nonsense becomes null. */
+function clampEstimate(n: number): number | null {
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.round(n * 100) / 100
 }
 
 /** Radix rejects an empty SelectItem value, so "no milestone" needs a sentinel. */
 const NO_MILESTONE = '__none__'
+/** Same reason: "" is not a legal Radix item value, and unassigned is stored as "". */
+const NO_ASSIGNEE = '__unassigned__'
 
 const STATUS_OPTIONS = [
   { value: 'todo', labelKey: 'taskForm.statusTodo' },
@@ -84,6 +107,7 @@ export default function TaskForm({
   task,
   projects,
   milestones,
+  people,
   onSave,
 }: TaskFormProps) {
   const { t } = useI18n()
@@ -97,6 +121,9 @@ export default function TaskForm({
   const [dueDate, setDueDate] = useState('')
   const [projectId, setProjectId] = useState('')
   const [milestoneId, setMilestoneId] = useState<string>(NO_MILESTONE)
+  const [progress, setProgress] = useState(0)
+  const [estimateHours, setEstimateHours] = useState('')
+  const [assignee, setAssignee] = useState<string>(NO_ASSIGNEE)
   const [recurrence, setRecurrence] = useState<RecurrenceKind>('none')
   const [recurrenceEnd, setRecurrenceEnd] = useState('')
   const [recurrenceWeekday, setRecurrenceWeekday] = useState<number>(1)
@@ -113,6 +140,11 @@ export default function TaskForm({
       setDueDate(task?.dueDate ?? '')
       setProjectId(task?.projectId ?? '')
       setMilestoneId(task?.milestoneId ?? NO_MILESTONE)
+      setProgress(clampProgress(task?.progress))
+      setEstimateHours(
+        task?.estimateHours === null || task?.estimateHours === undefined ? '' : String(task.estimateHours),
+      )
+      setAssignee(task?.assignee ? task.assignee : NO_ASSIGNEE)
       setRecurrence('none')
       setRecurrenceEnd('')
       const today = new Date()
@@ -137,6 +169,11 @@ export default function TaskForm({
         // Left out entirely when no milestone list was passed, so a caller that knows
         // nothing about milestones never sends milestone_id: null over an existing link.
         ...(milestones ? { milestoneId: milestoneId === NO_MILESTONE ? null : milestoneId } : {}),
+        progress,
+        // Blank is "nobody estimated this", which is not the same as zero hours.
+        estimateHours: estimateHours.trim() === '' ? null : clampEstimate(Number(estimateHours)),
+        // Same rule as the milestone: no picker shown, nothing sent.
+        ...(people ? { assignee: assignee === NO_ASSIGNEE ? '' : assignee } : {}),
         recurrence: isEdit ? 'none' : recurrence,
         recurrenceEnd: !isEdit && recurrence !== 'none' ? (recurrenceEnd || undefined) : undefined,
         recurrenceWeekday: !isEdit && recurrence === 'weekly' ? recurrenceWeekday : undefined,
@@ -262,6 +299,78 @@ export default function TaskForm({
               </Select>
             </div>
           )}
+
+          {/* Assignee — only where the caller knows who is on the project (Timeline) */}
+          {people && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-assignee" className="text-[12px]">
+                {t('taskForm.assignee')}
+              </Label>
+              <Select value={assignee} onValueChange={setAssignee}>
+                <SelectTrigger id="task-assignee">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ASSIGNEE}>{t('taskForm.unassigned')}</SelectItem>
+                  {people.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                  {/* Text typed before there was a picker stays selectable rather
+                      than being silently reassigned by the next save. */}
+                  {task?.assignee && !people.some((p) => p.value === task.assignee) && (
+                    <SelectItem value={task.assignee}>{task.assignee}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Percent complete */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-progress" className="text-[12px]">
+              {t('taskForm.progress')}
+            </Label>
+            <div className="flex items-center gap-3">
+              <input
+                id="task-progress"
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={progress}
+                onChange={(e) => setProgress(clampProgress(Number(e.target.value)))}
+                className="flex-1 accent-accent"
+              />
+              <Input
+                aria-label={t('taskForm.progress')}
+                type="number"
+                min={0}
+                max={100}
+                step={5}
+                value={progress}
+                onChange={(e) => setProgress(clampProgress(Number(e.target.value)))}
+                className="w-20"
+              />
+            </div>
+          </div>
+
+          {/* Estimated hours — read against the hours logged on the timeline */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-estimate" className="text-[12px]">
+              {t('taskForm.estimateHours')}
+            </Label>
+            <Input
+              id="task-estimate"
+              type="number"
+              min={0}
+              step={0.25}
+              value={estimateHours}
+              onChange={(e) => setEstimateHours(e.target.value)}
+              className="w-32"
+            />
+          </div>
 
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">

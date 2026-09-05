@@ -144,6 +144,7 @@ export default function Portal() {
                       {t('portal.due', { date: formatDate(task.due_date) })}
                     </span>
                   )}
+                  <span className="text-text-muted text-[10px] tabular-nums">{task.progress}%</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
                     {t(PRIORITY_KEY[task.priority])}
                   </span>
@@ -200,6 +201,7 @@ export default function Portal() {
             start_date: tk.start_date,
             due_date: tk.due_date,
             milestone_id: tk.milestone_id,
+            progress: tk.progress,
           }))}
           // The portal shows each project with its milestones nested; it never shows
           // Overview's task-free diamonds.
@@ -214,7 +216,9 @@ export default function Portal() {
           }))}
           zoom="month"
           editable={false}
-          labelWidth={150}
+          // Names and percentages only. A client reads the plan; who is on it and
+          // what it costs are not theirs to see, and the portal rows carry neither.
+          labelWidth={260}
         />
       )}
 

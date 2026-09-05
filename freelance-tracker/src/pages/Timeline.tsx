@@ -4,12 +4,17 @@ import { Loader2, AlertCircle, X, Printer } from 'lucide-react'
 import { useProjects } from '../hooks/useProjects'
 import { useTasks } from '../hooks/useTasks'
 import { useMilestones } from '../hooks/useMilestones'
+import { useProjectMembers } from '../hooks/useProjectMembers'
+import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useRole } from '../hooks/useWorkspaceRole'
 import WorkTabs from '../components/WorkTabs'
-import TimelineGantt from '../components/TimelineGantt'
+import TimelineGantt, { type CreateTaskInput, type TaskFields } from '../components/TimelineGantt'
+import TaskPopover, { type AnchorRect } from '../components/TaskPopover'
 import TaskForm, { type TaskFormData } from '../components/TaskForm'
 import MilestoneForm, { type MilestoneFormData, type MilestoneFormMilestone } from '../components/MilestoneForm'
 import { milestoneRange, sortMilestones } from '../lib/milestones'
+import { assigneeLabel, meanProgress } from '../lib/progress'
+import { userStorage } from '../lib/userStorage'
 import { computeContentRange, parseDate, todayISO, type Zoom } from '../lib/timelineMath'
 import { OVERVIEW, resolveSelection } from '../lib/timelineSelection'
 import { useI18n } from '../lib/i18n'
@@ -41,6 +46,9 @@ type DialogTask = {
   projectId?: string
   /** Pre-selects the milestone picker when the project has milestones. */
   milestoneId?: string | null
+  progress?: number
+  assignee?: string
+  estimateHours?: number | null
 }
 
 /** Week is the default: a month of one-day tasks is a row of slivers nobody can grab. */
@@ -105,6 +113,19 @@ function writeExpanded(projectId: string, ids: ReadonlySet<string>) {
   }
 }
 
+/** The owner's own name, from the profile Settings writes. Falls back to "Me". */
+function readOwnerName(): string {
+  try {
+    const raw = userStorage.get('freelancer_profile')
+    if (!raw) return ''
+    const parsed: unknown = JSON.parse(raw)
+    const name = (parsed as { name?: unknown } | null)?.name
+    return typeof name === 'string' ? name : ''
+  } catch {
+    return ''
+  }
+}
+
 /**
  * Min/max of the dates actually on screen. The header states the plan's own span,
  * so it uses the raw bounds, not the padded track computeContentRange draws.
@@ -125,7 +146,15 @@ export default function Timeline() {
   const role = useRole()
   const [searchParams, setSearchParams] = useSearchParams()
   const { projects, loading: projectsLoading, error: projectsError, updateProject } = useProjects()
-  const { tasks, loading: tasksLoading, error: tasksError, updateTask, refetch: refetchTasks } = useTasks()
+  const {
+    tasks,
+    loading: tasksLoading,
+    error: tasksError,
+    createTask,
+    updateTask,
+    deleteTask,
+    refetch: refetchTasks,
+  } = useTasks()
 
   const [ready, setReady] = useState(false)
 
@@ -235,6 +264,12 @@ export default function Timeline() {
   }, [refetchTasks, refetchMilestones])
 
   const [dialogTask, setDialogTask] = useState<DialogTask | null>(null)
+  /**
+   * The floating editor for one bar. `rect` is where that bar was when it was
+   * clicked; `focusTitle` is set for a task that was just created, whose
+   * placeholder title is the first thing to replace.
+   */
+  const [popover, setPopover] = useState<{ id: string; rect: AnchorRect; focusTitle: boolean } | null>(null)
   /** Open when non-null; `milestone: null` is the create case, a value is the edit case. */
   const [milestoneDialog, setMilestoneDialog] = useState<{ milestone: MilestoneFormMilestone | null } | null>(null)
 
@@ -268,6 +303,37 @@ export default function Timeline() {
     () => projectMilestones.map((m) => ({ id: m.id, name: m.name })),
     [projectMilestones],
   )
+  // Who a task can be given to: the owner plus whoever they invited to this
+  // project. A collaborator sees the same shape — RLS lets them read only their
+  // own membership row, so their list is the owner and themselves, which is
+  // exactly the pair they need.
+  const { members } = useProjectMembers(selectedProject?.id)
+  const ownerName = readOwnerName()
+  const people = useMemo(() => {
+    const emails = members.map((m) => m.email)
+    return [
+      { value: 'me', label: assigneeLabel('me', ownerName, emails) },
+      ...emails.map((email) => ({ value: email, label: assigneeLabel(email, ownerName, emails) })),
+    ]
+  }, [members, ownerName])
+  // Hours actually booked against each task, to read the estimates against. The
+  // hook scopes by project; Overview has no task rows, so nothing reads this there.
+  const { entries: timeEntries } = useTimeEntries(isOverview ? undefined : selection)
+  const hoursByTask = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const entry of timeEntries) {
+      if (!entry.task_id) continue
+      const hours = Number(entry.hours)
+      if (!Number.isFinite(hours)) continue
+      out[entry.task_id] = (out[entry.task_id] ?? 0) + hours
+    }
+    return out
+  }, [timeEntries])
+  /** The task the popover is editing, read live so a save is reflected in it. */
+  const popoverTask = useMemo(
+    () => (popover ? (tasks.find((tk) => tk.id === popover.id) ?? null) : null),
+    [popover, tasks],
+  )
   // The switcher lists active work first; everything else is still one scroll away.
   const activeProjects = useMemo(
     () => projects.filter((p) => p.status === 'active').sort((a, b) => a.name.localeCompare(b.name)),
@@ -286,6 +352,9 @@ export default function Timeline() {
     // useTasks throws 'no-access' when RLS returns zero rows for an update —
     // the caller lost access to the project mid-session.
     if (err instanceof Error && err.message === 'no-access') return t('timeline.accessLost')
+    // useTasks maps Postgres 42703 on a progress write to this: the column is not
+    // there yet, and naming the file is the only useful thing to say.
+    if (err instanceof Error && err.message === 'migration-pending') return t('timeline.migrationPending')
     return t('timeline.saveFailed', { error: err instanceof Error ? err.message : String(err) })
   }
 
@@ -296,6 +365,84 @@ export default function Timeline() {
       setError(failMessage(err))
       throw err
     }
+  }
+
+  /**
+   * Field-at-a-time edits from the bar popover. Same banner-and-rethrow contract
+   * as every other write on this page; the popover also shows the raw message
+   * inline, where the user is looking.
+   *
+   * Marking a task done finishes its bar too — the popover owns the other half
+   * of that rule (100% finishes the task), and neither half is worth much alone.
+   */
+  async function saveTaskFields(id: string, fields: TaskFields) {
+    const payload =
+      fields.status === 'done' && fields.progress === undefined ? { ...fields, progress: 100 } : fields
+    try {
+      await updateTask(id, payload)
+    } catch (err) {
+      setError(failMessage(err))
+      throw err
+    }
+  }
+
+  async function removeTask(id: string) {
+    try {
+      await deleteTask(id)
+    } catch (err) {
+      setError(failMessage(err))
+      throw err
+    }
+  }
+
+  /**
+   * A "+" on a milestone or project row, or a click on empty track. The task is
+   * created immediately — an empty popover with nothing behind it would be a
+   * form, and this is meant to be a click — then opened with its placeholder
+   * title selected so the first keystroke names it.
+   */
+  async function addTask(input: CreateTaskInput, anchorRect: AnchorRect) {
+    if (isOverview || !selectedProject) return
+    try {
+      const created = await createTask({
+        project_id: selectedProject.id,
+        title: t('timeline.newTask'),
+        description: null,
+        status: 'todo',
+        priority: 'medium',
+        assignee: '',
+        milestone_id: input.milestone_id,
+        start_date: input.start_date,
+        // A task planted on a day is one day long; one made from a "+" has no
+        // dates at all and lands in the row's "Not scheduled" tray.
+        due_date: input.start_date,
+        meeting_note_id: null,
+      })
+      setPopover({ id: created.id, rect: anchorRect, focusTitle: true })
+    } catch (err) {
+      setError(failMessage(err))
+    }
+  }
+
+  /** Hand the popover's task over to the full dialog, and close the popover. */
+  function openFullEditor(id: string) {
+    const tk = tasks.find((x) => x.id === id)
+    if (!tk) return
+    setPopover(null)
+    setDialogTask({
+      id: tk.id,
+      title: tk.title,
+      description: tk.description ?? undefined,
+      status: tk.status,
+      priority: tk.priority,
+      startDate: tk.start_date ?? undefined,
+      dueDate: tk.due_date ?? undefined,
+      projectId: tk.project_id,
+      milestoneId: tk.milestone_id,
+      progress: tk.progress,
+      assignee: tk.assignee,
+      estimateHours: tk.estimate_hours,
+    })
   }
 
   async function saveProjectDates(id: string, dates: { start_date: string; end_date: string }) {
@@ -405,7 +552,10 @@ export default function Timeline() {
     : `${bounds ? `${longDate(bounds.min)} – ${longDate(bounds.max)}` : t('timeline.noDatesYet')} · ${t('timeline.taskCounts', {
         n: projectTasks.length,
         m: projectTasks.filter((tk) => tk.status !== 'done').length,
-      })}${projectMilestones.length > 0 ? ` · ${t('timeline.milestoneCounts', { n: projectMilestones.length })}` : ''}`
+      })}${projectMilestones.length > 0 ? ` · ${t('timeline.milestoneCounts', { n: projectMilestones.length })}` : ''} · ${t(
+        'timeline.percentComplete',
+        { n: meanProgress(projectTasks) },
+      )}`
 
   return (
     <div className="p-6 flex flex-col gap-5">
@@ -557,23 +707,29 @@ export default function Timeline() {
             onMilestoneDates={saveMilestoneDates}
             onMilestoneClick={openMilestone}
             onScheduleTask={saveTaskDates}
-            onTaskClick={(id) => {
-              const tk = tasks.find((x) => x.id === id)
-              if (!tk) return
-              setDialogTask({
-                id: tk.id,
-                title: tk.title,
-                description: tk.description ?? undefined,
-                status: tk.status,
-                priority: tk.priority,
-                startDate: tk.start_date ?? undefined,
-                dueDate: tk.due_date ?? undefined,
-                projectId: tk.project_id,
-                milestoneId: tk.milestone_id,
-              })
-            }}
+            people={people}
+            hoursByTask={hoursByTask}
+            onCreateTask={addTask}
+            // The bar is the control: clicking one floats its editor against it
+            // rather than covering the plan with a modal.
+            onTaskClick={(id, rect) => setPopover({ id, rect, focusTitle: false })}
           />
         </div>
+      )}
+
+      {popover && popoverTask && (
+        <TaskPopover
+          task={popoverTask}
+          anchorRect={popover.rect}
+          people={people}
+          milestones={milestonePicker}
+          loggedHours={hoursByTask[popoverTask.id] ?? 0}
+          focusTitle={popover.focusTitle}
+          onSave={saveTaskFields}
+          onDelete={removeTask}
+          onOpenFull={openFullEditor}
+          onClose={() => setPopover(null)}
+        />
       )}
 
       <TaskForm
@@ -585,6 +741,7 @@ export default function Timeline() {
         // Only where there is something to pick: a project with no milestones gets the
         // dialog it has always had.
         milestones={milestonePicker.length > 0 ? milestonePicker : undefined}
+        people={people}
         onSave={async (data: TaskFormData) => {
           if (!dialogTask) return
           try {
@@ -597,6 +754,9 @@ export default function Timeline() {
               due_date: data.dueDate ?? null,
               // Absent when no picker was shown — never null out a link the user never saw.
               ...(data.milestoneId !== undefined ? { milestone_id: data.milestoneId } : {}),
+              ...(data.progress !== undefined ? { progress: data.progress } : {}),
+              ...(data.assignee !== undefined ? { assignee: data.assignee } : {}),
+              estimate_hours: data.estimateHours ?? null,
             })
           } catch (err) {
             setError(failMessage(err))

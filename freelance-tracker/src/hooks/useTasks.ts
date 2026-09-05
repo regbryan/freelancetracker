@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { clampProgress } from '../lib/progress';
 
 export interface Task {
   id: string;
@@ -13,15 +14,43 @@ export interface Task {
   meeting_note_id: string | null;
   milestone_id: string | null;
   assignee: string;
+  /** Percent complete, 0–100. 0 for every row until the progress migration runs. */
+  progress: number;
+  /** Estimated hours, or null when nobody has estimated it (and pre-migration). */
+  estimate_hours: number | null;
   created_at: string;
   updated_at: string;
 }
 
-export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'start_date' | 'milestone_id'> & {
+export type TaskInsert = Omit<
+  Task,
+  'id' | 'created_at' | 'updated_at' | 'start_date' | 'milestone_id' | 'progress' | 'estimate_hours'
+> & {
   start_date?: string | null;
   milestone_id?: string | null;
+  progress?: number;
+  estimate_hours?: number | null;
 };
 export type TaskUpdate = Partial<TaskInsert>;
+
+/** Postgres "column does not exist": the progress migration has not been applied. */
+const UNDEFINED_COLUMN = '42703';
+/** The columns that migration adds; an update touching one can fail with 42703. */
+const MIGRATION_COLUMNS = ['progress', 'estimate_hours'] as const;
+
+/**
+ * Rows arriving from a database without the progress migration have neither
+ * key at all. Normalising here means nothing downstream has to think about it:
+ * a missing percentage is 0, a missing estimate is null (never 0 — "nobody
+ * estimated this" and "estimated at nothing" are different facts).
+ */
+function normalizeTask(row: Task): Task {
+  return {
+    ...row,
+    progress: clampProgress(row.progress),
+    estimate_hours: row.estimate_hours ?? null,
+  };
+}
 
 export function useTasks(projectId?: string, meetingNoteId?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -49,7 +78,7 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      setTasks(data ?? []);
+      setTasks((data ?? []).map(normalizeTask));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to fetch tasks';
       setError(message);
@@ -74,7 +103,7 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
 
     if (insertError) throw insertError;
     await fetchTasks();
-    return data;
+    return normalizeTask(data);
   }, [fetchTasks]);
 
   const createTasks = useCallback(async (taskList: TaskInsert[]): Promise<Task[]> => {
@@ -89,7 +118,7 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
 
     if (insertError) throw insertError;
     await fetchTasks();
-    return data ?? [];
+    return (data ?? []).map(normalizeTask);
   }, [fetchTasks]);
 
   const updateTask = useCallback(async (id: string, updates: TaskUpdate): Promise<Task> => {
@@ -103,10 +132,19 @@ export function useTasks(projectId?: string, meetingNoteId?: string) {
       .select()
       .maybeSingle();
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      // The one failure the caller can actually act on: a column the progress
+      // migration adds is not there yet, so the page can name the file to apply.
+      const code = (updateError as { code?: string }).code;
+      if (code === UNDEFINED_COLUMN && MIGRATION_COLUMNS.some((c) => c in updates)) {
+        throw new Error('migration-pending');
+      }
+      throw updateError;
+    }
     if (!data) throw new Error('no-access');
-    setTasks(prev => prev.map(t => t.id === id ? (data as Task) : t));
-    return data;
+    const row = normalizeTask(data as Task);
+    setTasks(prev => prev.map(t => t.id === id ? row : t));
+    return row;
   }, []);
 
   const deleteTask = useCallback(async (id: string): Promise<void> => {

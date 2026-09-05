@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, act, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { I18nProvider } from '../lib/i18n'
@@ -15,11 +15,15 @@ const hooks = vi.hoisted(() => ({
   projects: [] as unknown[],
   tasks: [] as unknown[],
   milestones: [] as Array<{ id: string; project_id: string }>,
+  members: [] as Array<{ id: string; project_id: string; email: string; role: 'editor'; created_at: string }>,
+  timeEntries: [] as unknown[],
   projectsLoading: false,
   tasksLoading: false,
   projectsError: null as string | null,
   tasksError: null as string | null,
+  createTask: vi.fn(),
   updateTask: vi.fn(),
+  deleteTask: vi.fn(),
   updateProject: vi.fn(),
   createMilestone: vi.fn(),
   updateMilestone: vi.fn(),
@@ -43,8 +47,22 @@ vi.mock('../hooks/useTasks', () => ({
     tasks: hooks.tasks,
     loading: hooks.tasksLoading,
     error: hooks.tasksError,
+    createTask: hooks.createTask,
     updateTask: hooks.updateTask,
+    deleteTask: hooks.deleteTask,
     refetch: hooks.refetch,
+  }),
+}))
+
+vi.mock('../hooks/useTimeEntries', () => ({
+  useTimeEntries: () => ({
+    entries: hooks.timeEntries,
+    loading: false,
+    error: null,
+    createEntry: vi.fn(),
+    updateEntry: vi.fn(),
+    deleteEntry: vi.fn(),
+    refetch: vi.fn(),
   }),
 }))
 
@@ -63,6 +81,17 @@ vi.mock('../hooks/useMilestones', () => ({
 
 vi.mock('../hooks/useWorkspaceRole', () => ({
   useRole: () => 'owner',
+}))
+
+vi.mock('../hooks/useProjectMembers', () => ({
+  useProjectMembers: () => ({
+    members: hooks.members,
+    loading: false,
+    error: null,
+    addMember: vi.fn(),
+    removeMember: vi.fn(),
+    refetch: vi.fn(),
+  }),
 }))
 
 import Timeline from './Timeline'
@@ -100,6 +129,8 @@ function makeTask(over: Partial<Task> = {}): Task {
     meeting_note_id: null,
     milestone_id: null,
     assignee: 'owner',
+    progress: 0,
+    estimate_hours: null,
     created_at: '2026-08-01T00:00:00Z',
     updated_at: '2026-08-01T00:00:00Z',
     ...over,
@@ -149,11 +180,18 @@ function renderPage(entries?: string[]) {
   return { ...view, update: () => view.rerender(ui(entries)) }
 }
 
-/** The Gantt resolves pointer clicks itself; detail: 0 takes its keyboard-activation path. */
+/**
+ * The Gantt resolves pointer clicks itself; detail: 0 takes its keyboard-activation
+ * path. Since revision (d) a bar opens the floating panel, and the full dialog is
+ * one step further in.
+ */
 function openDialogFor(title: string) {
   const bar = screen.getByRole('button', { name: new RegExp(`^${title}:`) })
   act(() => {
     bar.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }))
+  })
+  act(() => {
+    screen.getByRole('button', { name: 'Open full editor' }).click()
   })
 }
 
@@ -161,6 +199,8 @@ beforeEach(() => {
   hooks.projects = [makeProject()]
   hooks.tasks = [makeTask()]
   hooks.milestones = []
+  hooks.members = []
+  hooks.timeEntries = []
   hooks.createMilestone = vi.fn().mockResolvedValue(makeMilestone())
   hooks.updateMilestone = vi.fn().mockResolvedValue(makeMilestone())
   hooks.deleteMilestone = vi.fn().mockResolvedValue(undefined)
@@ -169,7 +209,9 @@ beforeEach(() => {
   hooks.tasksLoading = false
   hooks.projectsError = null
   hooks.tasksError = null
+  hooks.createTask = vi.fn()
   hooks.updateTask = vi.fn().mockResolvedValue(undefined)
+  hooks.deleteTask = vi.fn().mockResolvedValue(undefined)
   hooks.updateProject = vi.fn().mockResolvedValue(undefined)
   hooks.refetch = vi.fn()
   localStorage.clear()
@@ -406,6 +448,204 @@ describe('Timeline page', () => {
   })
 })
 
+describe('Timeline bar popover, hours and task creation', () => {
+  function member(email: string) {
+    return { id: `mem-${email}`, project_id: 'p1', email, role: 'editor' as const, created_at: '2026-08-01T00:00:00Z' }
+  }
+
+  /** Click a task bar. The Gantt resolves pointer clicks itself, so this is a real one. */
+  function openPopover(title = 'Brand audit') {
+    const bar = screen.getByRole('button', { name: new RegExp(`^${title}:`) })
+    fireEvent.pointerDown(bar, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(bar, { clientX: 100, pointerId: 1 })
+    return screen.getByRole('dialog', { name: title })
+  }
+
+  it('clicking a bar floats the editor against it instead of opening a modal', () => {
+    renderPage()
+
+    const panel = openPopover()
+    expect(panel).toBeInTheDocument()
+    expect(within(panel).getByLabelText('Title')).toHaveValue('Brand audit')
+    // The full dialog is still shut: this is a panel, not the old modal.
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument()
+  })
+
+  it('the assignee picker offers the owner and every collaborator on the project', () => {
+    hooks.members = [member('courtney@example.com')]
+    renderPage()
+
+    const options = Array.from(within(openPopover()).getByLabelText('Assignee').querySelectorAll('option'))
+    // No profile name is stored in this browser, so the owner reads as "Me"; a
+    // member's email reads as its capitalised local part.
+    expect(options.map((o) => o.textContent)).toEqual(['Unassigned', 'Me', 'Courtney', 'owner'])
+    expect(options.map((o) => o.getAttribute('value'))).toEqual(['', 'me', 'courtney@example.com', 'owner'])
+  })
+
+  it('an edit in the popover goes through updateTask', async () => {
+    renderPage()
+
+    fireEvent.change(within(openPopover()).getByLabelText('Progress'), { target: { value: '80' } })
+
+    await waitFor(() =>
+      expect(hooks.updateTask).toHaveBeenCalledWith('t1', { progress: 80, status: 'in_progress' }),
+    )
+  })
+
+  it('marking a task done fills its bar too', async () => {
+    renderPage()
+
+    fireEvent.change(within(openPopover()).getByLabelText('Status'), { target: { value: 'done' } })
+
+    await waitFor(() => expect(hooks.updateTask).toHaveBeenCalledWith('t1', { status: 'done', progress: 100 }))
+  })
+
+  it('an estimate typed into the popover is saved on blur', async () => {
+    renderPage()
+
+    const input = within(openPopover()).getByLabelText('Estimated hours')
+    fireEvent.change(input, { target: { value: '6.5' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => expect(hooks.updateTask).toHaveBeenCalledWith('t1', { estimate_hours: 6.5 }))
+  })
+
+  it('a rejected edit shows the page banner as well as the inline line', async () => {
+    hooks.updateTask = vi.fn().mockRejectedValue(new Error('RLS denied'))
+    renderPage()
+
+    fireEvent.change(within(openPopover()).getByLabelText('Progress'), { target: { value: '80' } })
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert').some((el) => el.textContent?.includes('RLS denied'))).toBe(true)
+    })
+  })
+
+  it('a missing progress column is named, not shown as a raw Postgres error', async () => {
+    hooks.updateTask = vi.fn().mockRejectedValue(new Error('migration-pending'))
+    renderPage()
+
+    fireEvent.change(within(openPopover()).getByLabelText('Progress'), { target: { value: '80' } })
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('alert').some((el) => el.textContent?.includes('supabase_migration_task_progress.sql')),
+      ).toBe(true)
+    })
+  })
+
+  it('the hours logged against the task are summed from the time entries', () => {
+    hooks.timeEntries = [
+      { id: 'e1', project_id: 'p1', task_id: 't1', hours: 3, date: '2026-09-10', billable: true, description: null, invoice_id: null, created_at: '2026-09-10T00:00:00Z' },
+      { id: 'e2', project_id: 'p1', task_id: 't1', hours: 2.5, date: '2026-09-11', billable: true, description: null, invoice_id: null, created_at: '2026-09-11T00:00:00Z' },
+      // Another task's time, and time logged against no task at all.
+      { id: 'e3', project_id: 'p1', task_id: 't2', hours: 9, date: '2026-09-11', billable: true, description: null, invoice_id: null, created_at: '2026-09-11T00:00:00Z' },
+      { id: 'e4', project_id: 'p1', task_id: null, hours: 4, date: '2026-09-11', billable: true, description: null, invoice_id: null, created_at: '2026-09-11T00:00:00Z' },
+    ]
+    hooks.tasks = [makeTask({ estimate_hours: 8 })]
+    renderPage()
+
+    // On the row, against the estimate...
+    const row = screen.getByRole('button', { name: /^Brand audit:/ }).closest('.gantt-row') as HTMLElement
+    expect(within(row).getByTestId('sub-line')).toBeInTheDocument()
+    // ...and in the popover, read-only.
+    expect(within(openPopover()).getByLabelText('Logged hours')).toHaveTextContent('5.5')
+  })
+
+  it('Delete removes the task and closes the popover', async () => {
+    const confirm = vi.fn().mockReturnValue(true)
+    vi.stubGlobal('confirm', confirm)
+    try {
+      renderPage()
+      fireEvent.click(within(openPopover()).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(hooks.deleteTask).toHaveBeenCalledWith('t1'))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Brand audit' })).not.toBeInTheDocument())
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('+ creates a task on the project and opens it with the title focused', async () => {
+    hooks.createTask = vi.fn().mockImplementation(async (input: { milestone_id: string | null }) => {
+      const created = makeTask({
+        id: 'new1',
+        title: 'New task',
+        status: 'todo',
+        start_date: null,
+        due_date: null,
+        milestone_id: input.milestone_id,
+      })
+      hooks.tasks = [...hooks.tasks, created]
+      return created
+    })
+    renderPage()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add task' })[0])
+
+    await waitFor(() =>
+      expect(hooks.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          project_id: 'p1',
+          title: 'New task',
+          status: 'todo',
+          priority: 'medium',
+          assignee: '',
+          milestone_id: null,
+          start_date: null,
+          due_date: null,
+          meeting_note_id: null,
+        }),
+      ),
+    )
+    const panel = await screen.findByRole('dialog', { name: 'New task' })
+    await waitFor(() => expect(within(panel).getByLabelText('Title')).toHaveFocus())
+  })
+
+  it('+ on a milestone row creates the task under that milestone', async () => {
+    hooks.milestones = [makeMilestone()]
+    hooks.createTask = vi.fn().mockImplementation(async (input: { milestone_id: string | null }) => {
+      const created = makeTask({ id: 'new2', title: 'New task', status: 'todo', start_date: null, due_date: null, milestone_id: input.milestone_id })
+      hooks.tasks = [...hooks.tasks, created]
+      return created
+    })
+    renderPage()
+
+    const milestoneRow = document.querySelector('[data-milestone-id="m1"]') as HTMLElement
+    fireEvent.click(within(milestoneRow).getByRole('button', { name: 'Add task' }))
+
+    await waitFor(() =>
+      expect(hooks.createTask).toHaveBeenCalledWith(expect.objectContaining({ milestone_id: 'm1' })),
+    )
+  })
+
+  it('Open full editor hands the task over to the dialog', async () => {
+    renderPage()
+
+    fireEvent.click(within(openPopover()).getByRole('button', { name: 'Open full editor' }))
+
+    expect(await screen.findByRole('button', { name: 'Save Changes' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Brand audit' })).not.toBeInTheDocument()
+  })
+
+  it('the header states the project percentage alongside the counts', () => {
+    hooks.tasks = [makeTask({ progress: 100, status: 'done' }), makeTask({ id: 't2', title: 'Sitemap', progress: 0 })]
+    renderPage()
+
+    expect(screen.getByText(/2 tasks · 1 open · 50% complete/)).toBeInTheDocument()
+  })
+
+  it('the six-column list and its remembered split are gone', () => {
+    renderPage()
+
+    expect(screen.queryByTestId('list-resize')).toBeNull()
+    expect(localStorage.getItem('timeline.listWidth')).toBeNull()
+    const cell = (screen.getByRole('button', { name: /^Brand audit:/ }).closest('.gantt-row') as HTMLElement)
+      .firstElementChild as HTMLElement
+    expect(cell).toHaveStyle({ width: '320px' })
+  })
+})
+
 describe('Timeline milestones', () => {
   /** The Gantt resolves pointer clicks itself; detail: 0 is the keyboard path. */
   function activate(name: RegExp) {
@@ -530,7 +770,7 @@ describe('Timeline milestones', () => {
     localStorage.setItem('timeline.expanded.p1', '["m1"]')
     renderPage()
 
-    activate(/^Brand audit:/)
+    openDialogFor('Brand audit')
     await screen.findByLabelText(/^Title/)
 
     // The picker is pre-set to the task's current milestone.
@@ -547,7 +787,7 @@ describe('Timeline milestones', () => {
   it('a project with no milestones gets the task dialog it always had', async () => {
     renderPage()
 
-    activate(/^Brand audit:/)
+    openDialogFor('Brand audit')
     await screen.findByLabelText(/^Title/)
 
     expect(screen.queryByRole('combobox', { name: 'Milestone' })).not.toBeInTheDocument()

@@ -26,6 +26,8 @@ export interface PortalTask {
   due_date: string | null
   updated_at: string | null
   milestone_id: string | null
+  /** Percent complete, 0–100. 0 for every row until the progress migration runs. */
+  progress: number
 }
 
 export interface PortalMilestone {

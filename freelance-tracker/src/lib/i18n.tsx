@@ -501,6 +501,21 @@ const en: Dict = {
   'timeline.accessLost': 'You no longer have access to this project. Refresh to update your view.',
   'timeline.dragHint': 'Drag a bar to move it · drag an edge to change its length · click to edit',
   'timeline.readOnlyHint': 'View only · scroll sideways to see more',
+  'timeline.assigneeNone': 'Unassigned',
+  'timeline.taskTotal': '{n} tasks',
+  'timeline.percentComplete': '{n}% complete',
+  'timeline.progress': 'Progress',
+  'timeline.progressPercent': 'Percent complete',
+  'timeline.addTask': 'Add task',
+  'timeline.newTask': 'New task',
+  'timeline.deleteTask': 'Delete',
+  'timeline.deleteTaskConfirm': 'Delete "{title}"? This cannot be undone.',
+  'timeline.openFullEditor': 'Open full editor',
+  'timeline.estimateHours': 'Estimated hours',
+  'timeline.loggedHours': 'Logged hours',
+  'timeline.hoursOf': '{logged}/{estimate} h',
+  'timeline.migrationPending':
+    'The database is missing the progress column. Ask Reggie to apply supabase_migration_task_progress.sql.',
 
   // Time Tracker
   'timeTracker.tracking': 'Tracking',
@@ -1426,6 +1441,10 @@ const en: Dict = {
   'taskForm.create': 'Create Task',
   'taskForm.milestone': 'Milestone',
   'taskForm.noMilestone': 'No milestone',
+  'taskForm.progress': 'Progress',
+  'taskForm.assignee': 'Assignee',
+  'taskForm.unassigned': 'Unassigned',
+  'taskForm.estimateHours': 'Estimated hours',
 
   // Milestone form
   'milestoneForm.newTitle': 'New milestone',
@@ -2021,6 +2040,21 @@ const es: Dict = {
   'timeline.accessLost': 'Ya no tienes acceso a este proyecto. Actualiza la página para ver los cambios.',
   'timeline.dragHint': 'Arrastra una barra para moverla · arrastra un borde para cambiar su duración · haz clic para editar',
   'timeline.readOnlyHint': 'Solo lectura · desplázate hacia los lados para ver más',
+  'timeline.assigneeNone': 'Sin asignar',
+  'timeline.taskTotal': '{n} tareas',
+  'timeline.percentComplete': '{n}% completado',
+  'timeline.progress': 'Progreso',
+  'timeline.progressPercent': 'Porcentaje completado',
+  'timeline.addTask': 'Añadir tarea',
+  'timeline.newTask': 'Nueva tarea',
+  'timeline.deleteTask': 'Eliminar',
+  'timeline.deleteTaskConfirm': '¿Eliminar «{title}»? Esta acción no se puede deshacer.',
+  'timeline.openFullEditor': 'Abrir el editor completo',
+  'timeline.estimateHours': 'Horas estimadas',
+  'timeline.loggedHours': 'Horas registradas',
+  'timeline.hoursOf': '{logged}/{estimate} h',
+  'timeline.migrationPending':
+    'A la base de datos le falta la columna progress. Pídele a Reggie que aplique supabase_migration_task_progress.sql.',
 
   // Time Tracker
   'timeTracker.tracking': 'Seguimiento',
@@ -2946,6 +2980,10 @@ const es: Dict = {
   'taskForm.create': 'Crear Tarea',
   'taskForm.milestone': 'Hito',
   'taskForm.noMilestone': 'Sin hito',
+  'taskForm.progress': 'Progreso',
+  'taskForm.assignee': 'Responsable',
+  'taskForm.unassigned': 'Sin asignar',
+  'taskForm.estimateHours': 'Horas estimadas',
 
   // Milestone form
   'milestoneForm.newTitle': 'Nuevo hito',

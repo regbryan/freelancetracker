@@ -1,9 +1,9 @@
 import type { ComponentProps } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within, fireEvent } from '@testing-library/react'
+import { render, screen, within, fireEvent, cleanup } from '@testing-library/react'
 import { I18nProvider } from '../lib/i18n'
 import TimelineGantt, { type GanttProject, type GanttTask, type GanttMilestone } from './TimelineGantt'
-import { PX_PER_DAY, computeContentRange, diffDays } from '../lib/timelineMath'
+import { PX_PER_DAY, addDays, computeContentRange, diffDays } from '../lib/timelineMath'
 
 const TODAY = '2026-09-01'
 
@@ -156,6 +156,236 @@ describe('TimelineGantt render', () => {
   })
 })
 
+describe('TimelineGantt label column and bar labels', () => {
+  const people = [
+    { value: 'me', label: 'Reggie Bryant' },
+    { value: 'courtney@example.com', label: 'Courtney' },
+  ]
+
+  const listTasks: GanttTask[] = [
+    {
+      id: 'l1',
+      project_id: 'p1',
+      title: 'Brand audit',
+      status: 'in_progress',
+      start_date: '2026-09-10',
+      due_date: '2026-09-12',
+      progress: 60,
+      assignee: 'me',
+      description: 'Read the last two decks',
+      priority: 'high',
+      estimate_hours: 8,
+    },
+    {
+      id: 'l2',
+      project_id: 'p1',
+      title: 'Launch plan',
+      status: 'todo',
+      start_date: '2026-09-14',
+      due_date: '2026-09-16',
+      progress: 0,
+      assignee: '',
+    },
+  ]
+
+  function setupList(over: Props = {}) {
+    const onTaskClick = vi.fn()
+    render(
+      <I18nProvider>
+        <TimelineGantt
+          projects={[projects[0]]}
+          tasks={listTasks}
+          zoom="month"
+          editable={true}
+          today={TODAY}
+          people={people}
+          hoursByTask={{ l1: 5 }}
+          onTaskDates={vi.fn().mockResolvedValue(undefined)}
+          onTaskClick={onTaskClick}
+          {...over}
+        />
+      </I18nProvider>,
+    )
+    return { onTaskClick }
+  }
+
+  /** The list row a task's bar belongs to. */
+  const rowOf = (title: string) =>
+    screen.getByRole('button', { name: new RegExp(`^${title}:`) }).closest('.gantt-row') as HTMLElement
+
+  it('the label column is a name and two facts, not a spreadsheet', () => {
+    setupList()
+    // Revision (d) dropped the six columns; none of their headings survive.
+    for (const gone of ['#', 'Task', 'Assignee', 'Start', 'End']) {
+      expect(screen.queryByText(gone)).toBeNull()
+    }
+    // 320px by default, narrow enough that the chart is the page.
+    const cell = rowOf('Brand audit').firstElementChild as HTMLElement
+    expect(cell).toHaveStyle({ width: '320px' })
+  })
+
+  it('a task row prints its percentage and the assignee initials under the name', () => {
+    setupList()
+    expect(within(rowOf('Brand audit')).getByTestId('sub-line')).toHaveTextContent('60% · RB')
+    // Nobody on it: no initials, and no stray separator where they would be.
+    expect(within(rowOf('Launch plan')).getByTestId('sub-line').textContent).toBe('0%')
+  })
+
+  it('the label beside the bar is the name plus an initials circle titled with the full name', () => {
+    setupList()
+    const bar = screen.getByRole('button', { name: /^Brand audit:/ })
+    const label = within(rowOf('Brand audit')).getByTestId('bar-label')
+    expect(within(label).getByText('Brand audit')).toBeInTheDocument()
+    const chip = within(label).getByTestId('assignee-initials')
+    expect(chip).toHaveTextContent('RB')
+    expect(chip).toHaveAttribute('title', 'Reggie Bryant')
+    // Just past the bar's right edge, so a narrow bar never truncates its own name.
+    const left = parseFloat(bar.style.left)
+    const width = parseFloat(bar.style.width)
+    expect(label).toHaveStyle({ left: `${left + width + 8}px` })
+    // Nothing inside the bar but the fill.
+    expect(bar.textContent).toBe('')
+    expect(within(bar).getByTestId('task-fill')).toHaveStyle({ width: '60%' })
+  })
+
+  it('an unassigned task gets no initials circle', () => {
+    setupList()
+    expect(within(rowOf('Launch plan')).queryByTestId('assignee-initials')).toBeNull()
+  })
+
+  it('the project row rolls up the count, the percentage and the hours', () => {
+    setupList()
+    const projectRow = screen.getByTitle(/^ProSeries Marketing:/).closest('.gantt-row') as HTMLElement
+    const sub = within(projectRow).getByTestId('sub-line')
+    expect(sub).toHaveTextContent('2 tasks')
+    expect(sub).toHaveTextContent('30%')
+    // 5 logged against an 8-hour estimate; the untouched task has no estimate.
+    expect(sub).toHaveTextContent('5/8 h')
+  })
+
+  it('a row with no estimate anywhere says nothing about hours', () => {
+    setupList({ tasks: listTasks.map((tk) => ({ ...tk, estimate_hours: null })) })
+    const projectRow = screen.getByTitle(/^ProSeries Marketing:/).closest('.gantt-row') as HTMLElement
+    expect(within(projectRow).getByTestId('sub-line').textContent).not.toContain('h')
+  })
+
+  it('clicking a bar hands the caller the bar and its rect', () => {
+    const { onTaskClick } = setupList()
+    const bar = screen.getByRole('button', { name: /^Brand audit:/ })
+    fireEvent.pointerDown(bar, { clientX: 100, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(bar, { clientX: 101, pointerId: 1 })
+    expect(onTaskClick).toHaveBeenCalledTimes(1)
+    const [id, rect] = onTaskClick.mock.calls[0]
+    expect(id).toBe('l1')
+    expect(rect).toEqual(expect.objectContaining({ left: expect.any(Number), top: expect.any(Number) }))
+  })
+
+  it('there is no split handle to drag any more', () => {
+    setupList()
+    expect(screen.queryByTestId('list-resize')).toBeNull()
+  })
+
+  it('labelWidth still sets the column width', () => {
+    setupList({ labelWidth: 240 })
+    const cell = rowOf('Brand audit').firstElementChild as HTMLElement
+    expect(cell).toHaveStyle({ width: '240px' })
+  })
+})
+
+describe('TimelineGantt creating tasks on the timeline', () => {
+  const px = PX_PER_DAY.month
+
+  const cProjects: GanttProject[] = [
+    { id: 'cp', name: 'Create Project', status: 'active', start_date: '2026-09-01', end_date: '2026-09-30' },
+  ]
+  const cMilestones: GanttMilestone[] = [
+    { id: 'm1', project_id: 'cp', name: 'Discovery', start_date: '2026-09-03', end_date: '2026-09-10', sort_order: 0 },
+  ]
+  const cTasks: GanttTask[] = [
+    { id: 'x1', project_id: 'cp', milestone_id: 'm1', title: 'Kickoff', status: 'todo', start_date: '2026-09-04', due_date: '2026-09-05' },
+  ]
+  const cRange = computeContentRange(
+    ['2026-09-01', '2026-09-30', '2026-09-03', '2026-09-10', '2026-09-04', '2026-09-05'],
+    TODAY,
+  )
+
+  function setupCreate(over: Props = {}) {
+    const onCreateTask = vi.fn()
+    render(
+      <I18nProvider>
+        <TimelineGantt
+          projects={cProjects}
+          tasks={cTasks}
+          milestones={cMilestones}
+          zoom="month"
+          editable={true}
+          today={TODAY}
+          onCreateTask={onCreateTask}
+          onTaskClick={vi.fn()}
+          onMilestoneClick={vi.fn()}
+          onTaskDates={vi.fn().mockResolvedValue(undefined)}
+          {...over}
+        />
+      </I18nProvider>,
+    )
+    return { onCreateTask }
+  }
+
+  const milestoneRow = () => document.querySelector('[data-milestone-id="m1"]') as HTMLElement
+
+  it('the + on a milestone row asks for an undated task under it', () => {
+    const { onCreateTask } = setupCreate()
+    fireEvent.click(within(milestoneRow()).getByRole('button', { name: 'Add task' }))
+    expect(onCreateTask).toHaveBeenCalledWith(
+      { milestone_id: 'm1', start_date: null },
+      expect.objectContaining({ left: expect.any(Number) }),
+    )
+  })
+
+  it('the + on the project row asks for a task with no milestone', () => {
+    const { onCreateTask } = setupCreate()
+    const projectRow = screen.getByTitle(/^Create Project:/).closest('.gantt-row') as HTMLElement
+    fireEvent.click(within(projectRow).getByRole('button', { name: 'Add task' }))
+    expect(onCreateTask).toHaveBeenCalledWith(
+      { milestone_id: null, start_date: null },
+      expect.objectContaining({ left: expect.any(Number) }),
+    )
+  })
+
+  it('clicking empty track in a milestone row plants a task on that day', () => {
+    const { onCreateTask } = setupCreate()
+    const track = within(milestoneRow()).getByTestId('milestone-track')
+    // jsdom measures every element at the origin, so clientX is the offset in px.
+    fireEvent.click(track, { clientX: 3 * px, clientY: 40 })
+    expect(onCreateTask).toHaveBeenCalledWith(
+      { milestone_id: 'm1', start_date: addDays(cRange.start, 3) },
+      expect.objectContaining({ left: 3 * px }),
+    )
+  })
+
+  it('a click that lands on a bar belongs to the bar, not to the track', () => {
+    const { onCreateTask } = setupCreate()
+    fireEvent.click(screen.getByTitle(/^Discovery:/), { clientX: 20, clientY: 40 })
+    expect(onCreateTask).not.toHaveBeenCalled()
+  })
+
+  it('read-only mode offers no + and ignores clicks on the track', () => {
+    const { onCreateTask } = setupCreate({
+      editable: false,
+      onTaskClick: undefined,
+      onMilestoneClick: undefined,
+    })
+    expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull()
+    fireEvent.click(within(milestoneRow()).getByTestId('milestone-track'), { clientX: 3 * px, clientY: 40 })
+    expect(onCreateTask).not.toHaveBeenCalled()
+  })
+
+  it('no + at all when the caller cannot create tasks', () => {
+    setupCreate({ onCreateTask: undefined })
+    expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull()
+  })
+})
+
 describe('TimelineGantt drag', () => {
   const px = PX_PER_DAY.month
 
@@ -199,7 +429,7 @@ describe('TimelineGantt drag', () => {
     fireEvent.pointerMove(el, { clientX: 102, pointerId: 1, buttons: 1 })
     fireEvent.pointerUp(el, { clientX: 102, pointerId: 1 })
     expect(onTaskDates).not.toHaveBeenCalled()
-    expect(onTaskClick).toHaveBeenCalledWith('t1')
+    expect(onTaskClick).toHaveBeenCalledWith('t1', expect.objectContaining({ left: expect.any(Number) }))
   })
 
   it('Escape during a drag cancels without saving and restores the position', () => {
@@ -316,7 +546,7 @@ describe('TimelineGantt drag', () => {
     fireEvent.pointerMove(el, { clientX: 100 + 5 * px, pointerId: 1, buttons: 1 })
     fireEvent.pointerDown(other, { clientX: 300, button: 0, pointerId: 2 })
     fireEvent.pointerUp(other, { clientX: 300, pointerId: 2 })
-    expect(onTaskClick).not.toHaveBeenCalledWith('t3')
+    expect(onTaskClick).not.toHaveBeenCalled()
     // The foreign pointer must not commit our drag either; only pointer 1 ends it.
     expect(onTaskDates).not.toHaveBeenCalled()
     fireEvent.pointerUp(el, { clientX: 100 + 5 * px, pointerId: 1 })
@@ -381,12 +611,14 @@ describe('TimelineGantt drag', () => {
     fireEvent.pointerMove(el, { clientX: 100 + 3 * px, pointerId: 1, buttons: 1 })
     const pill = screen.getByText('Sep 13 – Sep 15')
     expect(pill).toBeInTheDocument()
-    // Must stay under the sticky label column (z-10), not over it.
+    // Must stay under the sticky list column (z-10), not over it.
     expect(pill).toHaveClass('z-[9]')
-    // The bar's own text stays the title so it is still identifiable mid-drag.
-    expect(el).toHaveTextContent('Brand audit')
-    // A one-day bar is 12px wide, too narrow for a title.
+    // Nothing is drawn inside a bar but its progress fill; the title is printed
+    // beside it, where it is still readable mid-drag and at any bar width.
+    expect(el.textContent).toBe('')
     expect(screen.getByRole('button', { name: /Kickoff/ }).textContent).toBe('')
+    const row = el.closest('.gantt-row') as HTMLElement
+    expect(within(row).getByTestId('bar-label')).toHaveTextContent('Brand audit')
     fireEvent.pointerUp(el, { clientX: 100 + 3 * px, pointerId: 1 })
     expect(screen.queryByText('Sep 13 – Sep 15')).toBeNull()
   })
@@ -462,10 +694,16 @@ describe('TimelineGantt milestones', () => {
     expect(within(row('m2')).getAllByText('0/3').length).toBeGreaterThan(0)
   })
 
-  it('the progress fill is done/total of the bar width', () => {
+  it('the progress fill is the percentage the row prints, not the done count', () => {
+    // Revision (c): the fill and the label are the same number. These fixtures carry
+    // no progress at all, so both are 0 even though m1 has one task marked done.
     setupMilestones()
-    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '33.3%' })
+    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '0.0%' })
     expect(within(row('m2')).getByTestId('milestone-fill')).toHaveStyle({ width: '0.0%' })
+    const graded = mTasks.map((tk) => (tk.milestone_id === 'm1' ? { ...tk, progress: 60 } : tk))
+    cleanup()
+    setupMilestones({ tasks: graded })
+    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '60.0%' })
   })
 
   it('expanding a milestone reveals its tasks nested a level deeper', () => {
@@ -545,7 +783,8 @@ describe('TimelineGantt milestones', () => {
 
   it('tasks with no milestone sit under an Unassigned group', () => {
     setupMilestones()
-    expect(screen.getByText('Unassigned')).toBeInTheDocument()
+    // Scoped: "Unassigned" is also what an empty assignee column says.
+    expect(within(screen.getByTestId('unassigned-row')).getByText('Unassigned')).toBeInTheDocument()
     const bar = screen.getByRole('button', { name: /Loose end/ })
     expect(bar).toBeInTheDocument()
     expect((bar.closest('.gantt-row') as HTMLElement).querySelector('.pl-12')).not.toBeNull()
@@ -600,13 +839,25 @@ describe('TimelineGantt milestones', () => {
     expect(screen.queryByRole('button', { name: /Kickoff deck/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Stakeholder audit/ })).toBeInTheDocument()
     expect(within(row('m1')).getAllByText('1/3').length).toBeGreaterThan(0)
-    expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '33.3%' })
+  })
+
+  it("the milestone's percent is the mean of all its tasks, hidden done ones included", () => {
+    const graded: GanttTask[] = [
+      { id: 'g1', project_id: 'mp', milestone_id: 'm1', title: 'Zero', status: 'todo', start_date: '2026-09-03', due_date: '2026-09-04', progress: 0 },
+      { id: 'g2', project_id: 'mp', milestone_id: 'm1', title: 'Half', status: 'in_progress', start_date: '2026-09-05', due_date: '2026-09-06', progress: 50 },
+      { id: 'g3', project_id: 'mp', milestone_id: 'm1', title: 'Finished', status: 'done', start_date: '2026-09-07', due_date: '2026-09-08', progress: 100 },
+    ]
+    setupMilestones({ tasks: graded, milestones: [mMilestones[0]], hideDone: true })
+    // The done task has no row, but 0 + 50 + 100 over three tasks is still 50%.
+    expect(screen.queryByRole('button', { name: /^Finished:/ })).toBeNull()
+    expect(within(row('m1')).getByText('50%')).toBeInTheDocument()
+    expect(within(row('m1')).getByTestId('bar-label')).toHaveTextContent('Discovery · 50%')
   })
 
   it('a milestone whose tasks are all done and hidden shows a full bar at n/n', () => {
     const allDone: GanttTask[] = [
-      { id: 'd1', project_id: 'mp', milestone_id: 'm1', title: 'Shipped', status: 'done', start_date: '2026-09-03', due_date: '2026-09-04' },
-      { id: 'd2', project_id: 'mp', milestone_id: 'm1', title: 'Also shipped', status: 'done', start_date: '2026-09-05', due_date: '2026-09-06' },
+      { id: 'd1', project_id: 'mp', milestone_id: 'm1', title: 'Shipped', status: 'done', start_date: '2026-09-03', due_date: '2026-09-04', progress: 100 },
+      { id: 'd2', project_id: 'mp', milestone_id: 'm1', title: 'Also shipped', status: 'done', start_date: '2026-09-05', due_date: '2026-09-06', progress: 100 },
     ]
     setupMilestones({
       tasks: allDone,
@@ -617,6 +868,7 @@ describe('TimelineGantt milestones', () => {
     })
     expect(screen.queryByRole('button', { name: /Shipped/ })).toBeNull()
     expect(within(row('m1')).getAllByText('2/2').length).toBeGreaterThan(0)
+    // Both rows are hidden and both are at 100%: the bar still reads as finished.
     expect(within(row('m1')).getByTestId('milestone-fill')).toHaveStyle({ width: '100.0%' })
   })
 
@@ -676,7 +928,7 @@ describe('TimelineGantt milestones', () => {
 
   it('a project with no milestones keeps the flat layout', () => {
     setupMilestones({ milestones: [] })
-    expect(screen.queryByText('Unassigned')).toBeNull()
+    expect(screen.queryByTestId('unassigned-row')).toBeNull()
     expect(document.querySelectorAll('[data-testid="milestone-row"]')).toHaveLength(0)
     // Every dated task is a top-level row again.
     const bar = screen.getByRole('button', { name: /Kickoff deck/ })
