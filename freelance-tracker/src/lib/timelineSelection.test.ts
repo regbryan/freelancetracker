@@ -30,8 +30,8 @@ describe('resolveSelection', () => {
     expect(resolveSelection('gone', 'beta', projects)).toBe('beta')
   })
 
-  it('accepts Overview from storage', () => {
-    expect(resolveSelection(null, OVERVIEW, projects)).toBe(OVERVIEW)
+  it('ignores a remembered Overview and falls through to a project', () => {
+    expect(resolveSelection(null, OVERVIEW, projects)).not.toBe(OVERVIEW) // a remembered Overview never wins
   })
 
   it('picks the most recently updated active project when neither source is usable', () => {

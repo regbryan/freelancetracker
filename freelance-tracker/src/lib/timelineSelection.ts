@@ -25,7 +25,7 @@ function byUpdatedDesc(a: SelectableProject, b: SelectableProject): number {
 /**
  * Decide what the timeline should show, in priority order:
  * 1. an explicit `?project=` value (Overview or a project that still exists),
- * 2. the last selection remembered in localStorage, under the same validity rule,
+ * 2. the last *project* remembered in localStorage (a remembered Overview is ignored),
  * 3. the most recently updated *active* project,
  * 4. the most recently updated project of any status,
  * 5. Overview — the workspace has no projects at all.
@@ -42,7 +42,9 @@ export function resolveSelection(
     v === OVERVIEW || (v !== null && v !== '' && projects.some((p) => p.id === v))
 
   if (isUsable(param)) return param
-  if (isUsable(stored)) return stored
+  // A remembered Overview is not honoured: Overview is a deliberate detour, never the
+  // place the page should open on. Only a remembered project id is restored.
+  if (isUsable(stored) && stored !== OVERVIEW) return stored
 
   const active = projects.filter((p) => p.status === 'active').sort(byUpdatedDesc)
   if (active.length > 0) return active[0].id
