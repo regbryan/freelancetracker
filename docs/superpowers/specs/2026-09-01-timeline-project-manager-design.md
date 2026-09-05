@@ -561,3 +561,37 @@ ProjectManager.com Gantt as the target (see
   button (opens the existing dialog). Progress and assignee save inline.
 - Portal: progress shown; assignee not exposed (portal views exclude it, unchanged).
 - Not in this pass: phase bracket bars, diamonds, day-level axis, dependencies, baseline.
+
+
+## Revision 2026-09-05 (d) — supersedes (c): no wide list; the bar is the control
+
+Reggie saw the six-column task list and rejected it: "I do not want this wider and
+taking up a bunch of space. Visualization is better. I want to click the square and
+make my modifications there." He also asked for estimated hours and for creating tasks
+directly on the timeline.
+
+- **Left column stays narrow** (default 320 px, resizable): task name, then a small
+  `%` and the assignee's initials in secondary text. No other columns.
+- **Bar popover**: clicking a task bar (or a tray chip) opens a floating panel anchored
+  to the bar, not a modal: title (editable), status, priority, assignee (owner plus the
+  project's collaborators, or Unassigned), progress slider 0–100, estimated hours,
+  logged hours (read-only sum of `time_entries.hours` where `task_id` = task), start and
+  due dates, milestone, description, Delete. Every change saves on blur/change with the
+  same optimistic-plus-banner pattern; Esc or clicking outside closes it. The old
+  full dialog remains reachable from an "Open full editor" link for the recurrence
+  options.
+- **Create on the timeline**: a "+ Task" control on each milestone row and on the
+  project row (for unassigned tasks); clicking empty track space in a milestone's
+  row creates a one-day task on that date under that milestone. Both open the popover
+  on the new task with the title focused.
+- **Hours**: `tasks.estimate_hours numeric(6,2) null`. The popover shows
+  `logged / estimate h`; milestone and project rows roll both up. Over-estimate is shown
+  in the negative colour. `progress` (revision c) stays; milestone `%` is the mean of its
+  tasks' progress.
+- **Assignee on the timeline**: initials chip after the bar label (`name · 60%` then a
+  20 px circle with initials, title = full name). Owner = "Me"/profile name; members by
+  email local part.
+- Migration file `supabase_migration_task_progress.sql` gains `estimate_hours`. Portal
+  view gets `progress` only (no hours, no assignee).
+- Dropped from (c): the six-column list, the inline details row, the split default of
+  560 px.
