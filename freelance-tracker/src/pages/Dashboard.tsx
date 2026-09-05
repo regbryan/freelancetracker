@@ -30,6 +30,7 @@ import { useTasks } from '../hooks/useTasks'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
 import { useI18n } from '../lib/i18n'
 import { userStorage } from '../lib/userStorage'
+import { isFeatureEnabled } from '../lib/features'
 
 const CHART_COLORS = ['#3e6b5a', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -45,6 +46,7 @@ const STATUS_STYLES: Record<string, { key: string; style: string }> = {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { t, lang } = useI18n()
+  const meetingsEnabled = isFeatureEnabled('meetings')
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const { projects, loading: pLoading } = useProjects()
   const { entries, loading: tLoading } = useTimeEntries()
@@ -81,7 +83,9 @@ export default function Dashboard() {
   })
   const { clients, loading: cLoading } = useClients()
 
-  const loading = pLoading || tLoading || iLoading || cLoading || taskLoading || mnLoading
+  // Meeting notes are still fetched (the hook stays wired up) but must not hold the
+  // dashboard's spinner open while the card that shows them is switched off.
+  const loading = pLoading || tLoading || iLoading || cLoading || taskLoading || (meetingsEnabled && mnLoading)
 
   // Compute stats from real data
   const unbilledHours = entries
@@ -555,8 +559,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Row 5: Recent entries + Meetings + Revenue Growth */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      {/* Row 5: Recent entries + Meetings (when enabled) + Revenue Growth */}
+      <div className={`grid grid-cols-1 gap-3 ${meetingsEnabled ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         {/* Recent Time Entries */}
         <div>
           <div className="bg-surface rounded-xl border border-border-accent shadow-card p-5">
@@ -594,6 +598,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Meetings */}
+        {meetingsEnabled && (
         <div>
           <div className="bg-surface rounded-xl border border-border-accent shadow-card p-5 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
@@ -650,6 +655,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Revenue Growth */}
         <div className="h-full">

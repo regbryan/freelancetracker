@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 import { useRole } from '../hooks/useWorkspaceRole'
+import { isFeatureEnabled, type Feature } from '../lib/features'
 
 // Consolidated nav (was 12 items, now 7):
 // - "Work" rolls up Tasks + Timeline + Time Tracker
@@ -25,18 +26,31 @@ type NavItem = {
   labelKey?: string
   icon: typeof LayoutDashboard
   matchAny?: string[]
+  /** Items for a switched-off feature are dropped from the rendered nav. */
+  feature?: Feature
 }
 
-const navItems: NavItem[] = [
+const allNavItems: NavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/clients', labelKey: 'nav.clients', label: 'Clients', icon: Users },
   { to: '/projects', labelKey: 'nav.projects', label: 'Projects', icon: FolderKanban },
   { to: '/timeline', label: 'Work', icon: Briefcase, matchAny: ['/tasks', '/timeline', '/time'] },
-  { to: '/meetings', labelKey: 'nav.meetings', label: 'Meetings', icon: BookOpen },
-  { to: '/calendar', labelKey: 'nav.calendar', label: 'Calendar', icon: Calendar },
-  { to: '/emails', labelKey: 'nav.emails', label: 'Emails', icon: Mail },
-  { to: '/invoices', label: 'Billing', icon: Wallet, matchAny: ['/invoices', '/contracts', '/expenses'] },
+  { to: '/meetings', labelKey: 'nav.meetings', label: 'Meetings', icon: BookOpen, feature: 'meetings' },
+  { to: '/calendar', labelKey: 'nav.calendar', label: 'Calendar', icon: Calendar, feature: 'calendar' },
+  { to: '/emails', labelKey: 'nav.emails', label: 'Emails', icon: Mail, feature: 'emails' },
+  {
+    to: '/invoices',
+    label: 'Billing',
+    icon: Wallet,
+    matchAny: [
+      '/invoices',
+      ...(isFeatureEnabled('contracts') ? ['/contracts'] : []),
+      ...(isFeatureEnabled('expenses') ? ['/expenses'] : []),
+    ],
+  },
 ]
+
+const navItems: NavItem[] = allNavItems.filter((item) => !item.feature || isFeatureEnabled(item.feature))
 
 const collaboratorItems: NavItem[] = [
   { to: '/timeline', labelKey: 'nav.timeline', label: 'Timeline', icon: GanttChartSquare },

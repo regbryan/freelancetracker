@@ -603,3 +603,38 @@ directly on the timeline.
 approval: `tasks.progress` and `tasks.estimate_hours` added; 116 done tasks backfilled to
 100; `portal_tasks` gained `progress`. Verified: 2 new columns, done = progress-100 = 116,
 0 open tasks with a non-zero progress, portal view column present.
+
+## Simplification 2026-09-05
+
+Nine months of real usage says most of the app is three features wide. Row counts from
+production:
+
+| Feature | Rows |
+| --- | --- |
+| Time entries | 184 |
+| Tasks | 148 |
+| Projects | 17 |
+| Milestones | 11 |
+| Clients | 6 |
+| Invoices | 5 |
+| Meeting notes | 1 (April; produced 0 tasks) |
+| Email sync | 1 (April) |
+| Contracts | 0 |
+| Expenses | 0 |
+
+**Decision.** Hide **Meeting Notes**, **Contracts** (including the public e-signature
+page) and **Expenses**. Keep **Email Search** and **Calendar** — both are cheap to keep
+and Calendar is read-only against Google.
+
+**Mechanism.** `src/lib/features.ts` exports `isFeatureEnabled(feature)` over a hard-coded
+`HIDDEN` set. Hidden means: absent from the sidebar, the bottom nav's "More" set, the
+Billing sub-nav, the command palette (results and placeholder), the Dashboard, and the
+project/client tab strips; and the routes `/expenses`, `/contracts`, `/meetings`,
+`/meetings/:id` and the public `/sign/:token` all render `<Navigate to="/" replace />`.
+No component, hook, page, database table or i18n key was deleted — the pages still
+compile and still ship in the bundle, so switching a feature back on is a one-line edit
+to the `HIDDEN` set.
+
+**Follow-up.** If none of the three is missed by **2026-10-05**, delete the pages, hooks,
+forms, PDF generators, i18n keys and the `meeting_notes` / `contracts` /
+`contract_signatures` / `expenses` tables outright.

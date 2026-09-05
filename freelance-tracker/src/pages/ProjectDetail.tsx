@@ -30,6 +30,7 @@ import { useRole } from '../hooks/useWorkspaceRole'
 import { generateInvoicePDF } from '../components/InvoicePDF'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useI18n } from '../lib/i18n'
+import { isFeatureEnabled } from '../lib/features'
 
 const STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
   active: { labelKey: 'projectDetail.statusActive', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
@@ -58,6 +59,9 @@ export default function ProjectDetail() {
     const d = new Date(iso + 'T00:00:00')
     return d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
+
+  const meetingsEnabled = isFeatureEnabled('meetings')
+  const contractsEnabled = isFeatureEnabled('contracts')
 
   const { project, loading: projectLoading, error: projectError } = useProject(id)
   const { user } = useAuth()
@@ -430,10 +434,14 @@ export default function ProjectDetail() {
       <Tabs defaultValue="tasks">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
           <TabsTrigger value="tasks" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabTasks')}</TabsTrigger>
-          <TabsTrigger value="meetings" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabMeetings')}</TabsTrigger>
+          {meetingsEnabled && (
+            <TabsTrigger value="meetings" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabMeetings')}</TabsTrigger>
+          )}
           <TabsTrigger value="notes" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabNotes')}</TabsTrigger>
           <TabsTrigger value="communications" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabComms')}</TabsTrigger>
-          <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabContracts')}</TabsTrigger>
+          {contractsEnabled && (
+            <TabsTrigger value="contracts" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabContracts')}</TabsTrigger>
+          )}
           <TabsTrigger value="invoices" className="text-[11px] sm:text-[12px] shrink-0">{t('projectDetail.tabInvoices')}</TabsTrigger>
         </TabsList>
 
@@ -803,6 +811,7 @@ export default function ProjectDetail() {
 
 
         {/* Meetings Tab */}
+        {meetingsEnabled && (
         <TabsContent value="meetings">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -846,6 +855,7 @@ export default function ProjectDetail() {
             )}
           </div>
         </TabsContent>
+        )}
 
         {/* Notes Tab */}
         <TabsContent value="notes">
@@ -952,6 +962,7 @@ export default function ProjectDetail() {
         </TabsContent>
 
         {/* Contracts Tab */}
+        {contractsEnabled && (
         <TabsContent value="contracts">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
@@ -1065,6 +1076,7 @@ export default function ProjectDetail() {
             />
           </div>
         </TabsContent>
+        )}
 
         {/* Invoices Tab */}
         <TabsContent value="invoices">
