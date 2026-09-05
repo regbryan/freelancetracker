@@ -690,6 +690,9 @@ export default function Timeline() {
             </p>
           </div>
           <TimelineGantt
+            // Remount on project switch: the chart scrolls to its content once per mount,
+            // and a scroll offset carried over from another project lands anywhere.
+            key={selection}
             projects={visibleProjects}
             // Every task of the project, done ones included: the Gantt needs them for the
             // milestone counts and drops the done rows itself when `hideDone` is on.
