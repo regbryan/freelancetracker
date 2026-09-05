@@ -595,3 +595,11 @@ directly on the timeline.
   view gets `progress` only (no hours, no assignee).
 - Dropped from (c): the six-column list, the inline details row, the split default of
   560 px.
+
+
+### Migration 3 applied 2026-09-05
+
+`supabase_migration_task_progress.sql` applied to `pnilvktjzpnyqhnowuhs` with Reggie's
+approval: `tasks.progress` and `tasks.estimate_hours` added; 116 done tasks backfilled to
+100; `portal_tasks` gained `progress`. Verified: 2 new columns, done = progress-100 = 116,
+0 open tasks with a non-zero progress, portal view column present.
