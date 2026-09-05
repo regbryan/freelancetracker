@@ -567,6 +567,10 @@ const en: Dict = {
   'quickLog.paletteAction': 'Log time…',
   'quickLog.suggestionsLabel': 'Recent descriptions',
 
+  // Command palette
+  'palette.placeholder': 'Search clients, projects, tasks, invoices…',
+  'palette.placeholderWithMeetings': 'Search clients, projects, tasks, invoices, meetings…',
+
   // Portal
   'portal.title': 'Client Portal',
   'portal.signInPrompt': 'Enter your email to receive a sign-in link.',
@@ -2105,6 +2109,10 @@ const es: Dict = {
   'quickLog.logAgain': 'Registrar de nuevo',
   'quickLog.paletteAction': 'Registrar tiempo…',
   'quickLog.suggestionsLabel': 'Descripciones recientes',
+
+  // Command palette
+  'palette.placeholder': 'Buscar clientes, proyectos, tareas, facturas…',
+  'palette.placeholderWithMeetings': 'Buscar clientes, proyectos, tareas, facturas, reuniones…',
 
   // Portal
   'portal.title': 'Portal de Clientes',

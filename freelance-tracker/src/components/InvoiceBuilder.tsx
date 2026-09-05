@@ -16,6 +16,7 @@ import { useProject } from '@/hooks/useProjects'
 import { useInvoices, getNextInvoiceNumber, type InvoiceItemInsert } from '@/hooks/useInvoices'
 import { useI18n } from '../lib/i18n'
 import { monthInputToPeriod, latestMonthInput, currentMonthInput } from '../lib/invoicePeriod'
+import { isFeatureEnabled } from '../lib/features'
 
 interface InvoiceBuilderProps {
   open: boolean
@@ -42,7 +43,12 @@ export default function InvoiceBuilder({
   const { t, lang } = useI18n()
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
   const { entries, loading: entriesLoading } = useUnbilledEntries(projectId)
-  const { expenses: unbilledExpenses, loading: expensesLoading } = useUnbilledExpenses(projectId)
+  const { expenses: allUnbilledExpenses, loading: expensesLoading } = useUnbilledExpenses(projectId)
+  // Expenses are switched off: the picker (and any expense line items) drop out of the builder.
+  const unbilledExpenses = useMemo(
+    () => (isFeatureEnabled('expenses') ? allUnbilledExpenses : []),
+    [allUnbilledExpenses],
+  )
   const { project, loading: projectLoading } = useProject(projectId)
   const { createInvoice } = useInvoices()
 

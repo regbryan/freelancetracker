@@ -36,6 +36,16 @@ describe('Sidebar collaborator shell', () => {
     expect(tasksLink.className).toContain('text-white font-semibold')
   })
 
+  it('owner sidebar has no /meetings link but keeps Billing', () => {
+    renderWithRole(<Sidebar open onClose={() => {}} />, 'owner')
+
+    const hrefs = screen.getAllByRole('link').map((l) => l.getAttribute('href'))
+    expect(hrefs).not.toContain('/meetings')
+    expect(hrefs).toContain('/invoices')
+    expect(screen.getByRole('link', { name: /Billing/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Meetings/ })).not.toBeInTheDocument()
+  })
+
   it('owner Work link is active at /tasks, /timeline, and /time', () => {
     for (const path of ['/tasks', '/timeline', '/time']) {
       const { unmount } = renderWithRole(<Sidebar open onClose={() => {}} />, 'owner', [path])

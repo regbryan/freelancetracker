@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '../lib/i18n'
 import { useRole } from '../hooks/useWorkspaceRole'
+import { isFeatureEnabled } from '../lib/features'
 
 type BottomNavItem = { to: string; labelKey: string; icon: typeof LayoutDashboard }
 
@@ -36,7 +37,14 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
   const role = useRole()
   const items = role === 'collaborator' ? collaboratorItems : navItems
 
-  const morePages = ['/clients', '/expenses', '/contracts', '/calendar', '/settings']
+  // Paths reachable from the "More" sheet — switched-off features drop out.
+  const morePages = [
+    '/clients',
+    ...(isFeatureEnabled('expenses') ? ['/expenses'] : []),
+    ...(isFeatureEnabled('contracts') ? ['/contracts'] : []),
+    ...(isFeatureEnabled('calendar') ? ['/calendar'] : []),
+    '/settings',
+  ]
   const isMoreActive = morePages.some((p) => location.pathname.startsWith(p))
 
   return (

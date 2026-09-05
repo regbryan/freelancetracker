@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { lazy, Suspense, type ReactElement } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { isFeatureEnabled, type Feature } from './lib/features'
 import Layout from './components/Layout'
 import OwnerGate from './components/OwnerGate'
 import Login from './pages/Login'
@@ -28,6 +29,14 @@ const Terms = lazy(() => import('./pages/Terms'))
 const Portal = lazy(() => import('./pages/Portal'))
 const PortalLogin = lazy(() => import('./pages/PortalLogin'))
 
+/**
+ * Route element for a feature the owner has switched off: the page component stays
+ * imported (and compiled) but the route bounces to the dashboard.
+ */
+function hidden(feature: Feature, element: ReactElement): ReactElement {
+  return isFeatureEnabled(feature) ? element : <Navigate to="/" replace />
+}
+
 function PageLoader() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
@@ -52,7 +61,7 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public routes */}
-          <Route path="/sign/:token" element={<ContractSign />} />
+          <Route path="/sign/:token" element={hidden('contracts', <ContractSign />)} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/portal" element={user ? <Portal /> : <PortalLogin />} />
@@ -68,11 +77,11 @@ export default function App() {
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/timeline" element={<Timeline />} />
               <Route path="/time" element={<TimeTracker />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/contracts" element={<Contracts />} />
+              <Route path="/expenses" element={hidden('expenses', <Expenses />)} />
+              <Route path="/contracts" element={hidden('contracts', <Contracts />)} />
               <Route path="/invoices" element={<Invoices />} />
-              <Route path="/meetings" element={<MeetingNotes />} />
-              <Route path="/meetings/:id" element={<MeetingNoteDetail />} />
+              <Route path="/meetings" element={hidden('meetings', <MeetingNotes />)} />
+              <Route path="/meetings/:id" element={hidden('meetings', <MeetingNoteDetail />)} />
               <Route path="/emails" element={<EmailSearch />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/settings" element={<Settings />} />

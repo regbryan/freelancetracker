@@ -8,6 +8,7 @@ import { useInvoices } from '../hooks/useInvoices'
 import { useMeetingNotes } from '../hooks/useMeetingNotes'
 import { useI18n } from '../lib/i18n'
 import { useRole } from '../hooks/useWorkspaceRole'
+import { isFeatureEnabled } from '../lib/features'
 
 interface NavResult {
   id: string
@@ -103,9 +104,11 @@ export default function CommandPalette({ open, onClose, onLogTime }: Props) {
         out.push({ id: `invoice-${i.id}`, label: i.invoice_number, sublabel: `$${i.total.toFixed(2)} · ${i.status}`, to: '/invoices', kind: 'invoice' })
       }
     }
-    for (const m of meetingNotes) {
-      if (matches(m.title) || matches(m.summary)) {
-        out.push({ id: `meeting-${m.id}`, label: m.title, sublabel: m.summary ?? '', to: `/meetings/${m.id}`, kind: 'meeting' })
+    if (isFeatureEnabled('meetings')) {
+      for (const m of meetingNotes) {
+        if (matches(m.title) || matches(m.summary)) {
+          out.push({ id: `meeting-${m.id}`, label: m.title, sublabel: m.summary ?? '', to: `/meetings/${m.id}`, kind: 'meeting' })
+        }
       }
     }
 
@@ -160,7 +163,7 @@ export default function CommandPalette({ open, onClose, onLogTime }: Props) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search clients, projects, tasks, invoices, meetings…"
+            placeholder={isFeatureEnabled('meetings') ? t('palette.placeholderWithMeetings') : t('palette.placeholder')}
             className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted focus:outline-none"
           />
           <kbd className="hidden sm:inline-flex items-center px-1.5 h-5 rounded border border-border text-[10px] font-mono text-text-muted">esc</kbd>

@@ -2599,3 +2599,48 @@ helpers survived, the layout did not.
   harness with a popover open: the label column holds at 320px with no sub-line
   clipped, the popover is portaled and overlays the chart with nothing cut off, and
   every bar label sits alone on its own row.
+
+### Task 16: Hide unused features
+
+Meeting Notes, Contracts (with e-signature) and Expenses go behind a feature list; Email
+Search and Calendar stay. Code, tables and i18n keys are all kept — see
+"Simplification 2026-09-05" in the design doc for the usage numbers and the delete-after-
+a-month follow-up.
+
+- [x] **`src/lib/features.ts`** (new): `Feature` union of the five, a `HIDDEN` set holding
+  `meetings` / `contracts` / `expenses`, and `isFeatureEnabled()`. `features.test.ts`
+  asserts the three off and the two on (3 tests).
+- [x] **`App.tsx`**: a `hidden(feature, element)` helper returns `<Navigate to="/" replace />`
+  for a switched-off feature. Applied to `/expenses`, `/contracts`, `/meetings`,
+  `/meetings/:id` and the public `/sign/:token` (which belongs to contracts). All the
+  lazy imports stay, so the pages keep compiling.
+- [x] **`Sidebar.tsx`**: nav items carry an optional `feature` and are filtered; the
+  Meetings item drops out. Billing's `matchAny` keeps only enabled paths (`/invoices`).
+- [x] **`BottomNav.tsx`**: the `morePages` active-state list drops `/expenses` and
+  `/contracts`.
+- [x] **`BillingTabs.tsx`**: Contracts and Expenses tabs are filtered out, and the strip
+  renders `null` below two tabs rather than showing a lone Invoices tab.
+- [x] **`ProjectDetail.tsx`** / **`ClientDetail.tsx`**: the meetings and contracts
+  `TabsTrigger`s and their `TabsContent` render only when enabled. Both default tabs
+  (`tasks`, `projects`) are unaffected.
+- [x] **`CommandPalette.tsx`**: meeting notes are skipped when off, and the hard-coded
+  placeholder became the i18n pair `palette.placeholder` /
+  `palette.placeholderWithMeetings` (both dictionaries).
+- [x] **`Dashboard.tsx`**: the "Recent Meetings" card renders only when enabled and row 5
+  switches from `lg:grid-cols-3` to `lg:grid-cols-2` so the two remaining cards stay
+  balanced.
+- [x] **`InvoiceBuilder.tsx`**: the unbilled-expenses picker is emptied when expenses are
+  off, so no expense line item can reach a new invoice.
+- [x] **Read, no change needed**: `TopBar.tsx` (title map entries are unreachable),
+  `Tasks.tsx`, `TaskList.tsx`, `ActionItemRow.tsx` (no `/meetings/:id` links; the meeting
+  badge only renders inside `MeetingNoteDetail`), `CalendarInsight.tsx` (calendar events,
+  not meeting notes), `useTasks.ts`, `progress.ts`, `useInvoices.ts`, `Privacy.tsx`,
+  `Terms.tsx` (legal prose about stored data, which is retained), `Settings.tsx` (no hits).
+- [x] **Tests.** `features.test.ts` (3) plus an owner-sidebar test in
+  `CollaboratorNav.test.tsx` asserting no `/meetings` link and a surviving Billing item.
+  `vitest.config.ts` gained `testTimeout: 15000`: the 20th test file pushed the
+  userEvent-driven Timeline dialog test (~5.2s) past the 5s default under worker
+  contention. No assertion was changed.
+- [x] **Verified.** `npx tsc -p tsconfig.app.json --noEmit` clean, `npm run lint`
+  0 errors / 54 warnings (identical to the pre-change baseline), `npx vitest run`
+  305 tests passing across 20 files (twice), `npm run build` clean.

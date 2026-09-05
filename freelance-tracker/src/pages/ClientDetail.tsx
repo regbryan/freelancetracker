@@ -12,6 +12,7 @@ import ProjectForm from '../components/ProjectForm'
 import type { ProjectFormData } from '../components/ProjectForm'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useI18n } from '../lib/i18n'
+import { isFeatureEnabled } from '../lib/features'
 
 const STATUS_CONFIG: Record<string, { labelKey: string; bg: string; text: string }> = {
   active: { labelKey: 'clientDetail.statusActive', bg: 'bg-status-active-bg', text: 'text-status-active-text' },
@@ -31,6 +32,7 @@ export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t, lang } = useI18n()
+  const meetingsEnabled = isFeatureEnabled('meetings')
 
   const formatDate = (iso: string | null): string => {
     if (!iso) return '--'
@@ -217,7 +219,9 @@ export default function ClientDetail() {
       <Tabs defaultValue="projects">
         <TabsList>
           <TabsTrigger value="projects" className="text-[12px]">{t('clientDetail.tabProjects')}</TabsTrigger>
-          <TabsTrigger value="meetings" className="text-[12px]">{t('clientDetail.tabMeetings')}</TabsTrigger>
+          {meetingsEnabled && (
+            <TabsTrigger value="meetings" className="text-[12px]">{t('clientDetail.tabMeetings')}</TabsTrigger>
+          )}
           <TabsTrigger value="notes" className="text-[12px]">{t('clientDetail.tabNotes')}</TabsTrigger>
           <TabsTrigger value="invoices" className="text-[12px]">{t('clientDetail.tabInvoices')}</TabsTrigger>
         </TabsList>
@@ -287,6 +291,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         {/* Meetings Tab */}
+        {meetingsEnabled && (
         <TabsContent value="meetings">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -338,6 +343,7 @@ export default function ClientDetail() {
             )}
           </div>
         </TabsContent>
+        )}
 
         {/* Notes Tab */}
         <TabsContent value="notes">
